@@ -1,11 +1,58 @@
+# ─────────────────────────────────────────────────────────────────
+# MovieArchive — Caddyfile
+#
+# Local dev (docker compose --profile app):  http://localhost
+# Production: replace "localhost" with your domain, Caddy handles
+#             automatic TLS via Let's Encrypt automatically.
+#
+# Routing:
+#   /api/*           → Spring Boot backend  (backend:8080)
+#   /swagger-ui/*    → Spring Boot backend  (backend:8080)
+#   /v3/api-docs/*   → Spring Boot backend  (backend:8080)
+#   everything else  → Nuxt 3 frontend      (frontend:3000)
+# ─────────────────────────────────────────────────────────────────
+
+{
+    # Global options
+    email admin@moviearchive.local
+}
+
 localhost {
-    # API requests → Spring Boot backend
+    # ── API: Spring Boot backend ──────────────────────────────
     handle /api/* {
+        reverse_proxy backend:8080 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # ── Swagger UI (springdoc) ────────────────────────────────
+    handle /swagger-ui/* {
+        reverse_proxy backend:8080
+    }
+    handle /v3/api-docs* {
         reverse_proxy backend:8080
     }
 
-    # Everything else → Nuxt frontend
+    # ── Nuxt frontend (SSR + WebSocket for HMR in dev) ───────
     handle {
-        reverse_proxy frontend:3000
+        reverse_proxy frontend:3000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {remote_host}
+
+            # WebSocket upgrade for Nuxt HMR
+            transport http {
+                versions h1 h2
+            }
+        }
+    }
+
+    # ── Security headers ──────────────────────────────────────
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        # Remove Caddy's server signature
+        -Server
     }
 }

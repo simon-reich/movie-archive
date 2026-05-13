@@ -1,0 +1,11 @@
+localhost {
+    # API requests → Spring Boot backend
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+
+    # Everything else → Nuxt frontend
+    handle {
+        reverse_proxy frontend:3000
+    }
+}

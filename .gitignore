@@ -1,1 +1,29 @@
-.vscode
+# IDE
+.vscode/
+.idea/
+
+# Environment — never commit secrets
+.env
+
+# OS
+.DS_Store
+
+# Backend build
+backend/build/
+backend/.gradle/
+backend/out/
+
+# Frontend build & deps
+frontend/.nuxt/
+frontend/.output/
+frontend/node_modules/
+frontend/dist/
+frontend/.pnpm-store/
+
+# Test reports
+frontend/playwright-report/
+frontend/test-results/
+backend/build/reports/
+
+# Docker
+docker-compose.override.yml

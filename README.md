@@ -16,30 +16,45 @@ A personal, searchable film archive. Search movies via TMDB, enrich them with OM
 
 ## Quick Start
 
+### Option A — Infrastructure only (recommended for development)
+
+Start only the infra services (Postgres, OpenSearch, Mailpit, Dashboards) and run BE/FE locally:
+
 ```bash
 # 1. Copy and configure environment variables
 cp .env.example .env
 # Edit .env — set DB_PASSWORD, JWT_SECRET, ENCRYPTION_MASTER_KEY
 
-# 2. Start all services
+# 2. Start infra services
 docker compose up -d
 
-# 3. Open the app
-open http://localhost
+# 3. Run backend locally (port 8080)
+cd backend && ./gradlew bootRun
 
-# 4. Inspect mails (dev SMTP)
-open http://localhost:8025
+# 4. Run frontend locally (port 3000)
+cd frontend && pnpm install && pnpm dev
 ```
 
-Services:
+### Option B — Full stack via Docker
 
-| Service | URL |
-|---|---|
-| App | http://localhost |
-| Backend API | http://localhost/api |
-| Swagger UI | http://localhost/api/swagger-ui.html |
-| Mailpit (mail UI) | http://localhost:8025 |
-| OpenSearch Dashboards | http://localhost:5601 |
+Build and start everything including Caddy, BE, and FE containers:
+
+```bash
+docker compose --profile app up -d
+open http://localhost
+```
+
+### Services
+
+| Service | URL | Profile |
+|---|---|---|
+| App (full stack) | http://localhost | app |
+| Backend API | http://localhost:8080/api | always (local) |
+| Swagger UI | http://localhost:8080/swagger-ui.html | always (local) |
+| Mailpit (mail UI) | http://localhost:8025 | always |
+| OpenSearch Dashboards | http://localhost:5601 | always |
+| Postgres | localhost:5432 | always |
+| OpenSearch | http://localhost:9200 | always |
 
 ---
 

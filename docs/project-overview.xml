@@ -1,0 +1,477 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MovieArchive — Projektübersicht & Konzepterklärungen
+  Zielgruppe: Entwickler mit Frontend-Hintergrund (JS/TS), neu in Java/Spring-Ökosystem
+-->
+<project-overview>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       1. WAS HABEN WIR BISHER
+       ═══════════════════════════════════════════════════════════════════ -->
+  <current-state>
+    <title>Was wir bisher gebaut haben (Phase 0, MOV-9 bis MOV-11)</title>
+
+    <file-structure>
+      <entry path="backend/">
+        Spring Boot 3 + Java 21 Backend-Skeleton. Enthält die komplette
+        Dependency-Liste, Konfiguration und Package-Struktur — aber noch
+        keinen eigentlichen Feature-Code (kommt ab Phase 1).
+      </entry>
+      <entry path="frontend/">
+        Nuxt 3 + Vue 3 + TypeScript Frontend-Skeleton. Tailwind, Pinia,
+        Vitest und Playwright sind konfiguriert. Zeigt gerade nur eine
+        leere Landing-Page.
+      </entry>
+      <entry path="docker-compose.yml">
+        Startet alle Infrastruktur-Dienste lokal. Details siehe Abschnitt
+        "Dev vs. Prod" weiter unten.
+      </entry>
+      <entry path="Caddyfile">
+        Konfiguration für den Reverse-Proxy Caddy. Regelt, welche Requests
+        zum Backend und welche zum Frontend gehen. Siehe Abschnitt
+        "Was ist ein Reverse-Proxy".
+      </entry>
+      <entry path=".env.example">
+        Template für alle Umgebungsvariablen (Passwörter, Secrets). Wird
+        lokal als .env befüllt, nie in Git committet.
+      </entry>
+      <entry path="README.md">
+        Setup-Anleitung, Quick-Start, Service-URLs.
+      </entry>
+      <entry path="CLAUDE.md + .claude/">
+        Kontext-Dokumentation für den KI-Assistenten. Wird automatisch
+        in jede Session geladen. Detail-Docs werden nur bei Bedarf gelesen.
+      </entry>
+    </file-structure>
+
+    <not-yet-built>
+      Noch kein Feature-Code: keine Datenbank-Tabellen, keine API-Endpoints,
+      kein Auth, kein Movie-Fetch. Das kommt schrittweise ab Phase 1 (MOV-18+).
+      Die Skeleton-Struktur ist aber bereit — man könnte das Backend schon
+      starten (es gibt einen /actuator/health Endpoint), und das Frontend
+      zeigt eine leere Seite.
+    </not-yet-built>
+  </current-state>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       2. DEV VS. PROD — WIE LÄUFT DAS JEWEILS?
+       ═══════════════════════════════════════════════════════════════════ -->
+  <dev-vs-prod>
+    <title>Development vs. Production — zwei völlig verschiedene Betriebsarten</title>
+
+    <development>
+      <title>Lokale Entwicklung (täglich)</title>
+      <description>
+        Du willst schnell Code schreiben, sofort Feedback sehen (Hot-Reload),
+        Mails lokal abfangen, echte DB/Search aber keinen echten SMTP-Server.
+      </description>
+
+      <how-it-works>
+        <step order="1">
+          docker compose up -d
+          → Startet NUR die Infrastruktur-Services: Postgres, OpenSearch,
+            Mailpit, OpenSearch-Dashboards. Kein Backend, kein Frontend,
+            kein Caddy.
+        </step>
+        <step order="2">
+          cd backend &amp;&amp; ./gradlew bootRun
+          → Startet den Spring Boot Server direkt auf deinem Mac (Port 8080).
+            Bei Code-Änderungen kann man ihn neu starten. Kein Docker-Build
+            nötig — viel schneller.
+        </step>
+        <step order="3">
+          cd frontend &amp;&amp; pnpm dev
+          → Startet den Nuxt Dev-Server (Port 3000) mit Hot-Module-Replacement.
+            Jede Änderung an .vue-Dateien ist sofort im Browser sichtbar,
+            ohne Reload.
+        </step>
+        <step order="4">
+          Browser öffnet localhost:3000 (direkt Nuxt) oder localhost:8080/api
+          (direkt Backend). Kein Caddy dazwischen — du siehst Ports direkt.
+        </step>
+      </how-it-works>
+
+      <mail-in-dev>
+        Statt echter SMTP: Mailpit läuft auf Port 1025 (SMTP) und 8025 (Web-UI).
+        Alle Mails, die das Backend sendet, landen in Mailpit — du kannst sie
+        unter http://localhost:8025 in einer Inbox ansehen. Keine echten Mails
+        verlassen deinen Rechner. Perfekt zum Testen von Verification-Links etc.
+      </mail-in-dev>
+
+      <advantages>
+        - Hot-Reload Frontend: sofortiges Feedback
+        - Backend-Restart in Sekunden (kein Docker-Build)
+        - Mails lokal abfangen mit Mailpit
+        - Logs direkt im Terminal
+        - Debugger kann direkt an den Java-Prozess attached werden
+      </advantages>
+    </development>
+
+    <production>
+      <title>Production (deployed)</title>
+      <description>
+        Alles läuft in Docker-Containern, ein echter SMTP-Provider wird genutzt,
+        Caddy übernimmt automatisch HTTPS. User greifen über eine echte Domain zu.
+      </description>
+
+      <how-it-works>
+        <step order="1">
+          docker compose --profile app up -d
+          → Startet ALLES: Postgres, OpenSearch, Mailpit (optional),
+            Backend-Container (gebautes JAR), Frontend-Container (gebautes
+            Nuxt-Bundle), Caddy als Reverse-Proxy.
+        </step>
+        <step order="2">
+          Caddy empfängt alle Requests auf Port 80/443.
+          → Leitet /api/* ans Backend, alles andere ans Frontend.
+          → Holt automatisch ein TLS-Zertifikat von Let's Encrypt
+            (nur wenn Domain statt "localhost" im Caddyfile steht).
+        </step>
+        <step order="3">
+          Echter SMTP-Provider (Brevo oder Resend) wird über ENV-Variablen
+          konfiguriert. Mails gehen tatsächlich raus an User.
+        </step>
+      </how-it-works>
+
+      <mail-in-prod>
+        ENV-Variablen MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD
+        zeigen auf einen echten SMTP-Provider (z.B. Brevo smtp.brevo.com:587).
+        Spring Boot sendet alle Mails über diesen Provider. Mailpit wird in
+        Production nicht gebraucht (aber schadet auch nicht wenn es läuft).
+      </mail-in-prod>
+
+      <advantages>
+        - Reproduzierbar: jeder Container hat exakt dieselbe Umgebung
+        - Isoliert: Services sehen nur was sie brauchen (Docker-Netzwerk)
+        - HTTPS automatisch via Caddy + Let's Encrypt
+        - Einfaches Deployment: git pull + docker compose up
+      </advantages>
+    </production>
+
+    <key-difference>
+      Der entscheidende Unterschied: In Dev laufen BE und FE NATIV auf deinem
+      Mac (schnelle Iteration). In Prod laufen sie in Docker-Containern
+      (Reproduzierbarkeit + HTTPS). Die Infra-Services (Postgres, OpenSearch)
+      laufen in beiden Fällen in Docker.
+    </key-difference>
+  </dev-vs-prod>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       3. WAS IST GRADLE?
+       ═══════════════════════════════════════════════════════════════════ -->
+  <gradle>
+    <title>Gradle — Build-Tool für Java (wie npm/pnpm für Node)</title>
+
+    <analogy>
+      Gradle ist für Java/Spring das, was pnpm für Nuxt ist:
+      - pnpm install    → ./gradlew dependencies (Abhängigkeiten laden)
+      - pnpm build      → ./gradlew build (kompilieren + JAR bauen)
+      - pnpm dev        → ./gradlew bootRun (Server starten)
+      - pnpm test       → ./gradlew test (Tests laufen)
+      - package.json    → build.gradle.kts (Abhängigkeiten + Scripts)
+    </analogy>
+
+    <why-gradle-not-maven>
+      Alternative wäre Maven (pom.xml). Wir nutzen Gradle weil:
+      - Schneller (inkrementelle Builds, Build-Cache)
+      - Kotlin DSL statt XML — lesbarer, typ-sicher
+      - Bessere IDE-Unterstützung
+    </why-gradle-not-maven>
+
+    <kotlin-dsl>
+      Unsere build.gradle.kts-Datei ist in Kotlin geschrieben (nicht Java!).
+      Das .kts steht für Kotlin Script. Das ist nur die Konfigurationssprache
+      für den Build — der eigentliche App-Code ist weiterhin Java.
+    </kotlin-dsl>
+
+    <gradlew>
+      Das gradlew-Script (Gradle Wrapper) im Repo stellt sicher, dass alle
+      dieselbe Gradle-Version nutzen — egal ob lokal oder in CI. Du brauchst
+      Gradle NICHT global installiert. ./gradlew lädt bei Bedarf die richtige
+      Version selbst herunter.
+    </gradlew>
+
+    <what-gradle-produces>
+      ./gradlew build erzeugt backend/build/libs/backend-0.0.1-SNAPSHOT.jar
+      — eine sogenannte "Fat JAR" (Uber JAR): eine einzige Datei, die die
+      komplette App + alle Abhängigkeiten enthält. Diese JAR wird dann im
+      Docker-Container gestartet: java -jar backend.jar
+    </what-gradle-produces>
+  </gradle>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       4. WAS IST EIN REVERSE-PROXY? (UND WARUM CADDY?)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <reverse-proxy>
+    <title>Reverse-Proxy — der Türsteher vor deinen Services</title>
+
+    <concept>
+      Stell dir vor, du hast zwei Services: Backend auf Port 8080, Frontend
+      auf Port 3000. Ohne Proxy müsste der Browser zwei verschiedene Adressen
+      kennen — und hätte CORS-Probleme (weil verschiedene Origins).
+
+      Ein Reverse-Proxy sitzt davor und leitet Requests intern weiter:
+
+        Browser → localhost (Port 80)
+                    ↓ Caddy entscheidet anhand des Pfads:
+                    /api/*    → backend:8080
+                    alles     → frontend:3000
+
+      Für den Browser sieht alles wie EIN Server aus (gleicher Origin).
+      Kein CORS. Kein zweites Port.
+    </concept>
+
+    <forward-vs-reverse>
+      Forward-Proxy: steht VOR dem Client (z.B. VPN, Firmens-Proxy).
+        Browser → [Forward-Proxy] → Internet
+      Reverse-Proxy: steht VOR dem Server.
+        Browser → [Reverse-Proxy] → deine Services
+      Wir nutzen Reverse-Proxy.
+    </forward-vs-reverse>
+
+    <why-caddy>
+      Caddy vs. nginx (die übliche Alternative):
+      - Nginx: mächtiger, aber komplexe Konfiguration (100+ Zeilen für HTTPS)
+      - Caddy: minimale Konfiguration (~15 Zeilen), HTTPS vollautomatisch via
+        Let's Encrypt, moderner, gut maintained.
+      Für unser Setup ist Caddy ideal — unser Caddyfile hat ~50 Zeilen
+      inkl. Security-Headers und erklärender Kommentare.
+    </why-caddy>
+
+    <tls-automatic>
+      Sobald man im Caddyfile "localhost" durch eine echte Domain ersetzt
+      (z.B. "moviearchive.example.com"), fragt Caddy automatisch bei
+      Let's Encrypt ein TLS-Zertifikat an und erneuert es. Keine manuelle
+      Zertifikatsverwaltung.
+    </tls-automatic>
+
+    <security-headers>
+      Caddy setzt bei jedem Response Security-Header:
+      - X-Content-Type-Options: nosniff → Browser darf MIME-Type nicht raten
+      - X-Frame-Options: DENY → Seite kann nicht in iframe eingebettet werden
+      - Referrer-Policy → kontrolliert welche URL bei Links weitergegeben wird
+      Das sind Standard-Sicherheitsmaßnahmen, keine Features.
+    </security-headers>
+  </reverse-proxy>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       5. WAS IST SMTP? UND WAS MACHT MAILPIT?
+       ═══════════════════════════════════════════════════════════════════ -->
+  <smtp-and-mailpit>
+    <title>SMTP und Mailpit — wie E-Mail-Versand funktioniert</title>
+
+    <what-is-smtp>
+      SMTP (Simple Mail Transfer Protocol) ist DAS Protokoll für E-Mail-Versand —
+      so wie HTTP das Protokoll für Webseiten ist. Wenn eine App eine Mail
+      sendet, spricht sie über SMTP mit einem Mail-Server.
+
+      Ablauf:
+        App (Spring Boot) → SMTP-Verbindung → Mail-Server → Empfänger-Inbox
+
+      Man braucht dafür: Host, Port, Username, Password eines Mail-Servers.
+      Das ist SMTP — kein Framework, kein Library-Name, sondern ein Protokoll
+      aus den 1980ern, das bis heute funktioniert.
+    </what-is-smtp>
+
+    <smtp-providers>
+      In Production will man einen professionellen SMTP-Provider, weil:
+      - Eigene Mail-Server werden oft als Spam markiert
+      - Provider kümmern sich um Deliverability, Bounce-Handling, etc.
+
+      Unsere Empfehlungen:
+      - Brevo (früher Sendinblue): 300 Mails/Tag kostenlos, einfache Einrichtung
+      - Resend: 3.000 Mails/Monat kostenlos, moderne API
+
+      Konfiguration nur über .env:
+        MAIL_HOST=smtp.brevo.com
+        MAIL_PORT=587
+        MAIL_USERNAME=dein@account.com
+        MAIL_PASSWORD=dein-api-key
+    </smtp-providers>
+
+    <what-is-mailpit>
+      Mailpit ist ein "Fake-SMTP-Server" für die lokale Entwicklung.
+
+      Das Problem ohne Mailpit:
+        App sendet Mail → landet bei echtem User → nervt, ist langsam,
+        kostet ggf. Geld, und wenn man testing-Adressen tippt landen Mails
+        bei fremden Leuten.
+
+      Mit Mailpit:
+        App sendet Mail → Mailpit fängt sie ab → Mail landet nirgendwo
+        → du kannst sie unter http://localhost:8025 ansehen.
+
+      Mailpit verhält sich aus Sicht von Spring Boot wie ein echter SMTP-Server
+      (Port 1025, kein Auth nötig). Der einzige Unterschied: Mails gehen nicht
+      raus. Perfekt zum Testen von Verification-Links, Password-Reset-Mails etc.
+    </what-is-mailpit>
+  </smtp-and-mailpit>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       6. WAS SIND DOCKER COMPOSE PROFILES?
+       ═══════════════════════════════════════════════════════════════════ -->
+  <docker-compose-profiles>
+    <title>Docker Compose Profiles — selektives Starten von Services</title>
+
+    <concept>
+      Ohne Profiles: docker compose up startet ALLE definierten Services.
+      Mit Profiles: Services können einer Gruppe zugeordnet werden.
+      Services ohne Profil starten immer. Services mit Profil nur wenn
+      das Profil explizit aktiviert wird.
+    </concept>
+
+    <our-setup>
+      In unserem docker-compose.yml:
+
+      Immer gestartet (kein Profil):
+        - postgres          (Datenbank)
+        - opensearch        (Suchindex)
+        - opensearch-dashboards (Such-UI)
+        - mailpit           (Dev-Mail)
+
+      Nur mit --profile app:
+        - backend           (Spring Boot Container)
+        - frontend          (Nuxt Container)
+        - caddy             (Reverse-Proxy)
+
+      Kommandos:
+        docker compose up -d              → nur Infra (Dev-Workflow)
+        docker compose --profile app up   → alles (Prod-Workflow)
+    </our-setup>
+
+    <why-this-split>
+      In der Entwicklung startest du Backend und Frontend lokal — da braucht
+      man die Container nicht. Würde man sie trotzdem starten, wäre das Waste
+      und könnte Port-Konflikte geben (Backend-Container auf 8080 blockiert
+      deinen lokalen Spring Boot).
+
+      Die Aufteilung in Profiles löst das sauber: ein docker-compose.yml,
+      zwei Betriebsmodi.
+    </why-this-split>
+  </docker-compose-profiles>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       7. WAS IST @ASYNC IN SPRING? (vs. async/await in JS)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <spring-async>
+    <title>@Async in Spring — Hintergrundaufgaben ohne zu blockieren</title>
+
+    <analogy-to-js>
+      Du kennst async/await aus JavaScript:
+        const result = await fetch(url)  // wartet auf Antwort, blockiert aber nicht den Thread
+        doOtherStuff()
+
+      Das Prinzip ist ähnlich, aber die Mechanik ist komplett anders.
+    </analogy-to-js>
+
+    <java-threading>
+      Java ist Multi-Threaded. Jeder eingehende HTTP-Request bekommt einen
+      eigenen Thread. Wenn dieser Thread blockiert (z.B. auf eine externe API
+      wartet), hängt der gesamte Request — der User wartet.
+
+      Ohne @Async:
+        User klickt "Film speichern"
+        → Request-Thread ruft TMDB auf (500ms)
+        → danach OMDB (300ms)
+        → danach Wikipedia (800ms)
+        → danach Postgres (50ms)
+        → danach OpenSearch (100ms)
+        → User wartet ~1,75 Sekunden auf Antwort
+
+      Das ist schlecht UX — besonders wenn APIs langsam sind oder retried werden.
+    </java-threading>
+
+    <with-async>
+      Mit @Async:
+        User klickt "Film speichern"
+        → Backend antwortet SOFORT mit "202 Accepted" (≈5ms)
+        → Im Hintergrund läuft ein separater Thread:
+            TMDB → OMDB → Wikipedia → Postgres → OpenSearch
+        → User sieht den Film schon in der UI (optimistic UI),
+          während im Hintergrund noch indexiert wird.
+
+      @Async ist eine Spring-Annotation auf einer Methode. Spring startet
+      die Methode automatisch in einem Thread-Pool, ohne dass der Aufrufer
+      warten muss.
+    </with-async>
+
+    <difference-to-js-async>
+      JS async/await:
+      - Single-Threaded, Event-Loop-basiert
+      - await "pausiert" die Funktion, gibt Kontrolle zurück ans Event-Loop
+      - Gut für I/O, schlecht für CPU-intensive Arbeit
+
+      Spring @Async:
+      - Echter neuer OS-Thread wird gestartet
+      - Caller-Thread läuft sofort weiter, Hintergrund-Thread arbeitet parallel
+      - Spring verwaltet einen Thread-Pool (konfigurierbar)
+      - Gut für lang laufende I/O-Operationen (mehrere API-Calls hintereinander)
+
+      Das Ergebnis (non-blocking Caller) ist ähnlich, der Mechanismus ist anders.
+    </difference-to-js-async>
+
+    <retryable>
+      Dazu kommt @Retryable (Spring Retry):
+      Wenn ein externer API-Call fehlschlägt (Timeout, 503 etc.), wird er
+      automatisch bis zu 3x wiederholt — mit exponentiellem Backoff
+      (1s, 2s, 4s Pause zwischen Versuchen).
+
+      Das passiert transparent: der Code weiß nichts davon, Spring Retry
+      fängt die Exception ab und startet den Aufruf neu. Nach 3 Fehlversuchen
+      wird der Fehler geloggt, der Film wird ohne die fehlenden Daten
+      (z.B. ohne Wikipedia) gespeichert.
+    </retryable>
+  </spring-async>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       8. ZUSAMMENSPIEL ALLER TEILE (BIG PICTURE)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <big-picture>
+    <title>Wie alles zusammenspielt</title>
+
+    <flow>
+      User-Aktion: "Film speichern" klicken
+
+      1. Browser → Caddy (Port 80)
+         Caddy erkennt: /api/movies/save → leitet weiter an Backend:8080
+
+      2. Backend (Spring Boot, Port 8080) empfängt Request
+         → antwortet SOFORT mit 202 Accepted (dank @Async)
+         → startet Hintergrund-Task:
+
+      3. Hintergrund-Task (eigener Thread):
+         a. TMDB API call (mit @Retryable abgesichert)
+         b. OMDB API call falls Key vorhanden (mit @Retryable)
+         c. Wikipedia call (mit @Retryable)
+         d. Postgres INSERT (Film-Daten persistieren)
+         e. OpenSearch INDEX (Film durchsuchbar machen)
+
+      4. Frontend hat längst die 202-Antwort erhalten, zeigt Film in UI
+
+      5. Mails (z.B. Verification):
+         Dev:  Backend → Mailpit (localhost:1025) → sichtbar in Web-UI
+         Prod: Backend → SMTP-Provider → echter Posteingang des Users
+    </flow>
+
+    <tech-responsibilities>
+      Gradle     → baut das Backend-JAR ("kompiliert und verpackt")
+      Docker     → isolierte, reproduzierbare Umgebungen für alle Services
+      Profiles   → wählt welche Services starten (dev vs. prod)
+      Caddy      → ein Eingang für alles, kein CORS, automatisch HTTPS
+      @Async     → Save-Flow blockiert User nicht, läuft im Hintergrund
+      @Retryable → externe APIs dürfen kurz ausfallen, ohne den Flow zu brechen
+      Mailpit    → Mails lokal abfangen ohne echten Provider
+      SMTP       → Protokoll über das Mails versendet werden (dev: Mailpit, prod: Brevo)
+      Postgres   → Source of Truth (alle User- und Film-Daten)
+      OpenSearch → Suchabfragen (abgeleitet aus Postgres, jederzeit rebuildbar)
+    </tech-responsibilities>
+  </big-picture>
+
+</project-overview>

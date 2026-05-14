@@ -27,3 +27,6 @@ backend/build/reports/
 
 # Docker
 docker-compose.override.yml
+
+# Private local docs (not for repo)
+docs/

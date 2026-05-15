@@ -20,6 +20,7 @@
 localhost {
     # ── API: Spring Boot backend ──────────────────────────────
     handle /api/* {
+        uri strip_prefix /api
         reverse_proxy backend:8080 {
             header_up X-Forwarded-Proto {scheme}
             header_up X-Real-IP {remote_host}

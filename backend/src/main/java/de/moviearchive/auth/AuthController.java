@@ -131,6 +131,12 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/validate-reset-token")
+    public ResponseEntity<Void> validateResetToken(@org.springframework.web.bind.annotation.RequestParam String token) {
+        authService.validateResetToken(token);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
         authService.resetPassword(req.token(), req.newPassword());

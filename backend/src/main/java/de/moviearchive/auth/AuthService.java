@@ -202,6 +202,18 @@ public class AuthService {
         }, () -> log.debug("Forgot-password request for unknown email: {}", email));
     }
 
+    public void validateResetToken(String rawToken) {
+        String hash = TokenUtils.hashToken(rawToken);
+        PasswordResetToken token = passwordResetTokenRepository.findByTokenHash(hash)
+                .orElseThrow(TokenNotFoundException::new);
+        if (token.isExpired()) {
+            throw new TokenExpiredException();
+        }
+        if (token.isConsumed()) {
+            throw new TokenAlreadyConsumedException();
+        }
+    }
+
     public void resetPassword(String rawToken, String newPassword) {
         String hash = TokenUtils.hashToken(rawToken);
         PasswordResetToken token = passwordResetTokenRepository.findByTokenHash(hash)

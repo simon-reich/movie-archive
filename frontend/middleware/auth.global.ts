@@ -8,8 +8,19 @@ export default defineNuxtRouteMiddleware((to) => {
     '/reset-password',
   ]
 
-  // Allow all public auth routes without cookie check (D-03)
-  if (publicRoutes.includes(to.path)) return
+  // Redirect authenticated users away from auth pages (D-03)
+  if (publicRoutes.includes(to.path)) {
+    if (import.meta.client) {
+      const nuxtApp = useNuxtApp()
+      if (!nuxtApp.isHydrating) {
+        const authStore = useAuthStore()
+        if (authStore.isAuthenticated) {
+          return navigateTo('/')
+        }
+      }
+    }
+    return
+  }
 
   if (import.meta.server) {
     // Server-side: cookie is readable from the incoming request headers (D-02)

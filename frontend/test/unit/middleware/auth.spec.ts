@@ -8,8 +8,12 @@ const publicRoutes = [
   '/verify-email-sent', '/forgot-password', '/reset-password',
 ]
 
-function simulateMiddleware(path: string, hasCookie: boolean): string | undefined {
-  if (publicRoutes.includes(path)) return undefined
+function simulateMiddleware(path: string, hasCookie: boolean, isAuthenticated = false): string | undefined {
+  if (publicRoutes.includes(path)) {
+    // Authenticated users are redirected away from auth pages (client-side only)
+    if (isAuthenticated) return '/'
+    return undefined
+  }
   if (!hasCookie) return '/login'
   return undefined
 }
@@ -45,5 +49,13 @@ describe('auth.global middleware logic', () => {
 
   it('allows navigation to /verify-email-sent without cookie', () => {
     expect(simulateMiddleware('/verify-email-sent', false)).toBeUndefined()
+  })
+
+  it('redirects authenticated user away from /login to /', () => {
+    expect(simulateMiddleware('/login', true, true)).toBe('/')
+  })
+
+  it('redirects authenticated user away from /signup to /', () => {
+    expect(simulateMiddleware('/signup', true, true)).toBe('/')
   })
 })

@@ -48,6 +48,12 @@ public class AuthService {
     @Value("${jwt.refresh-token-expiration-ms}")
     private long refreshTokenExpirationMs;
 
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${cookie.same-site:Lax}")
+    private String cookieSameSite;
+
     public AuthService(UserRepository userRepository,
                        EmailVerificationTokenRepository emailVerificationTokenRepository,
                        PasswordResetTokenRepository passwordResetTokenRepository,
@@ -129,13 +135,12 @@ public class AuthService {
         refreshTokenRepository.save(new RefreshToken(
                 user, hash, Instant.now().plus(refreshTokenExpirationMs, ChronoUnit.MILLIS)));
 
-        // Cookie path is /api/auth/refresh — the browser-visible URL (Caddy strips /api before forwarding)
         ResponseCookie cookie = ResponseCookie.from("refresh_token", rawRefresh)
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .maxAge(Duration.ofMillis(refreshTokenExpirationMs))
-                .path("/api/auth/refresh")
+                .path("/")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
@@ -166,10 +171,10 @@ public class AuthService {
 
         ResponseCookie newCookie = ResponseCookie.from("refresh_token", newRawRefresh)
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .maxAge(Duration.ofMillis(refreshTokenExpirationMs))
-                .path("/api/auth/refresh")
+                .path("/")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, newCookie.toString());
 

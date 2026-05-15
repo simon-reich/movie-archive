@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,12 @@ public class AuthController {
 
     private final AuthService authService;
     private final RateLimitService rateLimitService;
+
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${cookie.same-site:Lax}")
+    private String cookieSameSite;
 
     public AuthController(AuthService authService, RateLimitService rateLimitService) {
         this.authService = authService;
@@ -98,10 +105,10 @@ public class AuthController {
         // Clear the browser cookie regardless
         ResponseCookie clearCookie = ResponseCookie.from("refresh_token", "")
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .maxAge(0)
-                .path("/api/auth/refresh")
+                .path("/")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, clearCookie.toString());
         return ResponseEntity.ok().build();

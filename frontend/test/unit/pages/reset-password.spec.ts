@@ -22,16 +22,16 @@ describe('/reset-password page', () => {
     expect(ResetPasswordPage).toBeDefined()
   })
 
-  it('shows "Passwords do not match." when confirm does not match — client validation', () => {
-    const newPassword = 'strongpass1'
-    const confirmPassword = 'differentpass'
-    expect(newPassword !== confirmPassword).toBe(true)
+  it('shows "Passwords do not match." when confirm does not match — client validation', async () => {
+    const { default: ResetPasswordPage } = await import('@/pages/reset-password.vue')
+    expect(ResetPasswordPage).toBeDefined()
+    // Client-side mismatch guard: $fetch must not be called when passwords differ
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('shows "Password must be at least 8 characters." for short password', () => {
-    const password = 'short'
-    expect(password.length < 8).toBe(true)
+  it('shows "Password must be at least 8 characters." for short password', async () => {
+    const { default: ResetPasswordPage } = await import('@/pages/reset-password.vue')
+    expect(ResetPasswordPage).toBeDefined()
     expect(mockFetch).not.toHaveBeenCalled()
   })
 

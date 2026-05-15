@@ -1,12 +1,25 @@
 import { useAuthStore } from '@/stores/auth'
 
-export default defineNuxtPlugin(async () => {
+const publicRoutes = [
+  '/login',
+  '/signup',
+  '/verify-email',
+  '/verify-email-sent',
+  '/forgot-password',
+  '/reset-password',
+]
+
+export default defineNuxtPlugin(async (nuxtApp) => {
   const authStore = useAuthStore()
   // Silent refresh on init (D-05): populate store from HttpOnly cookie.
-  // On failure (expired/absent cookie), store stays empty — middleware handles redirect.
   try {
     await authStore.refresh()
   } catch {
-    // Expected on first visit or after session expiry — do not rethrow
+    // Refresh failed — if on a protected route, redirect to login now
+    // to avoid flashing protected content with an expired session.
+    const route = nuxtApp.$router.currentRoute.value
+    if (!publicRoutes.includes(route.path)) {
+      await navigateTo('/login')
+    }
   }
 })

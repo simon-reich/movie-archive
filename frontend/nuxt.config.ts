@@ -21,4 +21,14 @@ export default defineNuxtConfig({
     strict: true,
     typeCheck: true,
   },
+
+  nitro: {
+    devProxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+    },
+  },
 })

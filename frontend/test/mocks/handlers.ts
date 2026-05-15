@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw'
+import { authHandlers } from './handlers/auth'
 
 /**
  * Global MSW request handlers.
@@ -8,4 +9,5 @@ export const handlers = [
   http.get('/api/actuator/health', () => {
     return HttpResponse.json({ status: 'UP' })
   }),
+  ...authHandlers,
 ]

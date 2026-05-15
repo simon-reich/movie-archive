@@ -3,7 +3,7 @@ status: partial
 phase: 01-authentication
 source: [01-VERIFICATION.md]
 started: 2026-05-15T00:00:00Z
-updated: 2026-05-15T00:00:00Z
+updated: 2026-05-16T00:00:00Z
 ---
 
 ## Current Test
@@ -14,7 +14,7 @@ updated: 2026-05-15T00:00:00Z
 
 ### 1. End-to-end browser auth flow
 expected: Dashboard redirects to /login; Mailpit receives verification email; login issues JWT + HttpOnly refresh cookie; browser navigates to / after login
-result: [pending]
+result: passed
 
 ### 2. Option D visual palette
 expected: Warm off-white background (#FAF7F2), terracotta buttons (#C84B31), square corners, "MovieArchive" heading above the auth card at /login
@@ -35,9 +35,9 @@ result: [pending]
 ## Summary
 
 total: 5
-passed: 0
+passed: 1
 issues: 0
-pending: 5
+pending: 4
 skipped: 0
 blocked: 0
 

@@ -3,13 +3,19 @@ package de.moviearchive.token;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
 
     Optional<RefreshToken> findByTokenHash(String tokenHash);
+
+    @Query("SELECT rt FROM RefreshToken rt WHERE rt.tokenHash = :hash " +
+           "AND (rt.revoked = false OR (rt.graceUntil IS NOT NULL AND rt.graceUntil > :now))")
+    Optional<RefreshToken> findValidToken(@Param("hash") String hash, @Param("now") Instant now);
 
     @Modifying
     @Query("UPDATE RefreshToken t SET t.revoked = true WHERE t.user.id = :userId")

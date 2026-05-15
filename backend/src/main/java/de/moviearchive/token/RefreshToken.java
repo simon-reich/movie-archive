@@ -42,6 +42,9 @@ public class RefreshToken {
     @Column(nullable = false)
     private boolean revoked = false;
 
+    @Column(name = "grace_until")
+    private Instant graceUntil;  // nullable — null means immediately revoked on next check
+
     public RefreshToken(User user, String tokenHash, Instant expiresAt) {
         this.user = user;
         this.tokenHash = tokenHash;

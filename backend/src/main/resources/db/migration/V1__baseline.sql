@@ -1,0 +1,2 @@
+-- V1: Baseline
+-- Schema is built incrementally in subsequent migrations.

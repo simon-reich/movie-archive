@@ -9,7 +9,7 @@ version = "0.0.1-SNAPSHOT"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -20,7 +20,6 @@ repositories {
 val jjwtVersion = "0.12.6"
 val mapstructVersion = "1.6.3"
 val opensearchVersion = "2.19.0"
-val testcontainersVersion = "1.21.0"
 val wiremockVersion = "3.13.0"
 val greenmailVersion = "2.1.3"
 val bucket4jVersion = "8.10.1"
@@ -70,8 +69,9 @@ dependencies {
     // Test dependencies
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
-    testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
     testImplementation("org.wiremock:wiremock-standalone:$wiremockVersion")
     testImplementation("com.icegreen:greenmail-junit5:$greenmailVersion")
     testCompileOnly("org.projectlombok:lombok")
@@ -83,11 +83,25 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
-// JaCoCo coverage report
+// JaCoCo coverage
 apply(plugin = "jacoco")
 tasks.named<JacocoReport>("jacocoTestReport") {
     reports {
         xml.required = true
         html.required = true
     }
+}
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "LINE"
+                minimum = "0.75".toBigDecimal()
+            }
+        }
+    }
+}
+tasks.named("check") {
+    dependsOn("jacocoTestCoverageVerification")
 }

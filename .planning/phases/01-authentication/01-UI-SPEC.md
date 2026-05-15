@@ -81,13 +81,13 @@ Exceptions:
 | Role | Size | Weight | Line Height | Tailwind Class |
 |------|------|--------|-------------|----------------|
 | Body | 14px | 400 (normal) | 1.5 | `text-sm` |
-| Label | 14px | 500 (medium) | 1.4 | `text-sm font-medium` |
+| Label | 14px | 600 (semibold) | 1.4 | `text-sm font-semibold` |
 | Heading (card title) | 20px | 600 (semibold) | 1.2 | `text-xl font-semibold` |
-| Display (app name) | 28px | 700 (bold) | 1.2 | `text-2xl font-bold` |
+| Display (app name) | 28px | 600 (semibold) | 1.2 | `text-2xl font-semibold` |
 
 - Error messages: `text-sm` (14px) weight 400, color `text-destructive`
 - Helper text / muted: `text-sm` color `text-muted-foreground`
-- Maximum 2 font weights in form UI: 400 (body/error) and 600 (labels/headings). The display weight (700) is used only for the app name above the card.
+- Exactly 2 font weights used across this phase: 400 (body, error, helper text) and 600 (labels, headings, app name).
 
 ---
 
@@ -135,7 +135,7 @@ Card
 ### Field Anatomy
 
 ```
-<label>  ← text-sm font-medium text-foreground
+<label>  ← text-sm font-semibold text-foreground
 <input>  ← border border-input bg-background text-sm rounded-md h-10 px-3
            focus-visible:ring-2 ring-ring ring-offset-2 outline-none
 <p>      ← text-sm text-destructive mt-1  (only rendered when field has error)
@@ -361,6 +361,17 @@ No third-party shadcn registries declared for this phase.
 | Tailwind color mappings | frontend/tailwind.config.ts |
 | radix-vue + lucide-vue-next installed | frontend/package.json |
 | darkMode: 'class' | frontend/tailwind.config.ts |
+
+---
+
+## Revision Log
+
+| Date | Change | Reason |
+|------|--------|--------|
+| 2026-05-15 | Collapsed font weights from 4 to 2 (removed 500/medium for labels, changed 700/bold display to 600/semibold) | Checker blocking issue: Dimension 4 Typography — maximum 2 weights |
+| 2026-05-15 | Updated label Tailwind class from `font-medium` to `font-semibold` in Typography table and Field Anatomy | Follows weight collapse above |
+| 2026-05-15 | Updated display Tailwind class from `text-2xl font-bold` to `text-2xl font-semibold` | Follows weight collapse above |
+| 2026-05-15 | Copywriting recommendation (Sign in CTA) — kept as-is | Button labels are short by convention; adding "to MovieArchive" would be verbose in a labeled card context |
 
 ---
 

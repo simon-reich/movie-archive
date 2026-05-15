@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+  <p>Welcome to MovieArchive.</p>
+  <p>Click the link below to verify your email address and activate your account:</p>
+  <p><a th:href="${verificationUrl}" th:text="${verificationUrl}">Verify email</a></p>
+  <p>This link expires in 24 hours.</p>
+  <p>If you did not create a MovieArchive account, you can ignore this email.</p>
+</body>
+</html>

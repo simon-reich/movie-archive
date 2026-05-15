@@ -30,3 +30,6 @@ docker-compose.override.yml
 
 # Private local docs (not for repo)
 docs/
+
+# Local dev scripts
+dev.sh

@@ -70,6 +70,16 @@ Save flow: `POST /movies/save` returns `202 Accepted` immediately; async task fe
 
 ---
 
+## Workflow (per Jira Ticket)
+
+After completing a ticket:
+1. **Commit** — one commit per ticket, message format: `MOV-XX: <summary>` (English)
+2. **Jira** — transition the ticket to **Done** via `getTransitionsForJiraIssue` + `transitionJiraIssue`
+
+Do both automatically without waiting to be asked.
+
+---
+
 ## Detail Docs (load on demand)
 
 - [`.claude/auth-flows.md`](.claude/auth-flows.md) — Auth endpoints, token specs, mail templates, forgot-password flow

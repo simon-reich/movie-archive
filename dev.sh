@@ -75,7 +75,7 @@ tell application "Terminal"
         keystroke "t" using command down
     end tell
     delay 0.4
-    do script "cd '$BACKEND' && echo '' && echo '── Spring Boot Backend ──────────────────────────────' && echo '' && ./gradlew bootRun" in selected tab of front window
+    do script "set -a; source '$ROOT/.env'; set +a && cd '$BACKEND' && echo '' && echo '── Spring Boot Backend ──────────────────────────────' && echo '' && ./gradlew bootRun" in selected tab of front window
 end tell
 EOF
 

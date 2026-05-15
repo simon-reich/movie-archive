@@ -92,20 +92,47 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01..08 | Phase 1 | Pending |
-| SET-01..04 | Phase 2 | Pending |
-| SET-05..06 | Phase 2 | Pending |
-| SAVE-01..05 | Phase 3 | Pending |
-| IDX-01..04 | Phase 4 | Pending |
-| SRCH-01..04 | Phase 5 | Pending |
-| DETAIL-01..05 | Phase 6 | Pending |
-| QLTY-01..03 | Phase 7 | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| AUTH-06 | Phase 1 | Pending |
+| AUTH-07 | Phase 1 | Pending |
+| AUTH-08 | Phase 1 | Pending |
+| SET-01 | Phase 2 | Pending |
+| SET-02 | Phase 2 | Pending |
+| SET-03 | Phase 2 | Pending |
+| SET-04 | Phase 2 | Pending |
+| SET-05 | Phase 2 | Pending |
+| SET-06 | Phase 2 | Pending |
+| SAVE-01 | Phase 3 | Pending |
+| SAVE-02 | Phase 3 | Pending |
+| SAVE-03 | Phase 3 | Pending |
+| SAVE-04 | Phase 3 | Pending |
+| SAVE-05 | Phase 3 | Pending |
+| IDX-01 | Phase 4 | Pending |
+| IDX-02 | Phase 4 | Pending |
+| IDX-03 | Phase 4 | Pending |
+| IDX-04 | Phase 4 | Pending |
+| SRCH-01 | Phase 5 | Pending |
+| SRCH-02 | Phase 5 | Pending |
+| SRCH-03 | Phase 5 | Pending |
+| SRCH-04 | Phase 5 | Pending |
+| DETAIL-01 | Phase 6 | Pending |
+| DETAIL-02 | Phase 6 | Pending |
+| DETAIL-03 | Phase 6 | Pending |
+| DETAIL-04 | Phase 6 | Pending |
+| DETAIL-05 | Phase 6 | Pending |
+| QLTY-01 | Phase 7 | Pending |
+| QLTY-02 | Phase 7 | Pending |
+| QLTY-03 | Phase 7 | Pending |
 
 **Coverage:**
-- v1 requirements: 31 total
-- Mapped to phases: 31
+- v1 requirements: 35 total (31 feature + 3 quality + 1 note: AUTH-01..08=8, SET-01..06=6, SAVE-01..05=5, IDX-01..04=4, SRCH-01..04=4, DETAIL-01..05=5, QLTY-01..03=3 = 35)
+- Mapped to phases: 35
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-15*
-*Last updated: 2026-05-15 after initial definition*
+*Last updated: 2026-05-15 — traceability expanded to per-requirement rows after roadmap creation*

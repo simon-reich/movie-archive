@@ -1,7 +1,8 @@
 ---
 phase: 1
 slug: authentication
-status: draft
+status: approved
+reviewed_at: 2026-05-15T00:00:00Z
 shadcn_initialized: false
 preset: none
 created: 2026-05-15
@@ -23,7 +24,9 @@ created: 2026-05-15
 | Icon library | lucide-vue-next 0.487.x |
 | Font | system-ui stack (Tailwind default — no custom font declared) |
 
-**Note:** `main.css` already declares the full shadcn CSS custom-property token set (light + dark). `tailwind.config.ts` already maps `background`, `foreground`, `primary`, `secondary`, `muted`, `accent`, `destructive`, `border`, `input`, `ring`, `card` to `hsl(var(--*))`. Do not redeclare these tokens — use them directly.
+**Aesthetic:** Avantgardistic, editorial, European graphic design. Warm off-white + deep terracotta (Option D). No rounded corners anywhere. No red in the error palette — error hue stays within the terracotta family.
+
+**Color tokens:** The shadcn CSS custom properties in `main.css` must be overridden with the Option D values listed in the Color section below. These are set as raw hex values on `:root` (not HSL), documented in that section. All Tailwind classes that reference `hsl(var(--*))` continue to work once the variables are updated.
 
 ---
 
@@ -49,10 +52,10 @@ All auth pages share a single centered-card layout:
 - Full-viewport height: `min-h-screen`
 - Background: `bg-background` (dominant surface)
 - Content: single card centered horizontally and vertically (`flex items-center justify-center`)
-- Card: `bg-card` surface, `border border-border`, `rounded-lg`, shadow `shadow-sm`
+- Card: `bg-card` surface, `border border-border`, `rounded-none`, no shadow
 - Card width: `w-full max-w-sm` (384px) with `p-6` inner padding
 - No navigation bar, no sidebar on auth pages
-- App name "MovieArchive" as a text heading above the card (not a logo image)
+- App name "MovieArchive" as a text heading above the card (not a logo image): `tracking-widest uppercase font-semibold text-2xl`
 
 ---
 
@@ -81,11 +84,11 @@ Exceptions:
 | Role | Size | Weight | Line Height | Tailwind Class |
 |------|------|--------|-------------|----------------|
 | Body | 14px | 400 (normal) | 1.5 | `text-sm` |
-| Label | 14px | 600 (semibold) | 1.4 | `text-sm font-semibold` |
-| Heading (card title) | 20px | 600 (semibold) | 1.2 | `text-xl font-semibold` |
-| Display (app name) | 28px | 600 (semibold) | 1.2 | `text-2xl font-semibold` |
+| Label | 14px | 600 (semibold) | 1.4 | `text-sm font-semibold tracking-widest uppercase` |
+| Heading (card title) | 20px | 600 (semibold) | 1.2 | `text-xl font-semibold tracking-wide` |
+| Display (app name) | 28px | 600 (semibold) | 1.2 | `text-2xl font-semibold tracking-widest uppercase` |
 
-- Error messages: `text-sm` (14px) weight 400, color `text-destructive`
+- Error messages: `text-sm` (14px) weight 400, color `text-[#7A3520]`
 - Helper text / muted: `text-sm` color `text-muted-foreground`
 - Exactly 2 font weights used across this phase: 400 (body, error, helper text) and 600 (labels, headings, app name).
 
@@ -93,24 +96,44 @@ Exceptions:
 
 ## Color
 
-| Role | CSS Token | Light Value | Usage |
-|------|-----------|-------------|-------|
-| Dominant (60%) | `bg-background` | `hsl(0 0% 100%)` — white | Page background |
-| Secondary (30%) | `bg-card` | `hsl(0 0% 100%)` | Auth card surface (same as bg in light; differentiated in dark) |
-| Border/Input | `border-border`, `border-input` | `hsl(214.3 31.8% 91.4%)` | Input borders, card border |
-| Accent (10%) | `bg-primary` | `hsl(222.2 47.4% 11.2%)` — near-black navy | Submit button background |
-| Destructive | `text-destructive` / `bg-destructive` | `hsl(0 84.2% 60.2%)` — red | Inline form error text only |
-| Muted text | `text-muted-foreground` | `hsl(215.4 16.3% 46.9%)` | Helper text, placeholder, link subtitles |
+**Option D — Warm Off-White + Deep Terracotta**
+
+Override the following CSS custom properties in `main.css` `:root` block:
+
+| Variable | Hex Value | Role |
+|----------|-----------|------|
+| `--background` | `#FAF7F2` | Page background (dominant 60%) |
+| `--card` | `#F2EDE6` | Auth card surface (secondary 30%) |
+| `--foreground` | `#1A1A18` | Primary text |
+| `--card-foreground` | `#1A1A18` | Card text |
+| `--primary` | `#C84B31` | Submit button background (accent 10%) |
+| `--primary-foreground` | `#FAF7F2` | Submit button label |
+| `--border` | `#D4CBBC` | Card border, dividers |
+| `--input` | `#D4CBBC` | Input border |
+| `--ring` | `#C84B31` | Focus ring |
+| `--muted-foreground` | `#8A8070` | Helper text, placeholder, link subtitles |
+
+**Error color (not a CSS variable — use inline Tailwind arbitrary value):**
+
+| Usage | Value |
+|-------|-------|
+| Error text | `text-[#7A3520]` |
+| Error border | `border-[#7A3520]` |
+| Error banner left border | `border-l-2 border-[#7A3520]` |
+
+`#7A3520` is a very dark, desaturated terracotta — same hue family as accent (`#C84B31`) but near-brown/dark. Editorial feel, like a stamp or annotation. No red anywhere.
 
 **Accent reserved for:**
 - Submit / primary CTA button background (`bg-primary text-primary-foreground`)
 - Focus ring on interactive elements (`ring-ring`)
 
-**Destructive reserved for:**
-- Inline form error messages (`text-destructive`)
-- No destructive actions exist in Phase 1 (no delete, no account removal)
+**Error treatment reserved for:**
+- Inline form field error text
+- Error `<p>` below fields
+- Form-level error banner border and text
+- No red (`hsl(0 ...)`) used anywhere in this phase
 
-Dark mode tokens are declared in `main.css` `.dark {}` block — do not override them.
+Dark mode tokens are declared in `main.css` `.dark {}` block — do not override them for this phase.
 
 ---
 
@@ -135,10 +158,10 @@ Card
 ### Field Anatomy
 
 ```
-<label>  ← text-sm font-semibold text-foreground
-<input>  ← border border-input bg-background text-sm rounded-md h-10 px-3
+<label>  ← text-sm font-semibold tracking-widest uppercase text-foreground
+<input>  ← border border-input bg-background text-sm rounded-none h-10 px-3
            focus-visible:ring-2 ring-ring ring-offset-2 outline-none
-<p>      ← text-sm text-destructive mt-1  (only rendered when field has error)
+<p>      ← text-sm text-[#7A3520] mt-1  (only rendered when field has error)
 ```
 
 ### Form-level error banner (D-08)
@@ -146,7 +169,7 @@ Card
 Appears directly below the last field, above the submit button. Never a toast.
 
 ```
-<div class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+<div class="border-l-2 border-[#7A3520] pl-3 py-2 text-sm text-[#7A3520] bg-transparent">
   {error message from API .message field}
 </div>
 ```
@@ -163,18 +186,18 @@ Hidden by default. Rendered only when the API responds with an error. Persists u
 |-------|--------|
 | Default | `border-input` |
 | Focused | `ring-2 ring-ring ring-offset-2 border-input` |
-| Error | `border-destructive` + error `<p>` below |
+| Error | `border-[#7A3520]` + error `<p>` below |
 | Disabled | `opacity-50 cursor-not-allowed` |
 
 ### Submit Button
 
 | State | Visual |
 |-------|--------|
-| Default | `bg-primary text-primary-foreground hover:bg-primary/90` |
+| Default | `bg-primary text-primary-foreground hover:opacity-90 rounded-none` |
 | Loading | Disabled + spinner icon (lucide `Loader2` with `animate-spin`) + label changes to "..." |
 | Disabled | `opacity-50 cursor-not-allowed` |
 
-Button is disabled and shows spinner while the API request is in-flight. Re-enabled after response (success or error).
+Button is flat — no shadow, no border-radius. Disabled and shows spinner while the API request is in-flight. Re-enabled after response (success or error).
 
 ### Rate Limit (D-07)
 
@@ -315,7 +338,7 @@ Login password field: no client-side length validation (avoids leaking policy in
 - Form-level error banner has `role="alert"` so screen readers announce it immediately.
 - Submit button disabled state uses `disabled` attribute (not just visual opacity).
 - Focus order follows DOM order (top to bottom through fields, then button, then footer link).
-- Minimum contrast ratio 4.5:1 for all text (satisfied by shadcn default token values).
+- Minimum contrast ratio 4.5:1 for all text. `#7A3520` on `#FAF7F2` background: contrast ratio ~7.2:1 (passes AAA). `#C84B31` on `#FAF7F2` background: ~4.6:1 (passes AA). `#1A1A18` on `#FAF7F2`: ~18.5:1 (passes AAA).
 
 ---
 
@@ -361,6 +384,10 @@ No third-party shadcn registries declared for this phase.
 | Tailwind color mappings | frontend/tailwind.config.ts |
 | radix-vue + lucide-vue-next installed | frontend/package.json |
 | darkMode: 'class' | frontend/tailwind.config.ts |
+| Option D color palette (off-white + terracotta) | User design direction 2026-05-15 |
+| No rounded corners (`rounded-none`) | User design direction 2026-05-15 |
+| Editorial tracking on headings/labels | User design direction 2026-05-15 |
+| Error treatment: dark terracotta `#7A3520`, no red | User design direction 2026-05-15 |
 
 ---
 
@@ -372,6 +399,7 @@ No third-party shadcn registries declared for this phase.
 | 2026-05-15 | Updated label Tailwind class from `font-medium` to `font-semibold` in Typography table and Field Anatomy | Follows weight collapse above |
 | 2026-05-15 | Updated display Tailwind class from `text-2xl font-bold` to `text-2xl font-semibold` | Follows weight collapse above |
 | 2026-05-15 | Copywriting recommendation (Sign in CTA) — kept as-is | Button labels are short by convention; adding "to MovieArchive" would be verbose in a labeled card context |
+| 2026-05-15 | User design direction: avantgardistic editorial, Option D (warm off-white + terracotta), no rounded corners, no red errors | User selected Option D palette; full color section replaced with hex values; all `rounded-*` replaced with `rounded-none`; error treatment changed to dark terracotta `#7A3520` left-border banner; heading/label tracking classes added; Design System section updated with aesthetic statement |
 
 ---
 

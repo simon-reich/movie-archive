@@ -68,4 +68,42 @@ public class MailService {
             throw new RuntimeException("Failed to send password reset email", e);
         }
     }
+
+    public void sendEmailChangeConfirmation(String toNewEmail, String rawToken) {
+        Context ctx = new Context();
+        // Link must go through /api/settings/confirm-email so Caddy routes to Spring (Pitfall 7)
+        ctx.setVariable("confirmUrl", baseUrl + "/api/settings/confirm-email?token=" + rawToken);
+        String htmlContent = templateEngine.process("mail/email-change-confirm", ctx);
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+            helper.setFrom(fromAddress);
+            helper.setTo(toNewEmail);
+            helper.setSubject("Confirm your new MovieArchive email address");
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            log.info("Email change confirmation sent to new address");
+        } catch (Exception e) {
+            log.error("Failed to send email change confirmation: {}", e.getMessage());
+            throw new RuntimeException("Failed to send email change confirmation", e);
+        }
+    }
+
+    public void sendEmailChangeNotification(String toOldEmail) {
+        Context ctx = new Context();
+        String htmlContent = templateEngine.process("mail/email-change-notification", ctx);
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+            helper.setFrom(fromAddress);
+            helper.setTo(toOldEmail);
+            helper.setSubject("Your MovieArchive email address was changed");
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            log.info("Email change notification sent to old address");
+        } catch (Exception e) {
+            log.error("Failed to send email change notification: {}", e.getMessage());
+            throw new RuntimeException("Failed to send email change notification", e);
+        }
+    }
 }

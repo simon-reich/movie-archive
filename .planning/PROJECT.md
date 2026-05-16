@@ -13,11 +13,19 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 ### Validated
 
 - ✓ Repo-Setup, Docker Compose, Skeletons, CI — Phase 0
-- ✓ User-Entity, Token-Entities, Flyway Migrations (V1-V3) — Phase 1 (partial)
+- ✓ User-Entity, Token-Entities, Flyway Migrations (V1-V4) — Phase 1
+- ✓ AUTH-01: User kann Account mit E-Mail + Passwort erstellen — Phase 1
+- ✓ AUTH-02: User erhält Verifizierungs-E-Mail nach Sign-Up; Account wird erst nach Klick aktiviert — Phase 1
+- ✓ AUTH-03: User kann sich mit E-Mail + Passwort einloggen (nur ACTIVE-Accounts) — Phase 1
+- ✓ AUTH-04: JWT Access Token (15 min) + Refresh Token als HttpOnly-Cookie (7 Tage) — Phase 1
+- ✓ AUTH-05: Refresh Token wird bei /auth/refresh rotiert (altes revoked, neues ausgestellt) — Phase 1
+- ✓ AUTH-06: User kann sich ausloggen (Refresh Token wird revoked) — Phase 1
+- ✓ AUTH-07: Passwort-Reset per E-Mail anfordern (immer 200 OK — Enumeration-Schutz) — Phase 1
+- ✓ AUTH-08: Passwort mit Token zurücksetzen; alle Refresh Tokens werden revoked — Phase 1
 
 ### Active
 
-- [ ] Auth: Sign-Up, E-Mail-Verifikation, Login, Logout, Token-Rotation, Passwort-Reset
+- [ ] Settings: API-Key-Management (TMDB + OMDB), E-Mail-Änderung, Passwort-Änderung
 - [ ] Settings: API-Key-Management (TMDB + OMDB), E-Mail-Änderung, Passwort-Änderung
 - [ ] Film speichern: TMDB → OMDB (optional) → Wikipedia → Postgres → OpenSearch (async)
 - [ ] OpenSearch-Index mit Custom Analyzer (movies-{userId})
@@ -34,7 +42,7 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 
 ## Context
 
-- **Laufende Entwicklung:** Phase 0 (Setup) abgeschlossen, Phase 1 (Auth) in Arbeit. MOV-1 bis MOV-20 auf Jira erledigt.
+- **Laufende Entwicklung:** Phase 0 + Phase 1 abgeschlossen. MOV-1 bis MOV-40 auf Jira Done. Nächste Phase: 2 (Settings & API Keys).
 - **Stack:** Spring Boot 3 + Java 25 / Nuxt 3 + Vue 3 + TypeScript + TailwindCSS / PostgreSQL 16 / OpenSearch 2.x / Caddy
 - **Mono-Repo:** `backend/`, `frontend/`, `docker-compose.yml`
 - **API-Strategie:** TMDB = Pflicht (kein Key → kein Speichern). OMDB = optional (kein Key → Film ohne IMDB-Daten). Wikipedia = immer versucht, 6-Step-Fallback.
@@ -58,11 +66,14 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 |----------|-----------|---------|
 | OpenSearch statt Elasticsearch | Lizenzfreiheit, kompatible API | — Pending |
 | OMDB graceful degradation | Nicht alle Nutzer haben OMDB-Key; Film-Archiv trotzdem nutzbar | — Pending |
-| SHA-256-Hash für alle Token | Token nie im Klartext gespeichert → DB-Leak harmlos | — Pending |
-| AES-256-GCM für API-Keys | API-Keys at rest verschlüsselt, Master-Key aus ENV | — Pending |
-| Save-Flow async (202 Accepted) | Externe API-Calls (TMDB, OMDB, Wikipedia) nicht synchron → UX bleibt flüssig | — Pending |
+| SHA-256-Hash für alle Token | Token nie im Klartext gespeichert → DB-Leak harmlos | ✓ Good — Phase 1 |
+| AES-256-GCM für API-Keys | API-Keys at rest verschlüsselt, Master-Key aus ENV | — Pending (Phase 2) |
+| Save-Flow async (202 Accepted) | Externe API-Calls (TMDB, OMDB, Wikipedia) nicht synchron → UX bleibt flüssig | — Pending (Phase 3) |
 | Snapshot-Strategie für Filmdaten | Keine externe Abhängigkeit zur Laufzeit nach dem Speichern | — Pending |
-| movies-{userId} Index-Strategie | Datenisolation auf Infra-Ebene, einfach auf Multi-User erweiterbar | — Pending |
+| movies-{userId} Index-Strategie | Datenisolation auf Infra-Ebene, einfach auf Multi-User erweiterbar | — Pending (Phase 4) |
+| JwtAuthFilter ohne @Component | Direkt in SecurityFilterChain instanziieren — verhindert Doppel-Registrierung | ✓ Good — Phase 1 |
+| grace_until 5s auf Refresh Token | Race Condition bei parallelen Browser-Tabs sicher abgefangen | ✓ Good — Phase 1 |
+| forgotPassword immer 200 OK | Enumeration-Schutz — Angreifer kann nicht prüfen ob E-Mail existiert | ✓ Good — Phase 1 |
 
 ## Evolution
 
@@ -82,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-15 after project initialization*
+*Last updated: 2026-05-16 after Phase 1 (Authentication) completion*

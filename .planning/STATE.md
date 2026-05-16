@@ -2,54 +2,54 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-05-15T12:55:21.131Z"
-last_activity: 2026-05-15 — Roadmap created; Phase 0 complete, Phase 1 entities/migrations done (MOV-1..MOV-20)
+status: executing
+stopped_at: Phase 1 complete — Human UAT passed
+last_updated: "2026-05-16T00:00:00.000Z"
+last_activity: 2026-05-16 — Phase 1 (Authentication) complete. MOV-21..MOV-40 Done. 3/3 plans, 5/5 UAT tests passed.
 progress:
   total_phases: 7
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 5
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 3
+  percent: 14
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-15)
+See: .planning/PROJECT.md (updated 2026-05-16)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 1 — Authentication
+**Current focus:** Phase 2 — Settings & API Keys
 
 ## Current Position
 
-Phase: 1 of 7 (Authentication)
+Phase: 2 of 7 (Settings & API Keys) — not yet started
 Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-05-15 — Roadmap created; Phase 0 complete, Phase 1 entities/migrations done (MOV-1..MOV-20)
+Status: Ready to plan Phase 2
+Last activity: 2026-05-16 — Phase 1 complete. Backend JWT auth + Spring Security + Bucket4j rate limiting + Thymeleaf mail templates + all auth endpoints + Pinia store + 6 auth pages + 54 FE tests + 32 BE tests. Human UAT 5/5 passed.
 
-Progress: [█░░░░░░░░░] ~5% (Phase 0 complete, Phase 1 in progress)
+Progress: [██░░░░░░░░] ~14% (Phase 0 + Phase 1 complete)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: -
+- Total plans completed: 3
+- Average duration: ~26 min/plan
+- Total execution time: ~77 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1. Authentication | 3 | ~77 min | ~26 min |
 
 **Recent Trend:**
 
-- Last 5 plans: -
-- Trend: -
+- Last 3 plans: 01-01 (~10 min), 01-02 (~60 min), 01-03 (~7 min)
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -60,23 +60,23 @@ Progress: [█░░░░░░░░░] ~5% (Phase 0 complete, Phase 1 in pro
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Phase 0]: Snapshot strategy for film data — no post-save sync with external APIs
-- [Phase 0]: `movies-{userId}` index per user — data isolation at infra level
-- [Phase 1]: `grace_until TIMESTAMPTZ` on refresh_tokens table needed to handle concurrent refresh race condition (noted in research, not yet in data-model.md)
-- [Phase 1]: Nuxt SSR vs client-side-only — decision pending; client-side-only is simpler and acceptable for personal use v1
+- [Phase 1]: JwtAuthFilter without @Component — instantiate directly in SecurityFilterChain to prevent double-registration
+- [Phase 1]: grace_until = now + 5s on refresh token rotation — handles concurrent tab race condition
+- [Phase 1]: forgotPassword always returns 200 — enumeration protection
+- [Phase 1]: Testcontainers static block (not @Testcontainers/@Container) — prevents container stop between test classes
+- [Phase 1]: vi.mock('#app/composables/router') not vi.stubGlobal — Nuxt auto-import resolves from module, not global scope
+- [Phase 3]: OpenSearch Custom Analyzer must be finalized in Phase 4 but ensureIndexExists() called on first Phase 3 write — Phase 4 plan must be ready before Phase 3 executes
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-- [Phase 1]: `grace_until TIMESTAMPTZ` column absent from data-model.md — must be added explicitly during Phase 1 planning
-- [Phase 1]: `JwtAuthFilter` must NOT use `@Component` annotation — instantiate directly in `SecurityFilterChain` to prevent double-registration
-- [Phase 3]: OpenSearch Custom Analyzer must be finalized in Phase 4 but `ensureIndexExists()` is called on first Phase 3 write — Phase 4 plan must be ready before Phase 3 executes, or IDX work folded into Phase 3 planning
+- [Phase 3/4]: OpenSearch index creation timing — Phase 4 plan should be drafted before Phase 3 executes, or IDX work folded into Phase 3
 
 ## Session Continuity
 
-Last session: 2026-05-15T12:55:21.127Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-authentication/01-CONTEXT.md
+Last session: 2026-05-16
+Stopped at: Phase 1 complete, ready for Phase 2
+Resume file: .planning/phases/01-authentication/01-CONTEXT.md (Phase 1 archived)

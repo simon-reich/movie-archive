@@ -13,7 +13,7 @@ MovieArchive delivers a personal searchable film archive in seven phases. Authen
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 0: Setup & Infrastructure** - Repo, Docker Compose, Spring Boot + Nuxt skeletons, CI (COMPLETE)
-- [ ] **Phase 1: Authentication** - Sign-up, email verification, login, logout, token rotation, password reset (IN PROGRESS)
+- [x] **Phase 1: Authentication** - Sign-up, email verification, login, logout, token rotation, password reset (COMPLETE)
 - [ ] **Phase 2: Settings & API Keys** - TMDB/OMDB key management, password change, email change, CSV export/import
 - [ ] **Phase 3: Save Movie Flow** - Async TMDB → OMDB → Wikipedia → Postgres enrichment pipeline with status feedback
 - [ ] **Phase 4: OpenSearch Indexing** - Index lifecycle, custom analyzer, field mappings, admin reindex endpoint
@@ -40,6 +40,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 </details>
 
+<details>
+<summary>Phase 1: Authentication — COMPLETE</summary>
+
 ### Phase 1: Authentication
 **Goal**: Users can create accounts, verify email, log in securely, and recover forgotten passwords
 **Depends on**: Phase 0 (complete)
@@ -51,8 +54,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. User stays logged in across browser sessions via token refresh; refresh token is rotated on each use
   5. User can log out and the refresh token is immediately revoked
   6. User can request a password reset email and reset password via single-use token link; all existing sessions are invalidated
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 3/3 complete (01-01 test scaffolding, 01-02 backend auth, 01-03 frontend auth)
+**Status**: COMPLETE — 2026-05-16
+**Human UAT**: 5/5 tests passed
+
+</details>
 
 ### Phase 2: Settings & API Keys
 **Goal**: Users can configure API keys and manage their account credentials
@@ -135,7 +141,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Setup & Infrastructure | -/- | Complete | 2026-05-15 |
-| 1. Authentication | 0/TBD | In progress | - |
+| 1. Authentication | 3/3 | Complete | 2026-05-16 |
 | 2. Settings & API Keys | 0/TBD | Not started | - |
 | 3. Save Movie Flow | 0/TBD | Not started | - |
 | 4. OpenSearch Indexing | 0/TBD | Not started | - |

@@ -7,14 +7,14 @@
 
 ### Authentication
 
-- [ ] **AUTH-01**: User kann Account mit E-Mail + Passwort erstellen
-- [ ] **AUTH-02**: User erhält Verifizierungs-E-Mail nach Sign-Up; Account wird erst nach Klick aktiviert
-- [ ] **AUTH-03**: User kann sich mit E-Mail + Passwort einloggen (nur ACTIVE-Accounts)
-- [ ] **AUTH-04**: User erhält JWT Access Token (15 min) + Refresh Token als HttpOnly-Cookie (7 Tage)
-- [ ] **AUTH-05**: Refresh Token wird bei /auth/refresh rotiert (altes revoked, neues ausgestellt)
-- [ ] **AUTH-06**: User kann sich ausloggen (Refresh Token wird revoked)
-- [ ] **AUTH-07**: User kann Passwort-Reset per E-Mail anfordern (immer 200 OK — Enumeration-Schutz)
-- [ ] **AUTH-08**: User kann Passwort mit Token zurücksetzen; alle Refresh Tokens des Accounts werden revoked
+- [x] **AUTH-01**: User kann Account mit E-Mail + Passwort erstellen
+- [x] **AUTH-02**: User erhält Verifizierungs-E-Mail nach Sign-Up; Account wird erst nach Klick aktiviert
+- [x] **AUTH-03**: User kann sich mit E-Mail + Passwort einloggen (nur ACTIVE-Accounts)
+- [x] **AUTH-04**: User erhält JWT Access Token (15 min) + Refresh Token als HttpOnly-Cookie (7 Tage)
+- [x] **AUTH-05**: Refresh Token wird bei /auth/refresh rotiert (altes revoked, neues ausgestellt)
+- [x] **AUTH-06**: User kann sich ausloggen (Refresh Token wird revoked)
+- [x] **AUTH-07**: User kann Passwort-Reset per E-Mail anfordern (immer 200 OK — Enumeration-Schutz)
+- [x] **AUTH-08**: User kann Passwort mit Token zurücksetzen; alle Refresh Tokens des Accounts werden revoked
 
 ### Settings
 
@@ -92,14 +92,14 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
-| AUTH-06 | Phase 1 | Pending |
-| AUTH-07 | Phase 1 | Pending |
-| AUTH-08 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Complete |
+| AUTH-05 | Phase 1 | Complete |
+| AUTH-06 | Phase 1 | Complete |
+| AUTH-07 | Phase 1 | Complete |
+| AUTH-08 | Phase 1 | Complete |
 | SET-01 | Phase 2 | Pending |
 | SET-02 | Phase 2 | Pending |
 | SET-03 | Phase 2 | Pending |

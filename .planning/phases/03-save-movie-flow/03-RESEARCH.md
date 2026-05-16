@@ -663,17 +663,15 @@ export const moviesHandlers = [
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Wikipedia API response parsing strategy**
-   - What we know: Base URL and User-Agent documented in api-contracts.md. 6-step title fallback is locked.
-   - What's unclear: The exact API parameters to extract plot, summary, and critics sections as plaintext vs HTML. Two viable approaches: (a) `action=parse&prop=sections` then `action=parse&section=N` for Plot/Critical response sections; (b) `action=query&prop=extracts&exintro=true` for summary + separate section parsing.
-   - Recommendation: Use `action=parse&prop=wikitext&section=0` for summary (intro) and iterate sections by title for Plot and Critical response. Planner should pick one approach and document it in the WikipediaClient implementation task. WireMock fixtures must reflect the chosen approach.
+1. **Wikipedia API response parsing strategy** — RESOLVED
+   - **Chosen approach:** `action=parse&prop=sections` to discover section list, then `action=parse&prop=wikitext&section=N` for the relevant section (Plot, Critical response). WireMock fixtures in Plan 03-01 are designed around these two endpoints.
+   - Rationale: Allows precise section targeting by title; `action=query&prop=extracts` returns unstructured HTML that requires additional stripping.
 
-2. **ThreadPoolTaskExecutor placement**
-   - What we know: The bean does not exist yet. `AsyncConfig` is the natural new class.
-   - What's unclear: Whether to put it in `config/` package (alongside SecurityConfig) or in `enrichment/` package.
-   - Recommendation: `config/AsyncConfig.java` — consistent with `config/SecurityConfig.java`.
+2. **ThreadPoolTaskExecutor placement** — RESOLVED
+   - **Chosen placement:** `backend/src/main/java/de/moviearchive/config/AsyncConfig.java`
+   - Rationale: Consistent with `config/SecurityConfig.java`; config/ is the established home for cross-cutting infrastructure beans.
 
 ---
 

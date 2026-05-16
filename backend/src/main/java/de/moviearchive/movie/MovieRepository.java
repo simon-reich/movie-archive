@@ -10,4 +10,6 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
     Optional<Movie> findByIdAndUserId(UUID id, UUID userId);
 
     boolean existsByUserIdAndTmdbId(UUID userId, Integer tmdbId);
+
+    Optional<Movie> findByUserIdAndTmdbId(UUID userId, Integer tmdbId);
 }

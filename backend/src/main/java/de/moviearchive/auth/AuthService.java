@@ -143,6 +143,7 @@ public class AuthService {
                 .path("/")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, buildSessionEmailCookie(user.getEmail(), refreshTokenExpirationMs));
 
         return new LoginResponse(accessToken, user.getEmail());
     }
@@ -177,6 +178,7 @@ public class AuthService {
                 .path("/")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, newCookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, buildSessionEmailCookie(user.getEmail(), refreshTokenExpirationMs));
 
         return new RefreshResponse(newAccessToken, user.getEmail());
     }
@@ -187,6 +189,28 @@ public class AuthService {
             token.setRevoked(true);
             refreshTokenRepository.save(token);
         });
+    }
+
+    public String buildClearSessionEmailCookie() {
+        return ResponseCookie.from("session_email", "")
+                .httpOnly(false)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .maxAge(0)
+                .path("/")
+                .build()
+                .toString();
+    }
+
+    private String buildSessionEmailCookie(String email, long maxAgeMs) {
+        return ResponseCookie.from("session_email", email)
+                .httpOnly(false)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .maxAge(Duration.ofMillis(maxAgeMs))
+                .path("/")
+                .build()
+                .toString();
     }
 
     public void forgotPassword(String email) {

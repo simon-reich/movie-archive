@@ -117,9 +117,16 @@ async function handleSaveOmdb() {
 }
 
 async function handleChangeEmail() {
-  emailChanging.value = true
   emailError.value = null
   emailChangeSuccess.value = false
+
+  // Client-side guard: reject if the entered email matches the current email
+  if (newEmail.value.trim().toLowerCase() === (authStore.userEmail ?? '').toLowerCase()) {
+    emailError.value = 'This is already your current email address.'
+    return
+  }
+
+  emailChanging.value = true
   try {
     await changeEmail(newEmail.value)
     newEmail.value = ''

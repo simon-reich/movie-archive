@@ -1,5 +1,6 @@
 package de.moviearchive.settings;
 
+import de.moviearchive.auth.AuthService;
 import de.moviearchive.auth.EmailAlreadyExistsException;
 import de.moviearchive.auth.TokenAlreadyConsumedException;
 import de.moviearchive.auth.TokenExpiredException;
@@ -7,9 +8,11 @@ import de.moviearchive.auth.TokenNotFoundException;
 import de.moviearchive.settings.dto.ChangeEmailRequest;
 import de.moviearchive.settings.dto.ChangePasswordRequest;
 import de.moviearchive.settings.dto.SaveApiKeyRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
@@ -32,12 +35,14 @@ import java.util.Map;
 public class SettingsController {
 
     private final SettingsService settingsService;
+    private final AuthService authService;
 
     @Value("${app.base-url}")
     private String appBaseUrl;
 
-    public SettingsController(SettingsService settingsService) {
+    public SettingsController(SettingsService settingsService, AuthService authService) {
         this.settingsService = settingsService;
+        this.authService = authService;
     }
 
     @PutMapping("/api-keys/{provider}")
@@ -71,23 +76,33 @@ public class SettingsController {
     }
 
     @GetMapping("/confirm-email")
-    public ResponseEntity<Void> confirmEmail(@RequestParam String token) {
+    public ResponseEntity<Void> confirmEmail(@RequestParam String token, HttpServletResponse response) {
         try {
-            settingsService.confirmEmailChange(token);
+            String newEmail = settingsService.confirmEmailChange(token);
+            // Bug B fix: update the session_email cookie so the frontend auth store
+            // reflects the new email immediately after the redirect lands on /settings.
+            response.addHeader(HttpHeaders.SET_COOKIE,
+                    authService.buildSessionEmailCookie(newEmail));
             return ResponseEntity.status(302)
                     .header("Location", appBaseUrl + "/settings?emailConfirmed=true")
                     .build();
+        } catch (EmailAlreadyExistsException e) {
+            // Bug A2 fix: new email was taken between request and confirmation time.
+            // Return a redirect instead of JSON so the browser gets a proper error page.
+            return ResponseEntity.status(302)
+                    .header("Location", appBaseUrl + "/login?emailError=email-unavailable")
+                    .build();
         } catch (TokenAlreadyConsumedException e) {
             return ResponseEntity.status(302)
-                    .header("Location", appBaseUrl + "/settings?emailError=token-used")
+                    .header("Location", appBaseUrl + "/login?emailError=token-used")
                     .build();
         } catch (TokenExpiredException e) {
             return ResponseEntity.status(302)
-                    .header("Location", appBaseUrl + "/settings?emailError=token-expired")
+                    .header("Location", appBaseUrl + "/login?emailError=token-expired")
                     .build();
         } catch (TokenNotFoundException e) {
             return ResponseEntity.status(302)
-                    .header("Location", appBaseUrl + "/settings?emailError=invalid-token")
+                    .header("Location", appBaseUrl + "/login?emailError=invalid-token")
                     .build();
         }
     }

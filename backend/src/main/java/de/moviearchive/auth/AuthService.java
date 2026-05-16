@@ -229,6 +229,16 @@ public class AuthService {
                 .toString();
     }
 
+    /**
+     * Builds a session_email cookie with the refresh-token lifetime.
+     * Used by SettingsController.confirmEmail() to update the cookie in the redirect response
+     * after a successful email change, so the frontend auth store reflects the new email
+     * immediately without requiring a re-login.
+     */
+    public String buildSessionEmailCookie(String email) {
+        return buildSessionEmailCookie(email, refreshTokenExpirationMs);
+    }
+
     private String buildSessionEmailCookie(String email, long maxAgeMs) {
         return ResponseCookie.from("session_email", email)
                 .httpOnly(false)

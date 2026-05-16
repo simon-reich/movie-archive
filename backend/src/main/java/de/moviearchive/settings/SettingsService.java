@@ -133,7 +133,11 @@ public class SettingsService {
         // Do NOT check newEmail uniqueness here — enumeration protection (D-07/RESEARCH pitfall 4)
     }
 
-    public void confirmEmailChange(String rawToken) {
+    /**
+     * Confirms an email change and returns the newly activated email address.
+     * The controller uses the return value to update the session_email cookie in the redirect.
+     */
+    public String confirmEmailChange(String rawToken) {
         String hash = TokenUtils.hashToken(rawToken);
         EmailChangeToken token = emailChangeTokenRepository.findByTokenHash(hash)
                 .orElseThrow(TokenNotFoundException::new);
@@ -160,5 +164,7 @@ public class SettingsService {
 
         // Notify old address AFTER confirming (RESEARCH open question 2)
         mailService.sendEmailChangeNotification(oldEmail);
+
+        return token.getNewEmail();
     }
 }

@@ -37,6 +37,7 @@ onMounted(() => {
     errorMessage.value =
       code === 'token-used' ? 'This confirmation link has already been used.' :
       code === 'token-expired' ? 'This confirmation link has expired. Request a new one.' :
+      code === 'email-unavailable' ? 'This email address is no longer available. Please request a new change.' :
       'Invalid confirmation link.'
     router.replace({ query: {} })
   }

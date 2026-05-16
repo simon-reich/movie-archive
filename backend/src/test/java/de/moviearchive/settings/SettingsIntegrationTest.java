@@ -358,7 +358,35 @@ class SettingsIntegrationTest extends AbstractWireMockTest {
     }
 
     @Test
-    void shouldRejectConflictingEmailChange_whenNewEmailAlreadyTaken() throws Exception {
+    void shouldSetSessionEmailCookie_onSuccessfulEmailConfirm() throws Exception {
+        // Bug B fix: after a successful email confirmation the redirect response must carry
+        // a Set-Cookie: session_email=<new-email> so the frontend auth store updates immediately.
+        User user = createActiveUser();
+        String token = loginAndGetToken(user);
+
+        mockMvc.perform(post("/settings/email")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newEmail\":\"cookie-check@example.com\"}"))
+                .andExpect(status().isOk());
+
+        MimeMessage[] messages = greenMail.getReceivedMessages();
+        assertThat(messages).isNotEmpty();
+        String rawToken = extractTokenFromEmail(messages[0]);
+
+        mockMvc.perform(get("/settings/confirm-email")
+                        .param("token", rawToken))
+                .andExpect(status().isFound())
+                .andExpect(result -> {
+                    String setCookie = result.getResponse().getHeader("Set-Cookie");
+                    assertThat(setCookie)
+                            .as("session_email cookie must be set to new email on confirm redirect")
+                            .contains("session_email=cookie-check@example.com");
+                });
+    }
+
+    @Test
+    void shouldRedirectToLoginWithError_whenConfirmedEmailAlreadyTaken() throws Exception {
         // Create the primary user
         User user = createActiveUser();
         // Create a second user who already has the target email
@@ -374,11 +402,14 @@ class SettingsIntegrationTest extends AbstractWireMockTest {
                 Instant.now().plus(24, ChronoUnit.HOURS));
         emailChangeTokenRepository.save(directToken);
 
-        // Confirm — should return 409 because the target email is already taken
+        // Confirm — should redirect to /login?emailError=email-unavailable (Bug A2 fix:
+        // returning JSON 409 from a browser-followed redirect link is bad UX)
         mockMvc.perform(get("/settings/confirm-email")
                         .param("token", rawToken))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("This email address is no longer available."));
+                .andExpect(status().isFound())
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeader("Location"))
+                        .contains("emailError=email-unavailable"));
     }
 
     @Test

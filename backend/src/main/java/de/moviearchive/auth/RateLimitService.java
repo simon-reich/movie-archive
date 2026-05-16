@@ -28,4 +28,9 @@ public class RateLimitService {
     public long estimateRetryAfterSeconds(String ip) {
         return resolveBucket(ip).estimateAbilityToConsume(1).getNanosToWaitForRefill() / 1_000_000_000L;
     }
+
+    /** Clears all rate-limit buckets. Exposed for use in integration tests between test runs. */
+    public void resetAll() {
+        buckets.clear();
+    }
 }

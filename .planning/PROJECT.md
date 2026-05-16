@@ -75,6 +75,10 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 | grace_until 5s auf Refresh Token | Race Condition bei parallelen Browser-Tabs sicher abgefangen | ✓ Good — Phase 1 |
 | forgotPassword immer 200 OK | Enumeration-Schutz — Angreifer kann nicht prüfen ob E-Mail existiert | ✓ Good — Phase 1 |
 
+## Design System
+
+**Global UI-SPEC:** `.planning/UI-SPEC.md` — shared app-level design contract (approved, phase 1). All phases with frontend work use this file instead of per-phase UI-SPEC files. Plans must read `.planning/UI-SPEC.md` before any UI tasks.
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.

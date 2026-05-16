@@ -6,6 +6,13 @@ import InputText from '@/components/InputText.vue'
 import ButtonPrimary from '@/components/ButtonPrimary.vue'
 import FormErrorBanner from '@/components/FormErrorBanner.vue'
 
+definePageMeta({ layout: 'default' })
+
+const authStore = useAuthStore()
+if (import.meta.client && authStore.isAuthenticated) {
+  await navigateTo('/')
+}
+
 const { login } = useAuth()
 
 const email = ref('')

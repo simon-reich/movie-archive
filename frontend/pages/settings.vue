@@ -72,18 +72,27 @@ onMounted(() => {
   }
 })
 
-onMounted(async () => {
-  keysLoading.value = true
-  try {
-    const keys = await loadApiKeys()
-    tmdbKey.value = keys.tmdb ?? ''
-    omdbKey.value = keys.omdb ?? ''
-  } catch {
-    // Non-fatal — leave inputs empty
-  } finally {
-    keysLoading.value = false
-  }
-})
+// Load API keys as soon as accessToken is available.
+// Using watch with immediate:true handles both cases:
+// - token already in store (client-side navigation, store preserved)
+// - token set after page load (F5 / direct URL — auth plugin sets it async)
+watch(
+  () => authStore.accessToken,
+  async (token) => {
+    if (!token) return
+    keysLoading.value = true
+    try {
+      const keys = await loadApiKeys()
+      tmdbKey.value = keys.tmdb ?? ''
+      omdbKey.value = keys.omdb ?? ''
+    } catch {
+      // Non-fatal — leave inputs empty
+    } finally {
+      keysLoading.value = false
+    }
+  },
+  { immediate: true },
+)
 
 async function handleSaveTmdb() {
   tmdbSaving.value = true

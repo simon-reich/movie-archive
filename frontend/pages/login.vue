@@ -9,9 +9,13 @@ import FormErrorBanner from '@/components/FormErrorBanner.vue'
 definePageMeta({ layout: 'default' })
 
 const authStore = useAuthStore()
-if (import.meta.client && authStore.isAuthenticated) {
-  await navigateTo('/')
-}
+// Watch for token — handles both immediate (store already populated)
+// and deferred (auth plugin sets token after this setup runs on reload)
+watch(
+  () => authStore.accessToken,
+  (token) => { if (token) navigateTo('/') },
+  { immediate: true },
+)
 
 const { login } = useAuth()
 

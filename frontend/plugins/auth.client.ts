@@ -9,7 +9,7 @@ const publicRoutes = [
   '/reset-password',
 ]
 
-export default defineNuxtPlugin(async (nuxtApp) => {
+export default defineNuxtPlugin(async () => {
   const authStore = useAuthStore()
   // Silent refresh on init (D-05): populate store from HttpOnly cookie.
   try {
@@ -17,7 +17,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   } catch {
     // Refresh failed — if on a protected route, redirect to login now
     // to avoid flashing protected content with an expired session.
-    const route = nuxtApp.$router.currentRoute.value
+    const route = useRouter().currentRoute.value
     if (!publicRoutes.includes(route.path)) {
       await navigateTo('/login')
     }

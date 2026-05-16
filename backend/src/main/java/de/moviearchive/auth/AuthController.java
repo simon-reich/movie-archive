@@ -112,6 +112,7 @@ public class AuthController {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, clearCookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, authService.buildClearSessionEmailCookie());
+        response.addHeader(HttpHeaders.SET_COOKIE, authService.buildClearAccessTokenCookie());
         return ResponseEntity.ok().build();
     }
 

@@ -7,6 +7,9 @@ vi.stubGlobal('$fetch', mockFetch)
 
 describe('auth.client plugin behavior', () => {
   beforeEach(() => {
+    // Clear auth cookies so useCookie refs start null in each test.
+    document.cookie = 'access_token=; Max-Age=0; path=/'
+    document.cookie = 'session_email=; Max-Age=0; path=/'
     setActivePinia(createPinia())
     mockFetch.mockReset()
   })
@@ -40,6 +43,7 @@ describe('auth.client plugin behavior', () => {
     // The plugin catches this — test that store remains empty when error is swallowed
     // The store.refresh() itself throws; plugin swallows it silently
     expect(threw).toBe(true) // refresh throws, plugin swallows
-    expect(store.accessToken).toBeNull()
+    // Cookie is absent so value is null or "" — either is falsy (no valid token)
+    expect(store.accessToken).toBeFalsy()
   })
 })

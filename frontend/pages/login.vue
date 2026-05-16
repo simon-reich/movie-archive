@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AuthCard from '@/components/AuthCard.vue'
 import FormField from '@/components/FormField.vue'
 import InputText from '@/components/InputText.vue'
@@ -9,20 +9,38 @@ import FormErrorBanner from '@/components/FormErrorBanner.vue'
 definePageMeta({ layout: 'default' })
 
 const authStore = useAuthStore()
-// Watch for token — handles both immediate (store already populated)
-// and deferred (auth plugin sets token after this setup runs on reload)
+// The middleware already redirects authenticated users away from /login on every navigation.
+// This watch handles the edge case where the middleware runs before the cookie is evaluated
+// (e.g. during the very first hydration tick). Since isAuthenticated is now cookie-backed,
+// it is synchronously true on both SSR and client — immediate:true fires with the correct value.
 watch(
-  () => authStore.accessToken,
-  (token) => { if (token) navigateTo('/') },
+  () => authStore.isAuthenticated,
+  (authenticated) => { if (authenticated) navigateTo('/') },
   { immediate: true },
 )
 
 const { login } = useAuth()
+const route = useRoute()
+const router = useRouter()
 
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
+
+// Handle ?emailError=... from backend email-confirm redirect when user is logged out.
+// Error redirects go to /login because /settings is protected and the query param
+// would be lost if the middleware redirected an unauthenticated user from /settings → /login.
+onMounted(() => {
+  if (route.query.emailError) {
+    const code = route.query.emailError as string
+    errorMessage.value =
+      code === 'token-used' ? 'This confirmation link has already been used.' :
+      code === 'token-expired' ? 'This confirmation link has expired. Request a new one.' :
+      'Invalid confirmation link.'
+    router.replace({ query: {} })
+  }
+})
 
 // Clear error on user input (D-08)
 function clearError() {

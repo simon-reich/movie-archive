@@ -8,6 +8,9 @@ vi.stubGlobal('$fetch', mockFetch)
 
 describe('auth store', () => {
   beforeEach(() => {
+    // Clear auth cookies so useCookie refs start null in each test.
+    document.cookie = 'access_token=; Max-Age=0; path=/'
+    document.cookie = 'session_email=; Max-Age=0; path=/'
     setActivePinia(createPinia())
     mockFetch.mockReset()
   })

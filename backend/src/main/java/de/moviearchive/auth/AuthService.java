@@ -48,6 +48,9 @@ public class AuthService {
     @Value("${jwt.refresh-token-expiration-ms}")
     private long refreshTokenExpirationMs;
 
+    @Value("${jwt.access-token-expiration-ms}")
+    private long accessTokenExpirationMs;
+
     @Value("${cookie.secure:false}")
     private boolean cookieSecure;
 
@@ -144,6 +147,7 @@ public class AuthService {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, buildSessionEmailCookie(user.getEmail(), refreshTokenExpirationMs));
+        response.addHeader(HttpHeaders.SET_COOKIE, buildAccessTokenCookie(accessToken, accessTokenExpirationMs));
 
         return new LoginResponse(accessToken, user.getEmail());
     }
@@ -179,6 +183,7 @@ public class AuthService {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, newCookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, buildSessionEmailCookie(user.getEmail(), refreshTokenExpirationMs));
+        response.addHeader(HttpHeaders.SET_COOKIE, buildAccessTokenCookie(newAccessToken, accessTokenExpirationMs));
 
         return new RefreshResponse(newAccessToken, user.getEmail());
     }
@@ -197,6 +202,28 @@ public class AuthService {
                 .secure(cookieSecure)
                 .sameSite(cookieSameSite)
                 .maxAge(0)
+                .path("/")
+                .build()
+                .toString();
+    }
+
+    public String buildClearAccessTokenCookie() {
+        return ResponseCookie.from("access_token", "")
+                .httpOnly(false)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .maxAge(0)
+                .path("/")
+                .build()
+                .toString();
+    }
+
+    private String buildAccessTokenCookie(String accessToken, long maxAgeMs) {
+        return ResponseCookie.from("access_token", accessToken)
+                .httpOnly(false)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .maxAge(Duration.ofMillis(maxAgeMs))
                 .path("/")
                 .build()
                 .toString();

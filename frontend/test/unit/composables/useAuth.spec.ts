@@ -22,6 +22,9 @@ const mockNavigateTo = vi.mocked(navigateTo)
 
 describe('useAuth composable', () => {
   beforeEach(() => {
+    // Clear auth cookies so useCookie refs start null in each test.
+    document.cookie = 'access_token=; Max-Age=0; path=/'
+    document.cookie = 'session_email=; Max-Age=0; path=/'
     setActivePinia(createPinia())
     mockFetch.mockReset()
     mockNavigateTo.mockReset()
@@ -43,9 +46,9 @@ describe('useAuth composable', () => {
     await signup('new@e.com', 'password123')
     expect(mockFetch).toHaveBeenCalledWith('/api/auth/signup', expect.objectContaining({ method: 'POST', credentials: 'include' }))
     expect(mockNavigateTo).toHaveBeenCalledWith('/verify-email-sent')
-    // Verify no setAuth was called (no auto-login)
+    // Verify no setAuth was called (no auto-login) — cookie is absent so value is null or ""
     const store = useAuthStore()
-    expect(store.accessToken).toBeNull()
+    expect(store.accessToken).toBeFalsy()
   })
 
   it('logout calls POST /api/auth/logout and clears store', async () => {

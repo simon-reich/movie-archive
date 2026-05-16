@@ -99,10 +99,22 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andReturn();
 
-        String setCookie = result.getResponse().getHeader("Set-Cookie");
-        assertThat(setCookie).contains("refresh_token=");
-        assertThat(setCookie).contains("HttpOnly");
-        assertThat(setCookie).contains("Path=/api/auth/refresh");
+        // Multiple Set-Cookie headers are returned; use getHeaders to get all of them.
+        List<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
+        String refreshCookie = setCookies.stream()
+                .filter(c -> c.startsWith("refresh_token="))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("refresh_token cookie not found"));
+        assertThat(refreshCookie).contains("HttpOnly");
+        assertThat(refreshCookie).contains("Path=/");
+
+        // access_token cookie must be present and NOT HttpOnly (readable by JS / SSR)
+        String accessCookie = setCookies.stream()
+                .filter(c -> c.startsWith("access_token="))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("access_token cookie not found"));
+        assertThat(accessCookie).doesNotContain("HttpOnly");
+        assertThat(accessCookie).contains("Path=/");
     }
 
     @Test

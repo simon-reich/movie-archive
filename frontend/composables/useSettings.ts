@@ -1,10 +1,12 @@
-import { useAuthStore } from '@/stores/auth'
-
 export function useSettings() {
-  const authStore = useAuthStore()
+  // Read the access token directly from the cookie — works on both SSR and client.
+  // useCookie is a Nuxt auto-import; no store reference needed here.
+  const accessTokenCookie = useCookie<string | null>('access_token')
 
   function authHeaders(): Record<string, string> {
-    return authStore.accessToken ? { Authorization: `Bearer ${authStore.accessToken}` } : {}
+    return accessTokenCookie.value
+      ? { Authorization: `Bearer ${accessTokenCookie.value}` }
+      : {}
   }
 
   async function saveApiKey(provider: 'tmdb' | 'omdb', key: string): Promise<void> {
@@ -30,8 +32,8 @@ export function useSettings() {
       credentials: 'include',
       headers: authHeaders(),
     })
-    // D-05: clear auth store BEFORE navigating to /login (Pitfall 5 — prevents redirect loop)
-    authStore.clearAuth()
+    // D-05: clear auth store BEFORE navigating to /login (prevents redirect loop)
+    useAuthStore().clearAuth()
     await navigateTo('/login')
   }
 

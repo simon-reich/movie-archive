@@ -1,25 +1,6 @@
-import { useAuthStore } from '@/stores/auth'
-
-const publicRoutes = [
-  '/login',
-  '/signup',
-  '/verify-email',
-  '/verify-email-sent',
-  '/forgot-password',
-  '/reset-password',
-]
-
-export default defineNuxtPlugin(async () => {
-  const authStore = useAuthStore()
-  // Silent refresh on init (D-05): populate store from HttpOnly cookie.
-  try {
-    await authStore.refresh()
-  } catch {
-    // Refresh failed — if on a protected route, redirect to login now
-    // to avoid flashing protected content with an expired session.
-    const route = useRouter().currentRoute.value
-    if (!publicRoutes.includes(route.path)) {
-      await navigateTo('/login')
-    }
-  }
-})
+// Auth state is now driven by the readable 'access_token' cookie (set by the backend on login/refresh).
+// useCookie('access_token') in stores/auth.ts works on both SSR and client without a round-trip,
+// so no async plugin is needed to restore auth state on page load.
+//
+// This file is intentionally left as a no-op. It can be removed entirely once confirmed stable.
+export default defineNuxtPlugin(() => {})

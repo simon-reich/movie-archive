@@ -57,8 +57,11 @@ watch([currentPassword, newPassword, confirmPassword], () => {
   passwordFieldError.value = null
 })
 
-// Handle ?emailConfirmed=true / ?emailError=... from backend redirect
-onMounted(() => {
+// Handle ?emailConfirmed=true / ?emailError=... from backend redirect,
+// then load API keys. Both happen once the component is mounted on the client
+// (the access_token cookie is already available via the middleware — no async
+// plugin round-trip needed before this point).
+onMounted(async () => {
   if (route.query.emailConfirmed === 'true') {
     emailConfirmedBanner.value = true
     router.replace({ query: {} })
@@ -70,29 +73,18 @@ onMounted(() => {
       'Invalid confirmation link.'
     router.replace({ query: {} })
   }
-})
 
-// Load API keys as soon as accessToken is available.
-// Using watch with immediate:true handles both cases:
-// - token already in store (client-side navigation, store preserved)
-// - token set after page load (F5 / direct URL — auth plugin sets it async)
-watch(
-  () => authStore.accessToken,
-  async (token) => {
-    if (!token) return
-    keysLoading.value = true
-    try {
-      const keys = await loadApiKeys()
-      tmdbKey.value = keys.tmdb ?? ''
-      omdbKey.value = keys.omdb ?? ''
-    } catch {
-      // Non-fatal — leave inputs empty
-    } finally {
-      keysLoading.value = false
-    }
-  },
-  { immediate: true },
-)
+  keysLoading.value = true
+  try {
+    const keys = await loadApiKeys()
+    tmdbKey.value = keys.tmdb ?? ''
+    omdbKey.value = keys.omdb ?? ''
+  } catch {
+    // Non-fatal — leave inputs empty
+  } finally {
+    keysLoading.value = false
+  }
+})
 
 async function handleSaveTmdb() {
   tmdbSaving.value = true

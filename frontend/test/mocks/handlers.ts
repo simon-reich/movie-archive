@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { authHandlers } from './handlers/auth'
 import { settingsHandlers } from './handlers/settings'
+import { moviesHandlers } from './handlers/movies'
 
 /**
  * Global MSW request handlers.
@@ -12,4 +13,5 @@ export const handlers = [
   }),
   ...authHandlers,
   ...settingsHandlers,
+  ...moviesHandlers,
 ]

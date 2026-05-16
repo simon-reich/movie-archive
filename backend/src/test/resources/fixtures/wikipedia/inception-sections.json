@@ -1,0 +1,12 @@
+{
+  "parse": {
+    "title": "Inception (2010 film)",
+    "pageid": 27230289,
+    "sections": [
+      {"index": "1", "line": "Plot", "number": "1"},
+      {"index": "2", "line": "Cast", "number": "2"},
+      {"index": "3", "line": "Production", "number": "3"},
+      {"index": "7", "line": "Critical response", "number": "7"}
+    ]
+  }
+}

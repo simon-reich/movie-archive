@@ -72,10 +72,24 @@ public class SettingsController {
 
     @GetMapping("/confirm-email")
     public ResponseEntity<Void> confirmEmail(@RequestParam String token) {
-        settingsService.confirmEmailChange(token);
-        return ResponseEntity.status(302)
-                .header("Location", appBaseUrl + "/settings?emailConfirmed=true")
-                .build();
+        try {
+            settingsService.confirmEmailChange(token);
+            return ResponseEntity.status(302)
+                    .header("Location", appBaseUrl + "/settings?emailConfirmed=true")
+                    .build();
+        } catch (TokenAlreadyConsumedException e) {
+            return ResponseEntity.status(302)
+                    .header("Location", appBaseUrl + "/settings?emailError=token-used")
+                    .build();
+        } catch (TokenExpiredException e) {
+            return ResponseEntity.status(302)
+                    .header("Location", appBaseUrl + "/settings?emailError=token-expired")
+                    .build();
+        } catch (TokenNotFoundException e) {
+            return ResponseEntity.status(302)
+                    .header("Location", appBaseUrl + "/settings?emailError=invalid-token")
+                    .build();
+        }
     }
 
     // --- Exception handlers ---

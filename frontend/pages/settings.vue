@@ -6,6 +6,9 @@ import ButtonPrimary from '@/components/ButtonPrimary.vue'
 import FormErrorBanner from '@/components/FormErrorBanner.vue'
 
 const { saveApiKey, loadApiKeys, changePassword, changeEmail } = useSettings()
+const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 
 // API Keys section
 const tmdbKey = ref<string>('')
@@ -22,6 +25,7 @@ const keysLoading = ref(true)
 const newEmail = ref('')
 const emailChanging = ref(false)
 const emailChangeSuccess = ref(false)
+const emailConfirmedBanner = ref(false)
 const emailError = ref<string | null>(null)
 
 // Password change section
@@ -42,9 +46,8 @@ watch(omdbKey, () => {
   omdbError.value = null
 })
 
-// Reset email success/error when field changes
+// Reset email error when field changes — but NOT emailChangeSuccess (cleared on submit only)
 watch(newEmail, () => {
-  emailChangeSuccess.value = false
   emailError.value = null
 })
 
@@ -52,6 +55,21 @@ watch(newEmail, () => {
 watch([currentPassword, newPassword, confirmPassword], () => {
   passwordError.value = null
   passwordFieldError.value = null
+})
+
+// Handle ?emailConfirmed=true / ?emailError=... from backend redirect
+onMounted(() => {
+  if (route.query.emailConfirmed === 'true') {
+    emailConfirmedBanner.value = true
+    router.replace({ query: {} })
+  } else if (route.query.emailError) {
+    const code = route.query.emailError as string
+    emailError.value =
+      code === 'token-used' ? 'This confirmation link has already been used.' :
+      code === 'token-expired' ? 'This confirmation link has expired. Request a new one.' :
+      'Invalid confirmation link.'
+    router.replace({ query: {} })
+  }
 })
 
 onMounted(async () => {
@@ -103,8 +121,9 @@ async function handleChangeEmail() {
   emailChangeSuccess.value = false
   try {
     await changeEmail(newEmail.value)
-    emailChangeSuccess.value = true
     newEmail.value = ''
+    // Set success AFTER clearing field so the watch(newEmail) doesn't wipe it
+    emailChangeSuccess.value = true
   } catch (err: unknown) {
     const e = err as { data?: { message?: string } }
     emailError.value = e?.data?.message ?? 'Something went wrong. Please try again.'
@@ -146,6 +165,20 @@ async function handleChangePassword() {
     <!-- Section 1: Account -->
     <section id="account">
       <h1 class="text-xl font-semibold tracking-wide mb-6">Account</h1>
+
+      <!-- Email confirmed banner (from ?emailConfirmed=true redirect) -->
+      <div
+        v-if="emailConfirmedBanner"
+        class="mb-6 rounded-none border border-border bg-card px-4 py-3 text-sm text-foreground"
+      >
+        Your email address has been updated successfully.
+      </div>
+
+      <!-- Current email display -->
+      <div class="mb-6">
+        <p class="text-sm text-muted-foreground">Current email</p>
+        <p class="text-sm font-medium text-foreground mt-1">{{ authStore.userEmail }}</p>
+      </div>
 
       <!-- Email change form -->
       <div>

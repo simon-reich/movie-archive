@@ -4,7 +4,7 @@ export function useSettings() {
   const authStore = useAuthStore()
 
   async function saveApiKey(provider: 'tmdb' | 'omdb', key: string): Promise<void> {
-    await $fetch(`/api/settings/api-keys/${provider}`, {
+    await $fetch<void>(`/api/settings/api-keys/${provider}` as string, {
       method: 'PUT',
       body: { key },
       credentials: 'include',
@@ -12,13 +12,13 @@ export function useSettings() {
   }
 
   async function loadApiKeys(): Promise<{ tmdb: string | null; omdb: string | null }> {
-    return await $fetch('/api/settings/api-keys', {
+    return await $fetch<{ tmdb: string | null; omdb: string | null }>('/api/settings/api-keys' as string, {
       credentials: 'include',
     })
   }
 
   async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await $fetch('/api/settings/password', {
+    await $fetch<void>('/api/settings/password' as string, {
       method: 'POST',
       body: { currentPassword, newPassword },
       credentials: 'include',
@@ -29,7 +29,7 @@ export function useSettings() {
   }
 
   async function changeEmail(newEmail: string): Promise<void> {
-    await $fetch('/api/settings/email', {
+    await $fetch<void>('/api/settings/email' as string, {
       method: 'POST',
       body: { newEmail },
       credentials: 'include',

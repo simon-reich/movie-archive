@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { authHandlers } from './handlers/auth'
+import { settingsHandlers } from './handlers/settings'
 
 /**
  * Global MSW request handlers.
@@ -10,4 +11,5 @@ export const handlers = [
     return HttpResponse.json({ status: 'UP' })
   }),
   ...authHandlers,
+  ...settingsHandlers,
 ]

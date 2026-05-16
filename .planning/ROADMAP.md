@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 0: Setup & Infrastructure** - Repo, Docker Compose, Spring Boot + Nuxt skeletons, CI (COMPLETE)
 - [x] **Phase 1: Authentication** - Sign-up, email verification, login, logout, token rotation, password reset (COMPLETE)
-- [ ] **Phase 2: Settings & API Keys** - TMDB/OMDB key management, password change, email change, CSV export/import
+- [x] **Phase 2: Settings & API Keys** - TMDB/OMDB key management, password change, email change, CSV export/import (COMPLETE)
 - [ ] **Phase 3: Save Movie Flow** - Async TMDB → OMDB → Wikipedia → Postgres enrichment pipeline with status feedback
 - [ ] **Phase 4: OpenSearch Indexing** - Index lifecycle, custom analyzer, field mappings, admin reindex endpoint
 - [ ] **Phase 5: Search** - Full-text search, advanced filters, sorting, clickable attribute navigation
@@ -70,12 +70,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can change password by providing current password; all existing sessions are invalidated
   4. User can change email address; a verification link is sent to the new address and the old address is notified after confirmation
   5. Settings page has a visible Import & Export section (CSV buttons disabled — placeholder for post-Phase 3)
-**Plans**: 3 plans
+**Plans**: 3/3 complete (02-01 test scaffolding, 02-02 backend settings, 02-03 frontend settings)
+**Status**: COMPLETE — 2026-05-16
+**Human UAT**: 6/6 tests passed
 
 Plans:
-- [ ] 02-01-PLAN.md — Test scaffolding (backend stubs + frontend todos + MSW handlers)
-- [ ] 02-02-PLAN.md — Backend: Flyway V5 migration, EncryptionService, validators, SettingsService, SettingsController, mail templates
-- [ ] 02-03-PLAN.md — Frontend: useSettings composable, /settings page (3 sections), AppNav settings link
+- [x] 02-01-PLAN.md — Test scaffolding (backend stubs + frontend todos + MSW handlers)
+- [x] 02-02-PLAN.md — Backend: Flyway V5 migration, EncryptionService, validators, SettingsService, SettingsController, mail templates
+- [x] 02-03-PLAN.md — Frontend: useSettings composable, /settings page (3 sections), AppNav settings link
 
 ### Phase 3: Save Movie Flow
 **Goal**: Users can add a film to their archive in seconds and see its enrichment status

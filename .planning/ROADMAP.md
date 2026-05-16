@@ -65,14 +65,17 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Depends on**: Phase 1
 **Requirements**: SET-01, SET-02, SET-03, SET-04, SET-05, SET-06
 **Success Criteria** (what must be TRUE):
-  1. User can save and update a TMDB API key (stored AES-256-GCM encrypted, displayed masked)
+  1. User can save and update a TMDB API key (stored AES-256-GCM encrypted, displayed in plaintext per D-03)
   2. User can optionally save and update an OMDB API key with same encryption behavior
   3. User can change password by providing current password; all existing sessions are invalidated
-  4. User can change email address; a verification link is sent to the new address and the old address is notified
-  5. User can export all their movie data as a CSV file
-  6. User can import movie data from a CSV file
-**Plans**: TBD
-**UI hint**: yes
+  4. User can change email address; a verification link is sent to the new address and the old address is notified after confirmation
+  5. Settings page has a visible Import & Export section (CSV buttons disabled — placeholder for post-Phase 3)
+**Plans**: 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Test scaffolding (backend stubs + frontend todos + MSW handlers)
+- [ ] 02-02-PLAN.md — Backend: Flyway V5 migration, EncryptionService, validators, SettingsService, SettingsController, mail templates
+- [ ] 02-03-PLAN.md — Frontend: useSettings composable, /settings page (3 sections), AppNav settings link
 
 ### Phase 3: Save Movie Flow
 **Goal**: Users can add a film to their archive in seconds and see its enrichment status
@@ -142,7 +145,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 0. Setup & Infrastructure | -/- | Complete | 2026-05-15 |
 | 1. Authentication | 3/3 | Complete | 2026-05-16 |
-| 2. Settings & API Keys | 0/TBD | Not started | - |
+| 2. Settings & API Keys | 0/3 | Not started | - |
 | 3. Save Movie Flow | 0/TBD | Not started | - |
 | 4. OpenSearch Indexing | 0/TBD | Not started | - |
 | 5. Search | 0/TBD | Not started | - |

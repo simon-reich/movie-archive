@@ -1,4 +1,4 @@
-import { describe, it, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 
 const mockFetch = vi.fn()
@@ -21,11 +21,64 @@ describe('useSettings composable', () => {
     mockNavigateTo.mockReset()
   })
 
-  it.todo('saveApiKey calls PUT /api/settings/api-keys/tmdb with credentials')
-  it.todo('saveApiKey calls PUT /api/settings/api-keys/omdb with credentials')
-  it.todo('saveApiKey throws on 422 so page can show inline error')
-  it.todo('loadApiKeys calls GET /api/settings/api-keys and returns plaintext keys')
-  it.todo('changePassword calls POST /api/settings/password')
-  it.todo('changePassword throws on 400 so page can show inline error')
-  it.todo('changeEmail calls POST /api/settings/email')
+  it('saveApiKey calls PUT /api/settings/api-keys/tmdb with credentials', async () => {
+    mockFetch.mockResolvedValueOnce({ message: 'API key saved.' })
+    const { saveApiKey } = useSettings()
+    await saveApiKey('tmdb', 'my-tmdb-key')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/settings/api-keys/tmdb',
+      expect.objectContaining({ method: 'PUT', credentials: 'include', body: { key: 'my-tmdb-key' } })
+    )
+  })
+
+  it('saveApiKey calls PUT /api/settings/api-keys/omdb with credentials', async () => {
+    mockFetch.mockResolvedValueOnce({ message: 'API key saved.' })
+    const { saveApiKey } = useSettings()
+    await saveApiKey('omdb', 'my-omdb-key')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/settings/api-keys/omdb',
+      expect.objectContaining({ method: 'PUT', credentials: 'include' })
+    )
+  })
+
+  it('saveApiKey throws on 422 so page can show inline error', async () => {
+    mockFetch.mockRejectedValueOnce({ status: 422, data: { message: 'Invalid TMDB API key — check your key and try again.' } })
+    const { saveApiKey } = useSettings()
+    await expect(saveApiKey('tmdb', 'bad-key')).rejects.toMatchObject({ status: 422 })
+  })
+
+  it('loadApiKeys calls GET /api/settings/api-keys and returns keys', async () => {
+    mockFetch.mockResolvedValueOnce({ tmdb: 'my-key', omdb: null })
+    const { loadApiKeys } = useSettings()
+    const result = await loadApiKeys()
+    expect(mockFetch).toHaveBeenCalledWith('/api/settings/api-keys', expect.objectContaining({ credentials: 'include' }))
+    expect(result).toEqual({ tmdb: 'my-key', omdb: null })
+  })
+
+  it('changePassword calls POST /api/settings/password then clears auth and navigates to /login', async () => {
+    mockFetch.mockResolvedValueOnce(null)
+    const { changePassword } = useSettings()
+    await changePassword('old-pass', 'new-pass-secure')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/settings/password',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
+    expect(mockNavigateTo).toHaveBeenCalledWith('/login')
+  })
+
+  it('changePassword throws on 400 so page can show inline error', async () => {
+    mockFetch.mockRejectedValueOnce({ status: 400, data: { message: 'Current password is incorrect.' } })
+    const { changePassword } = useSettings()
+    await expect(changePassword('wrong', 'newpass123')).rejects.toMatchObject({ status: 400 })
+  })
+
+  it('changeEmail calls POST /api/settings/email', async () => {
+    mockFetch.mockResolvedValueOnce(null)
+    const { changeEmail } = useSettings()
+    await changeEmail('new@example.com')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/settings/email',
+      expect.objectContaining({ method: 'POST', credentials: 'include', body: { newEmail: 'new@example.com' } })
+    )
+  })
 })

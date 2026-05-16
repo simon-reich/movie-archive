@@ -1,12 +1,12 @@
-/**
- * Settings composable — stub created for test scaffolding (plan 02-01).
- * Full implementation in plan 02-03.
- */
+import { useAuthStore } from '@/stores/auth'
+
 export function useSettings() {
-  async function saveApiKey(_provider: 'tmdb' | 'omdb', _key: string): Promise<void> {
-    await $fetch(`/api/settings/api-keys/${_provider}`, {
+  const authStore = useAuthStore()
+
+  async function saveApiKey(provider: 'tmdb' | 'omdb', key: string): Promise<void> {
+    await $fetch(`/api/settings/api-keys/${provider}`, {
       method: 'PUT',
-      body: { key: _key },
+      body: { key },
       credentials: 'include',
     })
   }
@@ -17,18 +17,21 @@ export function useSettings() {
     })
   }
 
-  async function changePassword(_currentPassword: string, _newPassword: string): Promise<void> {
+  async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
     await $fetch('/api/settings/password', {
       method: 'POST',
-      body: { currentPassword: _currentPassword, newPassword: _newPassword },
+      body: { currentPassword, newPassword },
       credentials: 'include',
     })
+    // D-05: clear auth store BEFORE navigating to /login (Pitfall 5 — prevents redirect loop)
+    authStore.clearAuth()
+    await navigateTo('/login')
   }
 
-  async function changeEmail(_newEmail: string): Promise<void> {
+  async function changeEmail(newEmail: string): Promise<void> {
     await $fetch('/api/settings/email', {
       method: 'POST',
-      body: { newEmail: _newEmail },
+      body: { newEmail },
       credentials: 'include',
     })
   }

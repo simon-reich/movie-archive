@@ -21,6 +21,13 @@ async function handleLogout() {
     </NuxtLink>
     <div class="flex items-center gap-4">
       <span class="text-sm text-muted-foreground hidden sm:inline">{{ authStore.userEmail }}</span>
+      <NuxtLink
+        v-if="authStore.accessToken"
+        to="/settings"
+        class="text-sm font-medium text-foreground hover:text-primary"
+      >
+        Settings
+      </NuxtLink>
       <button
         :disabled="loading"
         class="text-sm font-medium text-foreground hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"

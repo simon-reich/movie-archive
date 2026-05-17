@@ -92,8 +92,8 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Test scaffolding: backend @Disabled stubs, WireMock fixtures, MSW handlers, frontend .todo stubs
-- [ ] 03-02-PLAN.md — Backend infra: Flyway V6 movies table, Movie entity, MovieRepository, DTOs, AsyncConfig
+- [x] 03-01-PLAN.md — Test scaffolding: backend @Disabled stubs, WireMock fixtures, MSW handlers, frontend .todo stubs
+- [x] 03-02-PLAN.md — Backend infra: Flyway V6 movies table, Movie entity, MovieRepository, DTOs, AsyncConfig
 - [ ] 03-03-PLAN.md — Backend HTTP layer: MovieService, MovieController (save/search/status), integration tests
 - [ ] 03-04-PLAN.md — Backend enrichment pipeline: TmdbClient, OmdbClient, WikipediaClient, EnrichmentService, pipeline tests
 - [ ] 03-05-PLAN.md — Frontend: useMovies composable, /add page (poster grid + spinner/status UX), AppNav link, human UAT

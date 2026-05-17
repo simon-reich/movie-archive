@@ -1,0 +1,36 @@
+{
+  "_skeleton": true,
+  "settings": {
+    "analysis": {
+      "filter": {
+        "stop_english": {
+          "type": "stop",
+          "stopwords": "_english_"
+        }
+      },
+      "analyzer": {
+        "custom_english_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["asciifolding", "lowercase", "elision", "stop_english", "kstem"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "analyzer": "custom_english_analyzer"
+      },
+      "original_title": {
+        "type": "text",
+        "analyzer": "custom_english_analyzer"
+      },
+      "personal_notes": {
+        "type": "text",
+        "analyzer": "custom_english_analyzer"
+      }
+    }
+  }
+}

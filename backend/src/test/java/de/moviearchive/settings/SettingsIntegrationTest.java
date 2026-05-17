@@ -10,6 +10,7 @@ import de.moviearchive.token.EmailChangeToken;
 import de.moviearchive.token.EmailChangeTokenRepository;
 import de.moviearchive.token.RefreshToken;
 import de.moviearchive.token.RefreshTokenRepository;
+import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.user.User;
 import de.moviearchive.user.UserRepository;
 import de.moviearchive.user.UserStatus;
@@ -72,10 +73,14 @@ class SettingsIntegrationTest extends AbstractWireMockTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
+    private MovieRepository movieRepository;
+
+    @Autowired
     private RateLimitService rateLimitService;
 
     @BeforeEach
     void cleanDb() {
+        movieRepository.deleteAll();
         userApiKeyRepository.deleteAll();
         emailChangeTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();

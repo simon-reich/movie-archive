@@ -7,6 +7,7 @@ import de.moviearchive.enrichment.OmdbClient;
 import de.moviearchive.enrichment.TmdbClient;
 import de.moviearchive.enrichment.WikipediaClient;
 import de.moviearchive.enrichment.WikipediaNotFoundException;
+import de.moviearchive.indexing.IndexingService;
 import de.moviearchive.settings.SettingsService;
 import de.moviearchive.user.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,13 +21,20 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import java.io.IOException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+// Note: Use doThrow().when() (not when().thenThrow()) when re-stubbing a method that
+// was already configured to throw in @BeforeEach. when().thenThrow() calls the method
+// to register the stub, which triggers the existing throw before Mockito can intercept it.
 
 @ExtendWith(MockitoExtension.class)
 class EnrichmentServiceTest {
@@ -46,6 +54,9 @@ class EnrichmentServiceTest {
     @Mock
     private WikipediaClient wikipediaClient;
 
+    @Mock
+    private IndexingService indexingService;
+
     private EnrichmentService enrichmentService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -56,7 +67,7 @@ class EnrichmentServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         enrichmentService = new EnrichmentService(
-                movieRepository, settingsService, tmdbClient, omdbClient, wikipediaClient);
+                movieRepository, settingsService, tmdbClient, omdbClient, wikipediaClient, indexingService);
 
         movieId = UUID.randomUUID();
         user = new User("test@example.com", "hash");
@@ -68,6 +79,12 @@ class EnrichmentServiceTest {
         // Default Wikipedia: throws not found (silent)
         when(wikipediaClient.fetch(anyString(), anyString(), anyInt()))
                 .thenThrow(new WikipediaNotFoundException("not found"));
+
+        // Default OpenSearch: simulate connection failure (D-01 silent fail — no real OS in unit tests).
+        // This ensures EnrichmentService does not perform the second movieRepository.save(indexed_at)
+        // in tests that only verify the Postgres enrichment logic.
+        doThrow(new IOException("OpenSearch not available in unit test"))
+                .when(indexingService).index(any(Movie.class));
     }
 
     private JsonNode tmdbDetailWithImdbId(String imdbId) throws Exception {
@@ -122,8 +139,8 @@ class EnrichmentServiceTest {
                 .thenReturn(Map.of("tmdb", "tmdb-key"));
         when(tmdbClient.fetchDetail(27205, "tmdb-key"))
                 .thenReturn(tmdbDetailWithImdbId("tt1375666"));
-        when(wikipediaClient.fetch(anyString(), anyString(), anyInt()))
-                .thenThrow(new WikipediaNotFoundException("All 6 candidates failed"));
+        // Wikipedia already configured to throw WikipediaNotFoundException in @BeforeEach —
+        // no need to re-stub here.
 
         enrichmentService.enrich(movieId);
 

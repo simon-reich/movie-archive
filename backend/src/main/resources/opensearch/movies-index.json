@@ -83,7 +83,8 @@
         "index": false
       },
       "rating_list": {
-        "type": "flattened"
+        "type": "object",
+        "dynamic": true
       },
       "genre_list": {
         "type": "keyword",
@@ -155,16 +156,16 @@
         "type": "keyword"
       },
       "poster_list": {
-        "type": "flattened",
-        "index": false
+        "type": "object",
+        "enabled": false
       },
       "backdrop_list": {
-        "type": "flattened",
-        "index": false
+        "type": "object",
+        "enabled": false
       },
       "video_list": {
-        "type": "flattened",
-        "index": false
+        "type": "object",
+        "enabled": false
       },
       "trailer_key": {
         "type": "keyword",

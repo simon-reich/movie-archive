@@ -5,6 +5,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
+import java.time.Duration;
+
 /**
  * Base class for tests that require a live OpenSearch instance.
  *
@@ -26,8 +28,16 @@ public abstract class AbstractOpenSearchTest extends AbstractIntegrationTest {
                 .withExposedPorts(9200)
                 .withEnv("discovery.type", "single-node")
                 .withEnv("DISABLE_SECURITY_PLUGIN", "true")
-                .waitingFor(Wait.forHttp("/_cluster/health")
-                        .forStatusCodeMatching(c -> c == 200 || c == 401));
+                // Reduce heap to 512 MB for test environment (default is 1 GB)
+                .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m")
+                // Reuse container across test runs to avoid re-start overhead
+                .withReuse(true)
+                .withStartupTimeout(Duration.ofMinutes(5))
+                // Wait for the log message indicating the node is ready to accept HTTP requests.
+                // HttpWaitStrategy can fail on OpenSearch 2.x when the cluster is still loading
+                // plugins after the first YELLOW->GREEN transition.
+                .waitingFor(Wait.forLogMessage(".*o\\.o\\.n\\.Node.*started.*\\n", 1)
+                        .withStartupTimeout(Duration.ofMinutes(5)));
         opensearch.start();
     }
 

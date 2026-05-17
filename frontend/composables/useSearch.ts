@@ -35,16 +35,20 @@ export interface SearchApiResponse {
 }
 
 // URL param normalization helpers (per 05-RESEARCH.md Pattern 10)
-function normalizeQueryParam(val: string | string[] | null | undefined): string[] {
+type QueryParam = string | null | (string | null)[]
+
+function normalizeQueryParam(val: QueryParam): string[] {
   if (!val) return []
-  return Array.isArray(val) ? (val as string[]) : [val as string]
+  if (Array.isArray(val)) return val.filter((v): v is string => v !== null)
+  return [val]
 }
 
-function paramAsString(val: string | string[] | null | undefined): string {
-  return Array.isArray(val) ? (val[0] ?? '') : (val ?? '')
+function paramAsString(val: QueryParam): string {
+  if (Array.isArray(val)) return val.find(v => v !== null) ?? ''
+  return val ?? ''
 }
 
-function paramAsNumber(val: string | string[] | null | undefined): number | undefined {
+function paramAsNumber(val: QueryParam): number | undefined {
   const str = paramAsString(val)
   if (!str) return undefined
   const n = parseFloat(str)

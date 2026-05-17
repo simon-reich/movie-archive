@@ -7,8 +7,6 @@ import MovieGrid from '@/components/MovieGrid.vue'
 import MovieList from '@/components/MovieList.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 
-definePageMeta({ middleware: ['auth'] })
-
 useHead({ title: 'Search — MovieArchive' })
 
 const { searchQuery, sort, results, total, hasMore, isLoading, updateFilter, loadMore } = useSearch()

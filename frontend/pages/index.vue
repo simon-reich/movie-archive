@@ -5,8 +5,6 @@ import MovieOfTheDay from '@/components/MovieOfTheDay.vue'
 import ImdbHistogram from '@/components/ImdbHistogram.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 
-definePageMeta({ middleware: ['auth'] })
-
 const { data, isLoading, fetchDashboard } = useDashboard()
 
 function posterUrl(posterPath: string | null): string {

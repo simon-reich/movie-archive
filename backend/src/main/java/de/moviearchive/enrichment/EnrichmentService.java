@@ -8,6 +8,7 @@ import de.moviearchive.settings.SettingsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.Map;
@@ -41,6 +42,7 @@ public class EnrichmentService {
      * MUST be called from a different bean (MovieController) — self-invocation bypasses @Async proxy.
      */
     @Async("enrichmentExecutor")
+    @Transactional
     public void enrich(UUID movieId) {
         // JOIN FETCH user to avoid LazyInitializationException on async thread
         Movie movie = movieRepository.findByIdWithUser(movieId)

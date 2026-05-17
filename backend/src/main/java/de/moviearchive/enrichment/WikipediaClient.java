@@ -3,8 +3,6 @@ package de.moviearchive.enrichment;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -41,10 +39,6 @@ public class WikipediaClient {
      * 5. {Title}_(film)
      * 6. {Title}
      */
-    @Retryable(retryFor = Exception.class,
-               noRetryFor = WikipediaNotFoundException.class,
-               maxAttempts = 3,
-               backoff = @Backoff(delay = 1000, multiplier = 2.0))
     public WikipediaResult fetch(String originalTitle, String title, int year) {
         List<String> candidates = buildCandidates(originalTitle, title, year);
         for (String candidate : candidates) {

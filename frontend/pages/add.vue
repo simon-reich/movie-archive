@@ -82,7 +82,7 @@ onUnmounted(() => {
 })
 
 function posterUrl(posterPath: string | null): string {
-  if (!posterPath) return '/placeholder-poster.svg'
+  if (!posterPath || !posterPath.startsWith('/')) return '/placeholder-poster.svg'
   return `https://image.tmdb.org/t/p/w300${posterPath}`
 }
 </script>

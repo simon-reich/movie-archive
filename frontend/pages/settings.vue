@@ -5,7 +5,7 @@ import InputText from '@/components/InputText.vue'
 import ButtonPrimary from '@/components/ButtonPrimary.vue'
 import FormErrorBanner from '@/components/FormErrorBanner.vue'
 
-const { saveApiKey, loadApiKeys, changePassword, changeEmail } = useSettings()
+const { saveApiKey, deleteApiKey, loadApiKeys, changePassword, changeEmail } = useSettings()
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +17,8 @@ const tmdbSaving = ref(false)
 const omdbSaving = ref(false)
 const tmdbSaved = ref(false)
 const omdbSaved = ref(false)
+const tmdbDeleting = ref(false)
+const omdbDeleting = ref(false)
 const tmdbError = ref<string | null>(null)
 const omdbError = ref<string | null>(null)
 const keysLoading = ref(true)
@@ -98,6 +100,34 @@ async function handleSaveTmdb() {
     tmdbError.value = e?.data?.message ?? 'Something went wrong. Please try again.'
   } finally {
     tmdbSaving.value = false
+  }
+}
+
+async function handleDeleteTmdb() {
+  tmdbDeleting.value = true
+  tmdbError.value = null
+  try {
+    await deleteApiKey('tmdb')
+    tmdbKey.value = ''
+    tmdbSaved.value = false
+  } catch {
+    tmdbError.value = 'Could not delete key. Please try again.'
+  } finally {
+    tmdbDeleting.value = false
+  }
+}
+
+async function handleDeleteOmdb() {
+  omdbDeleting.value = true
+  omdbError.value = null
+  try {
+    await deleteApiKey('omdb')
+    omdbKey.value = ''
+    omdbSaved.value = false
+  } catch {
+    omdbError.value = 'Could not delete key. Please try again.'
+  } finally {
+    omdbDeleting.value = false
   }
 }
 
@@ -281,11 +311,20 @@ async function handleChangePassword() {
             />
             <button
               type="button"
-              :disabled="keysLoading || tmdbSaving"
+              :disabled="keysLoading || tmdbSaving || tmdbDeleting"
               class="h-10 px-4 text-sm font-medium bg-primary text-primary-foreground rounded-none hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               @click="handleSaveTmdb"
             >
               {{ tmdbSaving ? 'Saving...' : 'Save' }}
+            </button>
+            <button
+              v-if="tmdbKey"
+              type="button"
+              :disabled="keysLoading || tmdbSaving || tmdbDeleting"
+              class="h-10 px-3 text-sm font-medium text-foreground border border-border rounded-none hover:bg-card disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              @click="handleDeleteTmdb"
+            >
+              {{ tmdbDeleting ? '...' : 'Delete' }}
             </button>
           </div>
         </FormField>
@@ -306,11 +345,20 @@ async function handleChangePassword() {
             />
             <button
               type="button"
-              :disabled="keysLoading || omdbSaving"
+              :disabled="keysLoading || omdbSaving || omdbDeleting"
               class="h-10 px-4 text-sm font-medium bg-primary text-primary-foreground rounded-none hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               @click="handleSaveOmdb"
             >
               {{ omdbSaving ? 'Saving...' : 'Save' }}
+            </button>
+            <button
+              v-if="omdbKey"
+              type="button"
+              :disabled="keysLoading || omdbSaving || omdbDeleting"
+              class="h-10 px-3 text-sm font-medium text-foreground border border-border rounded-none hover:bg-card disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              @click="handleDeleteOmdb"
+            >
+              {{ omdbDeleting ? '...' : 'Delete' }}
             </button>
           </div>
         </FormField>

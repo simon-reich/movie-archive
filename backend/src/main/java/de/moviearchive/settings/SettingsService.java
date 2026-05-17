@@ -89,6 +89,15 @@ public class SettingsService {
         log.info("API key saved for provider={} userId={}", provider, user.getId());
     }
 
+    public void deleteApiKey(String email, String providerStr) {
+        ApiKeyProvider provider = ApiKeyProvider.valueOf(providerStr.toUpperCase());
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + email));
+        userApiKeyRepository.findByUserIdAndProvider(user.getId(), provider)
+                .ifPresent(userApiKeyRepository::delete);
+        log.info("API key deleted for provider={} userId={}", provider, user.getId());
+    }
+
     public Map<String, Object> getApiKeys(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + email));

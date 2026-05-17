@@ -25,6 +25,14 @@ export function useSettings() {
     })
   }
 
+  async function deleteApiKey(provider: 'tmdb' | 'omdb'): Promise<void> {
+    await $fetch<void>(`/api/settings/api-keys/${provider}` as string, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: authHeaders(),
+    })
+  }
+
   async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
     await $fetch<void>('/api/settings/password' as string, {
       method: 'POST',
@@ -46,5 +54,5 @@ export function useSettings() {
     })
   }
 
-  return { saveApiKey, loadApiKeys, changePassword, changeEmail }
+  return { saveApiKey, deleteApiKey, loadApiKeys, changePassword, changeEmail }
 }

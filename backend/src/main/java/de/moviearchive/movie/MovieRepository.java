@@ -1,5 +1,6 @@
 package de.moviearchive.movie;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -41,4 +42,13 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
      */
     @Query("SELECT m FROM Movie m WHERE m.user.id = :userId AND m.indexedAt IS NULL")
     List<Movie> findByUserIdAndIndexedAtIsNull(@Param("userId") UUID userId);
+
+    /**
+     * Returns the N most recently indexed movies for the given user.
+     * Used by DashboardService for the "recently added" dashboard section.
+     * Pageable controls the limit (pass PageRequest.of(0, 10)).
+     */
+    @Query("SELECT m FROM Movie m WHERE m.user.id = :userId AND m.indexedAt IS NOT NULL " +
+           "ORDER BY m.indexedAt DESC")
+    List<Movie> findRecentlyIndexedByUserId(@Param("userId") UUID userId, Pageable pageable);
 }

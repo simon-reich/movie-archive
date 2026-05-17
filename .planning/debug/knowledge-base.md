@@ -21,3 +21,11 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 - **Files changed:** AuthService.java, AuthController.java, SettingsService.java, SettingsController.java, stores/auth.ts, middleware/auth.global.ts, pages/settings.vue, pages/login.vue, plugins/auth.client.ts
 
 ---
+
+## api-key-delete-always-fails — DELETE endpoint returns 204, ofetch parses empty body as JSON and throws
+- **Date:** 2026-05-17
+- **Error patterns:** delete, api key, 204, no content, ofetch, fetch error, syntax error, could not delete key, catch block, settings, tmdb, omdb
+- **Root cause:** Backend DELETE /settings/api-keys/{provider} returned 204 No Content. Nuxt's $fetch (ofetch) attempted to parse the empty response body as JSON when Spring negotiated Content-Type: application/json, throwing a SyntaxError that was caught by the UI error handler and displayed as "Could not delete key. Please try again."
+- **Fix:** Change backend to return ResponseEntity.ok().build() (200 OK, consistent with changePassword and other mutation endpoints). Added MSW DELETE handler and deleteApiKey unit test.
+- **Files changed:** backend/src/main/java/de/moviearchive/settings/SettingsController.java, frontend/test/mocks/handlers/settings.ts, frontend/test/unit/composables/useSettings.spec.ts
+---

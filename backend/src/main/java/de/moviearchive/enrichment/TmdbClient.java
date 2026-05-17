@@ -37,7 +37,14 @@ public class TmdbClient {
                 int tmdbId = item.get("id").asInt();
                 String title = item.path("title").asText(null);
                 String releaseDate = item.path("release_date").asText("");
-                Integer year = releaseDate.length() >= 4 ? Integer.parseInt(releaseDate.substring(0, 4)) : null;
+                Integer year = null;
+                if (releaseDate.length() >= 4) {
+                    try {
+                        year = Integer.parseInt(releaseDate.substring(0, 4));
+                    } catch (NumberFormatException ignored) {
+                        // Non-numeric release_date prefix — treat year as unknown
+                    }
+                }
                 String posterPath = item.path("poster_path").asText(null);
                 results.add(new TmdbSearchResultItem(tmdbId, title, year, posterPath));
             }

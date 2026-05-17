@@ -125,8 +125,13 @@ Plans:
   2. User can combine advanced filters: genre, director, year, IMDB rating, content rating, watched status
   3. User can sort results by title A–Z, release year, personal rating, or IMDB rating
   4. Clicking an actor, director, or genre on any page opens a pre-filtered search results list
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 4 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Wave 0 test scaffolding: SearchControllerTest @Disabled stubs, MSW handlers, frontend .todo spec files
+- [ ] 05-02-PLAN.md — Backend: search/dashboard DTOs, SearchService, SearchController, DashboardService, DashboardController, MovieRepository query, 14 integration tests
+- [ ] 05-03-PLAN.md — Frontend /search: useSearch composable, useSearchStore, all search components (SearchBar, FilterPanel, SortSelect, ViewToggle, MovieGrid, MovieCard, MovieList, MovieListItem), search.vue page, AppNav /search link, frontend tests
+- [ ] 05-04-PLAN.md — Frontend /: useDashboard composable, DashboardStats, MovieOfTheDay, ImdbHistogram, index.vue dashboard page, frontend tests
 
 ### Phase 6: Movie Detail & Personal Fields
 **Goal**: Users can view complete film metadata and record their personal relationship to each film
@@ -164,6 +169,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Settings & API Keys | 3/3 | Complete | 2026-05-16 |
 | 3. Save Movie Flow | 6/6 | Complete | 2026-05-17 |
 | 4. OpenSearch Indexing | 0/3 | Not started | - |
-| 5. Search | 0/TBD | Not started | - |
+| 5. Search | 0/4 | Not started | - |
 | 6. Movie Detail & Personal Fields | 0/TBD | Not started | - |
 | 7. Polish & Quality | 0/TBD | Not started | - |

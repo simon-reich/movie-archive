@@ -22,6 +22,12 @@ async function handleLogout() {
     <div class="flex items-center gap-4">
       <span class="text-sm text-muted-foreground hidden sm:inline">{{ authStore.userEmail }}</span>
       <NuxtLink
+        to="/add"
+        class="text-sm font-medium text-foreground hover:text-primary"
+      >
+        Add Film
+      </NuxtLink>
+      <NuxtLink
         to="/settings"
         class="text-sm font-medium text-foreground hover:text-primary"
       >

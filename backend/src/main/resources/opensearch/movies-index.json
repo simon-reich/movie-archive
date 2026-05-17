@@ -1,5 +1,4 @@
 {
-  "_skeleton": true,
   "settings": {
     "analysis": {
       "filter": {
@@ -19,13 +18,187 @@
   },
   "mappings": {
     "properties": {
+      "tmdb_id": {
+        "type": "integer"
+      },
+      "imdb_id": {
+        "type": "keyword"
+      },
       "title": {
         "type": "text",
-        "analyzer": "custom_english_analyzer"
+        "analyzer": "custom_english_analyzer",
+        "fields": {
+          "raw": { "type": "keyword" }
+        }
       },
       "original_title": {
         "type": "text",
+        "analyzer": "custom_english_analyzer",
+        "fields": {
+          "raw": { "type": "keyword" }
+        }
+      },
+      "tagline": {
+        "type": "text",
         "analyzer": "custom_english_analyzer"
+      },
+      "year": {
+        "type": "integer"
+      },
+      "release_date": {
+        "type": "date"
+      },
+      "runtime": {
+        "type": "integer"
+      },
+      "poster_path": {
+        "type": "keyword",
+        "index": false
+      },
+      "backdrop_path": {
+        "type": "keyword",
+        "index": false
+      },
+      "overview": {
+        "type": "text",
+        "analyzer": "custom_english_analyzer"
+      },
+      "vote_average": {
+        "type": "float"
+      },
+      "vote_count": {
+        "type": "integer"
+      },
+      "imdb_rating": {
+        "type": "float"
+      },
+      "imdb_votes": {
+        "type": "integer"
+      },
+      "content_rating": {
+        "type": "keyword"
+      },
+      "box_office": {
+        "type": "integer",
+        "index": false
+      },
+      "rating_list": {
+        "type": "flattened"
+      },
+      "genre_list": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "director_list": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "writer_list": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "main_cast": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "full_cast": {
+        "type": "nested"
+      },
+      "full_cast_names": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "full_crew": {
+        "type": "nested"
+      },
+      "full_crew_names": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "country_list": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "language_list": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "company_list": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "keyword_list": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text", "analyzer": "custom_english_analyzer" }
+        }
+      },
+      "imdb_link": {
+        "type": "keyword"
+      },
+      "poster_list": {
+        "type": "flattened",
+        "index": false
+      },
+      "backdrop_list": {
+        "type": "flattened",
+        "index": false
+      },
+      "video_list": {
+        "type": "flattened",
+        "index": false
+      },
+      "trailer_key": {
+        "type": "keyword",
+        "index": false
+      },
+      "wikipedia_url": {
+        "type": "keyword",
+        "index": false
+      },
+      "wikipedia_summary": {
+        "type": "text",
+        "analyzer": "custom_english_analyzer"
+      },
+      "wikipedia_plot": {
+        "type": "text",
+        "analyzer": "custom_english_analyzer"
+      },
+      "wikipedia_plot_html": {
+        "type": "text",
+        "index": false
+      },
+      "wikipedia_critics": {
+        "type": "text",
+        "analyzer": "custom_english_analyzer"
+      },
+      "wikipedia_full_html": {
+        "type": "text",
+        "index": false
+      },
+      "watched": {
+        "type": "boolean"
+      },
+      "personal_rating": {
+        "type": "float"
       },
       "personal_notes": {
         "type": "text",

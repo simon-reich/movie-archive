@@ -29,4 +29,16 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
      */
     @Query("SELECT m.tmdbId FROM Movie m WHERE m.user.id = :userId")
     List<Integer> findTmdbIdsByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Returns all movies for the given user. Used by full reindex.
+     */
+    @Query("SELECT m FROM Movie m WHERE m.user.id = :userId")
+    List<Movie> findAllByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Returns movies not yet indexed in OpenSearch. Used by partial reindex.
+     */
+    @Query("SELECT m FROM Movie m WHERE m.user.id = :userId AND m.indexedAt IS NULL")
+    List<Movie> findByUserIdAndIndexedAtIsNull(@Param("userId") UUID userId);
 }

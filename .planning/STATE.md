@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 4 Plan 01 complete — ready for 04-02
-last_updated: "2026-05-17T13:25:00.000Z"
-last_activity: 2026-05-17 -- Phase 04 Plan 01 executed (OpenSearch test infrastructure — AbstractOpenSearchTest, @Disabled stubs, movies-index.json skeleton)
+stopped_at: Phase 4 plan 2 of 3 complete — ready for plan 04-03
+last_updated: "2026-05-17T19:10:00.000Z"
+last_activity: 2026-05-17 -- Phase 04 Plan 02 executed (DocumentBuilder, IndexingService, EnrichmentService Step 5, IndexingIntegrationTest — 6 tests passing)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 15
-  completed_plans: 13
-  percent: 45
+  completed_plans: 14
+  percent: 48
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-16)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 04 — OpenSearch Indexing (Plan 01 complete, executing Plan 02)
+**Current focus:** Phase 04 — OpenSearch Indexing (Plan 02 complete, executing Plan 03)
 
 ## Current Position
 
 Phase: 04 (opensearch-indexing) — IN PROGRESS
-Plan: 3/3 planned (1/3 executed)
-Status: Plan 04-01 complete — ready for Plan 04-02 (IndexingService + DocumentBuilder + OpenSearchConfig)
-Last activity: 2026-05-17 -- Plan 04-01 executed (AbstractOpenSearchTest, @Disabled stubs, movies-index.json skeleton)
+Plan: 3/3 planned (2/3 executed)
+Status: Plan 04-02 complete — ready for Plan 04-03 (ReindexController)
+Last activity: 2026-05-17 -- Plan 04-02 executed (DocumentBuilder, IndexingService, EnrichmentService Step 5, IndexingIntegrationTest 6 tests)
 
 Progress: [██░░░░░░░░] ~14% (Phase 0 + Phase 1 complete)
 
@@ -72,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase 4]: GenericContainer for OS Testcontainers (opensearch-testcontainers 4.x is for OS 3.x — incompatible)
 - [Phase 4, Plan 01]: AbstractOpenSearchTest extends AbstractIntegrationTest so Postgres + OS singletons coexist
 - [Phase 4, Plan 01]: _skeleton:true root marker in movies-index.json so plan 04-02 can detect and replace the file
+- [Phase 4, Plan 02]: OpenSearch 2.x does not support 'flattened' type — use 'object' for rating_list, 'object+enabled:false' for poster/backdrop/video lists
+- [Phase 4, Plan 02]: kstem stems plurals (films->film) but not gerunds (running->running) — use plural forms for stemming tests
+- [Phase 4, Plan 02]: IndexingService.index() does NOT set indexed_at — EnrichmentService does after calling it (D-01 contract)
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-17T13:25:00.000Z
-Stopped at: Phase 4 Plan 01 complete — AbstractOpenSearchTest + @Disabled stubs + movies-index.json skeleton
-Resume file: .planning/phases/04-opensearch-indexing/04-02-PLAN.md
+Last session: 2026-05-17T19:10:00.000Z
+Stopped at: Phase 4 plan 2 of 3 complete — OpenSearch indexing stack + 6 integration tests passing
+Resume file: .planning/phases/04-opensearch-indexing/04-03-PLAN.md

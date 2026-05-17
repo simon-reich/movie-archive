@@ -1,6 +1,7 @@
 package de.moviearchive.enrichment;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import de.moviearchive.indexing.IndexingService;
 import de.moviearchive.movie.Movie;
 import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.movie.MovieStatus;
@@ -10,6 +11,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
@@ -23,17 +25,20 @@ public class EnrichmentService {
     private final TmdbClient tmdbClient;
     private final OmdbClient omdbClient;
     private final WikipediaClient wikipediaClient;
+    private final IndexingService indexingService;
 
     public EnrichmentService(MovieRepository movieRepository,
                              SettingsService settingsService,
                              TmdbClient tmdbClient,
                              OmdbClient omdbClient,
-                             WikipediaClient wikipediaClient) {
+                             WikipediaClient wikipediaClient,
+                             IndexingService indexingService) {
         this.movieRepository = movieRepository;
         this.settingsService = settingsService;
         this.tmdbClient = tmdbClient;
         this.omdbClient = omdbClient;
         this.wikipediaClient = wikipediaClient;
+        this.indexingService = indexingService;
     }
 
     /**
@@ -110,6 +115,18 @@ public class EnrichmentService {
             movie.setStatus(MovieStatus.SUCCESS);
             movieRepository.save(movie);
             log.info("Enrichment complete for movieId={} status=SUCCESS", movieId);
+
+            // === Step 5: OpenSearch index (silent on failure — D-01) ===
+            try {
+                indexingService.index(movie);
+                movie.setIndexedAt(Instant.now());
+                movieRepository.save(movie);
+                log.info("OpenSearch indexed movieId={}", movieId);
+            } catch (Exception e) {
+                log.warn("OpenSearch indexing failed for movieId={} — indexed_at stays null: {}",
+                        movieId, e.getMessage());
+                // D-01: status stays SUCCESS, no rethrow
+            }
 
         } catch (Exception e) {
             // TMDB failure (or any unexpected error) -> ERROR status

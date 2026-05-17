@@ -79,8 +79,28 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// Load .env from repo root (parent of backend/) or backend/ itself
+val dotenv: Map<String, String> = listOf(file("../.env"), file(".env"))
+    .firstOrNull { it.exists() }
+    ?.readLines()
+    ?.filter { line -> line.isNotBlank() && !line.startsWith("#") }
+    ?.mapNotNull { line ->
+        val idx = line.indexOf('=')
+        if (idx > 0) {
+            val value = line.substring(idx + 1).trim()
+            if (value.isNotEmpty()) line.substring(0, idx).trim() to value else null
+        } else null
+    }
+    ?.toMap()
+    ?: emptyMap()
+
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    environment(dotenv)
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
+    environment(dotenv)
 }
 
 // JaCoCo coverage

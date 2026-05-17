@@ -61,5 +61,11 @@ skipped: 0
   reason: "User reported: Vorgang identisch zum ersten Speichern — Spinner, dann Success, Poster verschwindet aus Grid"
   severity: major
   test: 7
-  artifacts: []
-  missing: []
+  artifacts:
+    - frontend/pages/add.vue (handlePosterClick line 39 — guard only covers same-session in-flight saves)
+    - backend/src/main/java/de/moviearchive/movie/MovieController.java (line 37 — enrich() called unconditionally)
+    - backend/src/main/java/de/moviearchive/movie/MovieService.java (initiate() returns UUID only, no new-vs-existing signal)
+  missing:
+    - Frontend needs to fetch already-saved tmdbIds on page load and mark those posters as already saved
+    - MovieService.initiate() needs to return a signal (e.g. boolean isNew or a wrapper) so the controller can skip re-enrichment for existing movies
+    - MovieController must only call enrichmentService.enrich() when the movie is newly created

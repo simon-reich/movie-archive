@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,4 +22,11 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
      */
     @Query("SELECT m FROM Movie m JOIN FETCH m.user WHERE m.id = :id")
     Optional<Movie> findByIdWithUser(@Param("id") UUID id);
+
+    /**
+     * Returns all TMDB IDs saved by the given user.
+     * Used by GET /movies/saved-ids to power the frontend duplicate-save guard.
+     */
+    @Query("SELECT m.tmdbId FROM Movie m WHERE m.user.id = :userId")
+    List<Integer> findTmdbIdsByUserId(@Param("userId") UUID userId);
 }

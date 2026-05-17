@@ -60,4 +60,22 @@ describe('useMovies composable', () => {
     const response = await getStatus('error-movie-uuid')
     expect(response.status).toBe('ERROR')
   })
+
+  it('getSavedTmdbIds returns array of TMDB IDs from server', async () => {
+    mockFetch.mockResolvedValueOnce({ tmdbIds: [27205, 550] })
+    const { getSavedTmdbIds } = useMovies()
+    const ids = await getSavedTmdbIds()
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/movies/saved-ids',
+      expect.objectContaining({ credentials: 'include' })
+    )
+    expect(ids).toEqual([27205, 550])
+  })
+
+  it('getSavedTmdbIds returns empty array when user has no saved films', async () => {
+    mockFetch.mockResolvedValueOnce({ tmdbIds: [] })
+    const { getSavedTmdbIds } = useMovies()
+    const ids = await getSavedTmdbIds()
+    expect(ids).toEqual([])
+  })
 })

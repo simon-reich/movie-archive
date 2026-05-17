@@ -1,6 +1,7 @@
 package de.moviearchive.movie;
 
 import de.moviearchive.enrichment.TmdbClient;
+import de.moviearchive.movie.dto.MovieInitiateResult;
 import de.moviearchive.movie.dto.MovieStatusResponse;
 import de.moviearchive.movie.dto.TmdbSearchResultItem;
 import de.moviearchive.settings.SettingsService;
@@ -8,6 +9,7 @@ import de.moviearchive.user.User;
 import de.moviearchive.user.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,28 +37,39 @@ public class MovieService {
     }
 
     /**
-     * Creates a Movie row with status=PENDING and returns its UUID.
-     * Idempotent: if the same user already has this tmdbId, returns the existing UUID.
+     * Creates a Movie row with status=PENDING and returns a MovieInitiateResult.
+     * Idempotent: if the same user already has this tmdbId, returns the existing UUID with isNew=false.
      *
      * Uses check-then-insert rather than catch-on-duplicate because JPA flushes at
      * transaction commit time — a DataIntegrityViolationException from a UNIQUE violation
      * would propagate past the catch block before the transaction ends.
      */
-    public UUID initiate(String email, int tmdbId) {
+    public MovieInitiateResult initiate(String email, int tmdbId) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 
         // Idempotency check: return existing UUID if this user already saved this film
         return movieRepository.findByUserIdAndTmdbId(user.getId(), tmdbId)
                 .map(existing -> {
                     log.info("Duplicate save detected for userId={} tmdbId={} — returning existing UUID={}", user.getId(), tmdbId, existing.getId());
-                    return existing.getId();
+                    return new MovieInitiateResult(existing.getId(), false);
                 })
                 .orElseGet(() -> {
                     Movie movie = movieRepository.save(new Movie(user, tmdbId));
                     log.info("Movie initiated: movieId={} tmdbId={} userId={}", movie.getId(), tmdbId, user.getId());
-                    return movie.getId();
+                    return new MovieInitiateResult(movie.getId(), true);
                 });
+    }
+
+    /**
+     * Returns all TMDB IDs saved by the given user.
+     * Used by GET /movies/saved-ids to populate the frontend duplicate-save badge.
+     */
+    @Transactional(readOnly = true)
+    public List<Integer> getSavedTmdbIds(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        return movieRepository.findTmdbIdsByUserId(user.getId());
     }
 
     /**
@@ -81,7 +94,7 @@ public class MovieService {
     @Transactional(readOnly = true)
     public MovieStatusResponse getStatusByEmail(String email, UUID movieId) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
         return getStatus(movieId, user.getId());
     }
 

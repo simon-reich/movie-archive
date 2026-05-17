@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { CheckCircle2, XCircle } from 'lucide-vue-next'
 import InputText from '@/components/InputText.vue'
 import ButtonPrimary from '@/components/ButtonPrimary.vue'
@@ -7,7 +7,7 @@ import FormErrorBanner from '@/components/FormErrorBanner.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import type { SearchResultItem } from '@/composables/useMovies'
 
-const { searchTmdb, saveMovie, getStatus } = useMovies()
+const { searchTmdb, saveMovie, getStatus, getSavedTmdbIds } = useMovies()
 
 const query = ref('')
 const searching = ref(false)
@@ -15,6 +15,16 @@ const searchError = ref<string | null>(null)
 const results = ref<SearchResultItem[]>([])
 
 const pollingIntervals = new Map<string, ReturnType<typeof setInterval>>()
+const savedTmdbIds = ref<Set<number>>(new Set())
+
+onMounted(async () => {
+  try {
+    const ids = await getSavedTmdbIds()
+    savedTmdbIds.value = new Set(ids)
+  } catch {
+    // Non-critical: if this fails, duplicate guard degrades to same-session only
+  }
+})
 
 async function handleSearch() {
   if (!query.value.trim()) return
@@ -23,7 +33,10 @@ async function handleSearch() {
   results.value = []
   try {
     const items = await searchTmdb(query.value.trim())
-    results.value = items.map(item => ({ ...item, state: 'idle' as const }))
+    results.value = items.map(item => ({
+      ...item,
+      state: savedTmdbIds.value.has(item.tmdbId) ? ('saved' as const) : ('idle' as const),
+    }))
   } catch (e: any) {
     if (e?.status === 422) {
       searchError.value = 'No TMDB key configured. Add your key in Settings.'
@@ -54,6 +67,7 @@ function startPolling(item: SearchResultItem, movieId: string) {
       const response = await getStatus(movieId)
       if (response.status === 'SUCCESS') {
         item.state = 'success'
+        savedTmdbIds.value.add(item.tmdbId)
         clearInterval(interval)
         pollingIntervals.delete(movieId)
         setTimeout(() => {
@@ -142,6 +156,13 @@ function posterUrl(posterPath: string | null): string {
         >
           <XCircle class="w-10 h-10 text-foreground" />
           <p class="text-xs text-foreground/70 text-center">{{ item.errorMessage }}</p>
+        </div>
+
+        <div
+          v-if="item.state === 'saved'"
+          class="absolute bottom-0 right-0 p-2 bg-background/70 flex items-center justify-center"
+        >
+          <CheckCircle2 class="w-6 h-6 text-foreground" />
         </div>
 
         <div class="pt-2">

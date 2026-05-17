@@ -1,6 +1,7 @@
 package de.moviearchive.movie;
 
 import de.moviearchive.enrichment.EnrichmentService;
+import de.moviearchive.movie.dto.MovieInitiateResult;
 import de.moviearchive.movie.dto.MovieStatusResponse;
 import de.moviearchive.movie.dto.SaveMovieRequest;
 import de.moviearchive.movie.dto.TmdbSearchResultItem;
@@ -33,9 +34,17 @@ public class MovieController {
     public ResponseEntity<Map<String, String>> saveMovie(
             @Valid @RequestBody SaveMovieRequest req,
             Authentication auth) {
-        UUID movieId = movieService.initiate(auth.getName(), req.tmdbId());
-        enrichmentService.enrich(movieId);
-        return ResponseEntity.accepted().body(Map.of("id", movieId.toString()));
+        MovieInitiateResult result = movieService.initiate(auth.getName(), req.tmdbId());
+        if (result.isNew()) {
+            enrichmentService.enrich(result.id());
+        }
+        return ResponseEntity.accepted().body(Map.of("id", result.id().toString()));
+    }
+
+    @GetMapping("/saved-ids")
+    public ResponseEntity<Map<String, List<Integer>>> getSavedIds(Authentication auth) {
+        List<Integer> ids = movieService.getSavedTmdbIds(auth.getName());
+        return ResponseEntity.ok(Map.of("tmdbIds", ids));
     }
 
     @GetMapping("/search")

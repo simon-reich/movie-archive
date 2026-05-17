@@ -21,6 +21,11 @@ export const moviesHandlers = [
     HttpResponse.json({ id: 'test-movie-uuid-1234' }, { status: 202 }),
   ),
 
+  // GET /api/movies/saved-ids — returns list of saved TMDB IDs for the current user
+  http.get('/api/movies/saved-ids', () =>
+    HttpResponse.json({ tmdbIds: [27205] }),
+  ),
+
   // GET /api/movies/:id/status — returns status (default SUCCESS for happy path)
   http.get('/api/movies/:id/status', ({ params }) => {
     if (params.id === 'error-movie-uuid') {

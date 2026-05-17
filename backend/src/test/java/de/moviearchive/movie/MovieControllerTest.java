@@ -134,6 +134,66 @@ class MovieControllerTest extends AbstractWireMockTest {
         org.assertj.core.api.Assertions.assertThat(id1).isEqualTo(id2);
     }
 
+    @Test
+    void shouldReturn202_withSameUuid_andSkipEnrichment_onDuplicateSave() throws Exception {
+        User user = createActiveUser("dup2@example.com");
+        String token = loginAndGetToken("dup2@example.com");
+
+        // First save — creates a new movie row
+        mockMvc.perform(post("/movies/save")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tmdbId\": 27205}"))
+                .andExpect(status().isAccepted());
+
+        long countAfterFirst = movieRepository.count();
+
+        // Second save — must NOT create a new row (enrichment guard is active)
+        mockMvc.perform(post("/movies/save")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tmdbId\": 27205}"))
+                .andExpect(status().isAccepted());
+
+        long countAfterSecond = movieRepository.count();
+
+        org.assertj.core.api.Assertions.assertThat(countAfterSecond).isEqualTo(countAfterFirst);
+    }
+
+    // -------------------------------------------------------------------------
+    // SAVE-01: GET /movies/saved-ids
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldReturnSavedIds_afterSave() throws Exception {
+        User user = createActiveUser("savedids@example.com");
+        String token = loginAndGetToken("savedids@example.com");
+
+        mockMvc.perform(post("/movies/save")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tmdbId\": 27205}"))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(get("/movies/saved-ids")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tmdbIds").isArray())
+                .andExpect(jsonPath("$.tmdbIds[0]").value(27205));
+    }
+
+    @Test
+    void shouldReturnEmptySavedIds_forNewUser() throws Exception {
+        createActiveUser("newuser@example.com");
+        String token = loginAndGetToken("newuser@example.com");
+
+        mockMvc.perform(get("/movies/saved-ids")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tmdbIds").isArray())
+                .andExpect(jsonPath("$.tmdbIds").isEmpty());
+    }
+
     // -------------------------------------------------------------------------
     // SAVE-01: GET /movies/search
     // -------------------------------------------------------------------------

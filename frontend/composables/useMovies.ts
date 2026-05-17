@@ -12,7 +12,7 @@ export interface MovieStatusResponse {
   title: string | null
 }
 
-export type PosterState = 'idle' | 'pending' | 'success' | 'error'
+export type PosterState = 'idle' | 'pending' | 'success' | 'error' | 'saved'
 
 export interface SearchResultItem extends TmdbSearchResult {
   state: PosterState
@@ -52,5 +52,13 @@ export function useMovies() {
     })
   }
 
-  return { searchTmdb, saveMovie, getStatus }
+  async function getSavedTmdbIds(): Promise<number[]> {
+    const data = await $fetch<{ tmdbIds: number[] }>('/api/movies/saved-ids', {
+      credentials: 'include',
+      headers: authHeaders(),
+    })
+    return data.tmdbIds
+  }
+
+  return { searchTmdb, saveMovie, getStatus, getSavedTmdbIds }
 }

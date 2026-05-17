@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 4 context gathered
-last_updated: "2026-05-17T12:41:41.302Z"
-last_activity: 2026-05-17 -- Phase 03 complete (6/6 plans done)
+status: in_progress
+stopped_at: Phase 4 planned — ready to execute
+last_updated: "2026-05-17T14:00:00.000Z"
+last_activity: 2026-05-17 -- Phase 04 planned (3 plans, 3 waves — ready for execute-phase)
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
-  percent: 33
+  completed_phases: 3
+  total_plans: 12
+  completed_plans: 12
+  percent: 43
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-16)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 04 — OpenSearch Indexing (next)
+**Current focus:** Phase 04 — OpenSearch Indexing (planned, ready to execute)
 
 ## Current Position
 
-Phase: 03 (save-movie-flow) — COMPLETE
-Plan: 6/6
-Status: Phase 03 complete — ready for Phase 04
-Last activity: 2026-05-17 -- Phase 03 complete (6/6 plans done)
+Phase: 04 (opensearch-indexing) — PLANNED
+Plan: 3/3 planned (0/3 executed)
+Status: Phase 04 plans ready — run /gsd:execute-phase 4
+Last activity: 2026-05-17 -- Phase 04 planned (3 plans, 3 waves — ready for execute-phase)
 
 Progress: [██░░░░░░░░] ~14% (Phase 0 + Phase 1 complete)
 
@@ -66,6 +66,9 @@ Recent decisions affecting current work:
 - [Phase 1]: Testcontainers static block (not @Testcontainers/@Container) — prevents container stop between test classes
 - [Phase 1]: vi.mock('#app/composables/router') not vi.stubGlobal — Nuxt auto-import resolves from module, not global scope
 - [Phase 3]: OpenSearch Custom Analyzer must be finalized in Phase 4 but ensureIndexExists() called on first Phase 3 write — Phase 4 plan must be ready before Phase 3 executes
+- [Phase 4]: Use withJson() for index creation (opensearch-java typed builder has a bug for custom analyzers — GitHub issue #1510)
+- [Phase 4]: JWT subject = userId UUID string (auth.getName() in controllers returns UUID, not email)
+- [Phase 4]: GenericContainer for OS Testcontainers (opensearch-testcontainers 4.x is for OS 3.x — incompatible)
 
 ### Pending Todos
 
@@ -73,10 +76,10 @@ None.
 
 ### Blockers/Concerns
 
-- [Phase 3/4]: OpenSearch index creation timing — Phase 4 plan should be drafted before Phase 3 executes, or IDX work folded into Phase 3
+None.
 
 ## Session Continuity
 
-Last session: 2026-05-17T12:41:41.279Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-opensearch-indexing/04-CONTEXT.md
+Last session: 2026-05-17T14:00:00.000Z
+Stopped at: Phase 4 planned — 3 plans in 3 waves
+Resume file: .planning/phases/04-opensearch-indexing/04-01-PLAN.md

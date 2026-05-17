@@ -89,14 +89,15 @@ Plans:
   3. OMDB enrichment is silently skipped when no OMDB key is configured or when TMDB response lacks an imdb_id
   4. Wikipedia enrichment failure (including exhausted 6-step fallback) does not prevent the film from being saved
   5. UI displays save status visibly: pending spinner → success checkmark or error icon — no silent failures
-**Plans**: 5 plans
+**Plans**: 6 plans
 
 Plans:
 - [x] 03-01-PLAN.md — Test scaffolding: backend @Disabled stubs, WireMock fixtures, MSW handlers, frontend .todo stubs
 - [x] 03-02-PLAN.md — Backend infra: Flyway V6 movies table, Movie entity, MovieRepository, DTOs, AsyncConfig
-- [ ] 03-03-PLAN.md — Backend HTTP layer: MovieService, MovieController (save/search/status), integration tests
-- [ ] 03-04-PLAN.md — Backend enrichment pipeline: TmdbClient, OmdbClient, WikipediaClient, EnrichmentService, pipeline tests
-- [ ] 03-05-PLAN.md — Frontend: useMovies composable, /add page (poster grid + spinner/status UX), AppNav link, human UAT
+- [x] 03-03-PLAN.md — Backend HTTP layer: MovieService, MovieController (save/search/status), integration tests
+- [x] 03-04-PLAN.md — Backend enrichment pipeline: TmdbClient, OmdbClient, WikipediaClient, EnrichmentService, pipeline tests
+- [x] 03-05-PLAN.md — Frontend: useMovies composable, /add page (poster grid + spinner/status UX), AppNav link, human UAT
+- [ ] 03-06-PLAN.md — Gap closure: MovieInitiateResult isNew flag, conditional enrichment, GET /movies/saved-ids, frontend pre-mark saved posters
 
 ### Phase 4: OpenSearch Indexing
 **Goal**: Every saved film is indexed with a production-ready custom analyzer so search works correctly
@@ -154,7 +155,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 0. Setup & Infrastructure | -/- | Complete | 2026-05-15 |
 | 1. Authentication | 3/3 | Complete | 2026-05-16 |
 | 2. Settings & API Keys | 3/3 | Complete | 2026-05-16 |
-| 3. Save Movie Flow | 0/5 | Not started | - |
+| 3. Save Movie Flow | 5/6 | Executing | - |
 | 4. OpenSearch Indexing | 0/TBD | Not started | - |
 | 5. Search | 0/TBD | Not started | - |
 | 6. Movie Detail & Personal Fields | 0/TBD | Not started | - |

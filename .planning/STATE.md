@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 4 planned — ready to execute
-last_updated: "2026-05-17T14:00:00.000Z"
-last_activity: 2026-05-17 -- Phase 04 planned (3 plans, 3 waves — ready for execute-phase)
+stopped_at: Phase 4 Plan 01 complete — ready for 04-02
+last_updated: "2026-05-17T13:25:00.000Z"
+last_activity: 2026-05-17 -- Phase 04 Plan 01 executed (OpenSearch test infrastructure — AbstractOpenSearchTest, @Disabled stubs, movies-index.json skeleton)
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
-  percent: 43
+  total_plans: 15
+  completed_plans: 13
+  percent: 45
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-16)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 04 — OpenSearch Indexing (planned, ready to execute)
+**Current focus:** Phase 04 — OpenSearch Indexing (Plan 01 complete, executing Plan 02)
 
 ## Current Position
 
-Phase: 04 (opensearch-indexing) — PLANNED
-Plan: 3/3 planned (0/3 executed)
-Status: Phase 04 plans ready — run /gsd:execute-phase 4
-Last activity: 2026-05-17 -- Phase 04 planned (3 plans, 3 waves — ready for execute-phase)
+Phase: 04 (opensearch-indexing) — IN PROGRESS
+Plan: 3/3 planned (1/3 executed)
+Status: Plan 04-01 complete — ready for Plan 04-02 (IndexingService + DocumentBuilder + OpenSearchConfig)
+Last activity: 2026-05-17 -- Plan 04-01 executed (AbstractOpenSearchTest, @Disabled stubs, movies-index.json skeleton)
 
 Progress: [██░░░░░░░░] ~14% (Phase 0 + Phase 1 complete)
 
@@ -36,19 +36,20 @@ Progress: [██░░░░░░░░] ~14% (Phase 0 + Phase 1 complete)
 
 **Velocity:**
 
-- Total plans completed: 3
-- Average duration: ~26 min/plan
-- Total execution time: ~77 min
+- Total plans completed: 4
+- Average duration: ~23 min/plan
+- Total execution time: ~92 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Authentication | 3 | ~77 min | ~26 min |
+| 4. OpenSearch Indexing | 1 | ~15 min | ~15 min |
 
 **Recent Trend:**
 
-- Last 3 plans: 01-01 (~10 min), 01-02 (~60 min), 01-03 (~7 min)
+- Last 4 plans: 01-01 (~10 min), 01-02 (~60 min), 01-03 (~7 min), 04-01 (~15 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -69,6 +70,8 @@ Recent decisions affecting current work:
 - [Phase 4]: Use withJson() for index creation (opensearch-java typed builder has a bug for custom analyzers — GitHub issue #1510)
 - [Phase 4]: JWT subject = userId UUID string (auth.getName() in controllers returns UUID, not email)
 - [Phase 4]: GenericContainer for OS Testcontainers (opensearch-testcontainers 4.x is for OS 3.x — incompatible)
+- [Phase 4, Plan 01]: AbstractOpenSearchTest extends AbstractIntegrationTest so Postgres + OS singletons coexist
+- [Phase 4, Plan 01]: _skeleton:true root marker in movies-index.json so plan 04-02 can detect and replace the file
 
 ### Pending Todos
 
@@ -80,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-17T14:00:00.000Z
-Stopped at: Phase 4 planned — 3 plans in 3 waves
-Resume file: .planning/phases/04-opensearch-indexing/04-01-PLAN.md
+Last session: 2026-05-17T13:25:00.000Z
+Stopped at: Phase 4 Plan 01 complete — AbstractOpenSearchTest + @Disabled stubs + movies-index.json skeleton
+Resume file: .planning/phases/04-opensearch-indexing/04-02-PLAN.md

@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 0: Setup & Infrastructure** - Repo, Docker Compose, Spring Boot + Nuxt skeletons, CI (COMPLETE)
 - [x] **Phase 1: Authentication** - Sign-up, email verification, login, logout, token rotation, password reset (COMPLETE)
 - [x] **Phase 2: Settings & API Keys** - TMDB/OMDB key management, password change, email change, CSV export/import (COMPLETE)
-- [ ] **Phase 3: Save Movie Flow** - Async TMDB → OMDB → Wikipedia → Postgres enrichment pipeline with status feedback
+- [x] **Phase 3: Save Movie Flow** - Async TMDB → OMDB → Wikipedia → Postgres enrichment pipeline with status feedback (COMPLETE)
 - [ ] **Phase 4: OpenSearch Indexing** - Index lifecycle, custom analyzer, field mappings, admin reindex endpoint
 - [ ] **Phase 5: Search** - Full-text search, advanced filters, sorting, clickable attribute navigation
 - [ ] **Phase 6: Movie Detail & Personal Fields** - Detail page with all metadata, watched status, rating, notes, trailer
@@ -89,7 +89,9 @@ Plans:
   3. OMDB enrichment is silently skipped when no OMDB key is configured or when TMDB response lacks an imdb_id
   4. Wikipedia enrichment failure (including exhausted 6-step fallback) does not prevent the film from being saved
   5. UI displays save status visibly: pending spinner → success checkmark or error icon — no silent failures
-**Plans**: 6 plans
+**Plans**: 6/6 complete
+**Status**: COMPLETE — 2026-05-17
+**Human UAT**: 8/8 tests passed (7 passed in original UAT; test 7 gap closed by plan 03-06)
 
 Plans:
 - [x] 03-01-PLAN.md — Test scaffolding: backend @Disabled stubs, WireMock fixtures, MSW handlers, frontend .todo stubs
@@ -97,7 +99,7 @@ Plans:
 - [x] 03-03-PLAN.md — Backend HTTP layer: MovieService, MovieController (save/search/status), integration tests
 - [x] 03-04-PLAN.md — Backend enrichment pipeline: TmdbClient, OmdbClient, WikipediaClient, EnrichmentService, pipeline tests
 - [x] 03-05-PLAN.md — Frontend: useMovies composable, /add page (poster grid + spinner/status UX), AppNav link, human UAT
-- [ ] 03-06-PLAN.md — Gap closure: MovieInitiateResult isNew flag, conditional enrichment, GET /movies/saved-ids, frontend pre-mark saved posters
+- [x] 03-06-PLAN.md — Gap closure: MovieInitiateResult isNew flag, conditional enrichment, GET /movies/saved-ids, frontend pre-mark saved posters
 
 ### Phase 4: OpenSearch Indexing
 **Goal**: Every saved film is indexed with a production-ready custom analyzer so search works correctly
@@ -155,7 +157,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 0. Setup & Infrastructure | -/- | Complete | 2026-05-15 |
 | 1. Authentication | 3/3 | Complete | 2026-05-16 |
 | 2. Settings & API Keys | 3/3 | Complete | 2026-05-16 |
-| 3. Save Movie Flow | 5/6 | Executing | - |
+| 3. Save Movie Flow | 6/6 | Complete | 2026-05-17 |
 | 4. OpenSearch Indexing | 0/TBD | Not started | - |
 | 5. Search | 0/TBD | Not started | - |
 | 6. Movie Detail & Personal Fields | 0/TBD | Not started | - |

@@ -60,7 +60,7 @@ public class SettingsController {
             @PathVariable String provider,
             Authentication authentication) {
         settingsService.deleteApiKey(authentication.getName(), provider);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/api-keys")

@@ -6,6 +6,11 @@ export const settingsHandlers = [
     return HttpResponse.json({ tmdb: 'test-tmdb-key-plaintext', omdb: null })
   }),
 
+  // DELETE /api/settings/api-keys/:provider — removes key; 200 OK
+  http.delete('/api/settings/api-keys/:provider', () => {
+    return new HttpResponse(null, { status: 200 })
+  }),
+
   // PUT /api/settings/api-keys/:provider — validates key; 422 if invalid
   http.put('/api/settings/api-keys/:provider', async ({ request }) => {
     const body = await request.json() as { key: string }

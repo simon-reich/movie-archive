@@ -72,6 +72,32 @@ describe('useSettings composable', () => {
     await expect(changePassword('wrong', 'newpass123')).rejects.toMatchObject({ status: 400 })
   })
 
+  it('deleteApiKey calls DELETE /api/settings/api-keys/tmdb with credentials', async () => {
+    mockFetch.mockResolvedValueOnce(null)
+    const { deleteApiKey } = useSettings()
+    await deleteApiKey('tmdb')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/settings/api-keys/tmdb',
+      expect.objectContaining({ method: 'DELETE', credentials: 'include' })
+    )
+  })
+
+  it('deleteApiKey calls DELETE /api/settings/api-keys/omdb with credentials', async () => {
+    mockFetch.mockResolvedValueOnce(null)
+    const { deleteApiKey } = useSettings()
+    await deleteApiKey('omdb')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/settings/api-keys/omdb',
+      expect.objectContaining({ method: 'DELETE', credentials: 'include' })
+    )
+  })
+
+  it('deleteApiKey throws on error so page can show inline error', async () => {
+    mockFetch.mockRejectedValueOnce({ status: 400, data: { message: 'Invalid provider.' } })
+    const { deleteApiKey } = useSettings()
+    await expect(deleteApiKey('tmdb')).rejects.toMatchObject({ status: 400 })
+  })
+
   it('changeEmail calls POST /api/settings/email', async () => {
     mockFetch.mockResolvedValueOnce(null)
     const { changeEmail } = useSettings()

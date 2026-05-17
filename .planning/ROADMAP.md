@@ -109,7 +109,12 @@ Plans:
   1. Every film persisted to Postgres is indexed into `movies-{userId}` in OpenSearch
   2. The index is auto-created with custom analyzer (asciifolding, lowercase, elision, stop_english, kstem) and all field mappings on first write — no manual setup required
   3. Admin can trigger a full index rebuild for a user via `POST /admin/reindex/{userId}`
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Test scaffolding: AbstractOpenSearchTest container base, @Disabled IndexingIntegrationTest + ReindexControllerTest stubs, movies-index.json skeleton
+- [ ] 04-02-PLAN.md — OpenSearch infra + indexing: OpenSearchConfig bean, full movies-index.json mapping + analyzer, DocumentBuilder, IndexingService, EnrichmentService Step 5, MovieRepository queries (IDX-01/02/03)
+- [ ] 04-03-PLAN.md — Admin reindex endpoints: IndexingService fullReindex + reindexPending, ReindexController (full + pending) with JWT-subject ownership (IDX-04)
 
 ### Phase 5: Search
 **Goal**: Users can find any film in their archive using text or structured filters
@@ -158,7 +163,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Authentication | 3/3 | Complete | 2026-05-16 |
 | 2. Settings & API Keys | 3/3 | Complete | 2026-05-16 |
 | 3. Save Movie Flow | 6/6 | Complete | 2026-05-17 |
-| 4. OpenSearch Indexing | 0/TBD | Not started | - |
+| 4. OpenSearch Indexing | 0/3 | Not started | - |
 | 5. Search | 0/TBD | Not started | - |
 | 6. Movie Detail & Personal Fields | 0/TBD | Not started | - |
 | 7. Polish & Quality | 0/TBD | Not started | - |

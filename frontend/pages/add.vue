@@ -7,8 +7,6 @@ import FormErrorBanner from '@/components/FormErrorBanner.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import type { SearchResultItem } from '@/composables/useMovies'
 
-definePageMeta({ middleware: 'auth' })
-
 const { searchTmdb, saveMovie, getStatus } = useMovies()
 
 const query = ref('')
@@ -95,6 +93,7 @@ function posterUrl(posterPath: string | null): string {
 
     <form class="flex gap-3 mb-8" @submit.prevent="handleSearch">
       <InputText
+        id="movie-search"
         v-model="query"
         placeholder="Search for a film..."
         class="flex-1"

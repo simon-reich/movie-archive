@@ -134,13 +134,14 @@ export function useSearch() {
         credentials: 'include',
         headers: authHeaders(),
       })
+      if (!response) return
       if (currentPage === 0) {
-        results.value = response.results
+        results.value = response.results ?? []
       } else {
-        results.value = [...results.value, ...response.results]
+        results.value = [...results.value, ...(response.results ?? [])]
       }
-      total.value = response.total
-      hasMore.value = response.hasMore
+      total.value = response.total ?? 0
+      hasMore.value = response.hasMore ?? false
     } finally {
       isLoading.value = false
     }

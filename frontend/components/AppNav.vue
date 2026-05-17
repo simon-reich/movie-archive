@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Search } from 'lucide-vue-next'
+
 const { logout } = useAuth()
 const authStore = useAuthStore()
 
@@ -26,6 +28,13 @@ async function handleLogout() {
         class="text-sm font-medium text-foreground hover:text-primary"
       >
         Add Film
+      </NuxtLink>
+      <NuxtLink
+        to="/search"
+        class="text-sm font-medium text-foreground hover:text-primary flex items-center gap-1"
+      >
+        <Search class="w-4 h-4" />
+        Search
       </NuxtLink>
       <NuxtLink
         to="/settings"

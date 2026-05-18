@@ -85,7 +85,7 @@ export function useSearch() {
   const sort = computed(() => paramAsString(route.query.sort) || 'title_asc')
   const genres = computed(() => normalizeQueryParam(route.query.genre))
   const director = computed(() => paramAsString(route.query.director))
-  const actors = computed(() => normalizeQueryParam(route.query.actors))
+  const actors = computed(() => paramAsString(route.query.actors))
   const yearFrom = computed(() => paramAsNumber(route.query.year_from))
   const yearTo = computed(() => paramAsNumber(route.query.year_to))
   const imdbFrom = computed(() => paramAsNumber(route.query.imdb_from))
@@ -115,7 +115,7 @@ export function useSearch() {
     const f: FilterCriteria = {}
     if (genres.value.length > 0) f.genres = genres.value
     if (director.value) f.director = director.value
-    if (actors.value.length > 0) f.actors = actors.value.join(',')
+    if (actors.value) f.actors = actors.value
     if (yearFrom.value !== undefined) f.yearFrom = yearFrom.value
     if (yearTo.value !== undefined) f.yearTo = yearTo.value
     if (imdbFrom.value !== undefined) f.imdbRatingFrom = imdbFrom.value

@@ -2,23 +2,32 @@ package de.moviearchive.movie;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.moviearchive.AbstractOpenSearchTest;
+import de.moviearchive.auth.RateLimitService;
+import de.moviearchive.indexing.IndexingService;
 import de.moviearchive.user.User;
 import de.moviearchive.user.UserRepository;
 import de.moviearchive.user.UserStatus;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.opensearch.client.opensearch.OpenSearchClient;
+import org.opensearch.client.opensearch._types.OpenSearchException;
+import org.opensearch.client.opensearch.core.GetRequest;
+import org.opensearch.client.opensearch.core.GetResponse;
+import org.opensearch.client.opensearch.generic.Requests;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.UUID;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,12 +49,22 @@ class MovieDetailControllerTest extends AbstractOpenSearchTest {
     @Autowired
     private MovieRepository movieRepository;
 
+    @Autowired
+    private IndexingService indexingService;
+
+    @Autowired
+    private OpenSearchClient osClient;
+
+    @Autowired
+    private RateLimitService rateLimitService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void cleanDb() {
         movieRepository.deleteAll();
         userRepository.deleteAll();
+        rateLimitService.resetAll();
     }
 
     /** Creates an ACTIVE user with a bcrypt-hashed password and returns the saved entity. */
@@ -190,47 +209,196 @@ class MovieDetailControllerTest extends AbstractOpenSearchTest {
                 .andExpect(status().isNotFound());
     }
 
+    // ── OS helpers ────────────────────────────────────────────────────────────
+
+    /** Indexes a movie into OS and marks it as indexed. */
+    private Movie indexMovie(Movie movie) throws Exception {
+        indexingService.index(movie);
+        movie.setIndexedAt(Instant.now());
+        return movieRepository.save(movie);
+    }
+
+    /** Forces an index refresh so documents are immediately visible. */
+    private void refreshIndex(String indexName) throws Exception {
+        try (var response = osClient.generic().execute(
+                Requests.builder()
+                        .method("POST")
+                        .endpoint("/" + indexName + "/_refresh")
+                        .build())) {
+            // ignore body — just need the refresh to complete
+        }
+    }
+
+    /** Returns the OS document for the given movieId, or throws if not found. */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getOsDocument(String indexName, UUID movieId) throws Exception {
+        refreshIndex(indexName);
+        GetResponse<Map> response = osClient.get(
+                GetRequest.of(r -> r.index(indexName).id(movieId.toString())),
+                Map.class);
+        assertThat(response.found()).isTrue();
+        return response.source();
+    }
+
     // -------------------------------------------------------------------------
     // DETAIL-03: PATCH /movies/{id}/personal
     // -------------------------------------------------------------------------
 
     @Test
-    @Disabled("Implemented in plan 06-02")
-    void updatePersonal_updatesWatchedInPostgres() {}
+    void updatePersonal_updatesWatchedInPostgres() throws Exception {
+        User user = createActiveUser("patch-watched@example.com");
+        String token = loginAndGetToken("patch-watched@example.com");
+        Movie movie = saveMovieForUser(user, 91001);
+
+        mockMvc.perform(patch("/movies/" + movie.getId() + "/personal")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"watched\": true}"))
+                .andExpect(status().isNoContent());
+
+        Movie updated = movieRepository.findById(movie.getId()).orElseThrow();
+        assertThat(updated.getWatched()).isTrue();
+    }
 
     @Test
-    @Disabled("Implemented in plan 06-02")
-    void updatePersonal_updatesPersonalRatingInPostgres() {}
+    void updatePersonal_updatesPersonalRatingInPostgres() throws Exception {
+        User user = createActiveUser("patch-rating@example.com");
+        String token = loginAndGetToken("patch-rating@example.com");
+        Movie movie = saveMovieForUser(user, 91002);
+
+        mockMvc.perform(patch("/movies/" + movie.getId() + "/personal")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"personalRating\": 8}"))
+                .andExpect(status().isNoContent());
+
+        Movie updated = movieRepository.findById(movie.getId()).orElseThrow();
+        assertThat(updated.getPersonalRating()).isEqualTo((short) 8);
+    }
 
     @Test
-    @Disabled("Implemented in plan 06-02")
-    void updatePersonal_clearsPersonalRatingWhenNull() {}
+    void updatePersonal_clearsPersonalRatingWhenNull() throws Exception {
+        User user = createActiveUser("patch-clear-rating@example.com");
+        String token = loginAndGetToken("patch-clear-rating@example.com");
+        Movie movie = saveMovieForUser(user, 91003);
+        // First set a rating
+        movie.setPersonalRating((short) 8);
+        movieRepository.save(movie);
+
+        // Then clear it with null
+        mockMvc.perform(patch("/movies/" + movie.getId() + "/personal")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"personalRating\": null}"))
+                .andExpect(status().isNoContent());
+
+        Movie updated = movieRepository.findById(movie.getId()).orElseThrow();
+        assertThat(updated.getPersonalRating()).isNull();
+    }
 
     @Test
-    @Disabled("Implemented in plan 06-02")
-    void updatePersonal_updatesPersonalNotesInPostgres() {}
+    void updatePersonal_updatesPersonalNotesInPostgres() throws Exception {
+        User user = createActiveUser("patch-notes@example.com");
+        String token = loginAndGetToken("patch-notes@example.com");
+        Movie movie = saveMovieForUser(user, 91004);
+
+        mockMvc.perform(patch("/movies/" + movie.getId() + "/personal")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"personalNotes\": \"Excellent film\"}"))
+                .andExpect(status().isNoContent());
+
+        Movie updated = movieRepository.findById(movie.getId()).orElseThrow();
+        assertThat(updated.getPersonalNotes()).isEqualTo("Excellent film");
+    }
 
     @Test
-    @Disabled("Implemented in plan 06-02")
-    void updatePersonal_syncsToOpenSearch() {}
+    void updatePersonal_syncsToOpenSearch() throws Exception {
+        User user = createActiveUser("patch-os-sync@example.com");
+        String token = loginAndGetToken("patch-os-sync@example.com");
+        Movie movie = saveMovieForUser(user, 91005);
+        // Index the movie so indexedAt != null
+        movie = indexMovie(movie);
+        String indexName = "movies-" + user.getId();
+
+        mockMvc.perform(patch("/movies/" + movie.getId() + "/personal")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"watched\": true}"))
+                .andExpect(status().isNoContent());
+
+        // Verify OS document was updated
+        Map<String, Object> doc = getOsDocument(indexName, movie.getId());
+        assertThat(doc.get("watched")).isEqualTo(true);
+    }
 
     @Test
-    @Disabled("Implemented in plan 06-02")
-    void updatePersonal_returns404WhenMovieNotOwnedByUser() {}
+    void updatePersonal_returns404WhenMovieNotOwnedByUser() throws Exception {
+        User owner = createActiveUser("patch-owner@example.com");
+        Movie movie = saveMovieForUser(owner, 91006);
+
+        createActiveUser("patch-other@example.com");
+        String otherToken = loginAndGetToken("patch-other@example.com");
+
+        mockMvc.perform(patch("/movies/" + movie.getId() + "/personal")
+                        .header("Authorization", otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"watched\": true}"))
+                .andExpect(status().isNotFound());
+    }
 
     // -------------------------------------------------------------------------
     // DELETE /movies/{id}
     // -------------------------------------------------------------------------
 
     @Test
-    @Disabled("Implemented in plan 06-02")
-    void deleteMovie_removesFromPostgresAndOpenSearch() {}
+    void deleteMovie_removesFromPostgresAndOpenSearch() throws Exception {
+        User user = createActiveUser("delete-movie@example.com");
+        String token = loginAndGetToken("delete-movie@example.com");
+        Movie movie = saveMovieForUser(user, 92001);
+        // Index so the OS document exists
+        movie = indexMovie(movie);
+        String indexName = "movies-" + user.getId();
+        UUID movieId = movie.getId();
+
+        mockMvc.perform(delete("/movies/" + movieId)
+                        .header("Authorization", token))
+                .andExpect(status().isNoContent());
+
+        // Postgres row must be gone
+        assertThat(movieRepository.findById(movieId)).isEmpty();
+
+        // OS document must be gone
+        refreshIndex(indexName);
+        GetResponse<Map> osResponse = osClient.get(
+                GetRequest.of(r -> r.index(indexName).id(movieId.toString())),
+                Map.class);
+        assertThat(osResponse.found()).isFalse();
+    }
 
     @Test
-    @Disabled("Implemented in plan 06-02")
-    void deleteMovie_returns404WhenMovieNotOwnedByUser() {}
+    void deleteMovie_returns404WhenMovieNotOwnedByUser() throws Exception {
+        User owner = createActiveUser("delete-owner@example.com");
+        Movie movie = saveMovieForUser(owner, 92002);
+
+        createActiveUser("delete-other@example.com");
+        String otherToken = loginAndGetToken("delete-other@example.com");
+
+        mockMvc.perform(delete("/movies/" + movie.getId())
+                        .header("Authorization", otherToken))
+                .andExpect(status().isNotFound());
+
+        // Movie must still exist in Postgres
+        assertThat(movieRepository.findById(movie.getId())).isPresent();
+    }
 
     @Test
-    @Disabled("Implemented in plan 06-02")
-    void deleteMovie_returns404WhenMovieDoesNotExist() {}
+    void deleteMovie_returns404WhenMovieDoesNotExist() throws Exception {
+        createActiveUser("delete-notfound@example.com");
+        String token = loginAndGetToken("delete-notfound@example.com");
+
+        mockMvc.perform(delete("/movies/" + UUID.randomUUID())
+                        .header("Authorization", token))
+                .andExpect(status().isNotFound());
+    }
 }

@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -34,6 +35,24 @@ public class MovieDetailController {
             @PathVariable UUID id, Authentication auth) {
         UUID userId = resolveUserId(auth);
         return ResponseEntity.ok(movieDetailService.getDetail(userId, id));
+    }
+
+    @PatchMapping("/{id}/personal")
+    public ResponseEntity<Void> updatePersonal(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> fields,
+            Authentication auth) {
+        UUID userId = resolveUserId(auth);
+        movieDetailService.updatePersonal(userId, id, fields);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteMovie(
+            @PathVariable UUID id, Authentication auth) {
+        UUID userId = resolveUserId(auth);
+        movieDetailService.deleteMovie(userId, id);
+        return ResponseEntity.noContent().build();
     }
 
     private UUID resolveUserId(Authentication auth) {

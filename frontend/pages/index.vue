@@ -5,7 +5,7 @@ import MovieOfTheDay from '@/components/MovieOfTheDay.vue'
 import ImdbHistogram from '@/components/ImdbHistogram.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 
-const { data, isLoading, fetchDashboard } = useDashboard()
+const { data, isLoading, error, fetchDashboard } = useDashboard()
 
 function posterUrl(posterPath: string | null): string {
   if (!posterPath || !posterPath.startsWith('/')) return '/placeholder-poster.svg'
@@ -71,6 +71,11 @@ onMounted(async () => {
             </div>
           </div>
         </section>
+      </div>
+
+      <!-- Error state -->
+      <div v-else-if="error" class="flex flex-col items-center justify-center py-24 gap-4">
+        <p class="text-destructive">{{ error }}</p>
       </div>
 
       <!-- Empty state (no data and not loading) -->

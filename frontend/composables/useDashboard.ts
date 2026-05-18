@@ -31,18 +31,22 @@ export function useDashboard() {
 
   const data = ref<DashboardResponse | null>(null)
   const isLoading = ref(false)
+  const error = ref<string | null>(null)
 
   async function fetchDashboard(): Promise<void> {
     isLoading.value = true
+    error.value = null
     try {
       data.value = await $fetch<DashboardResponse>('/api/dashboard', {
         credentials: 'include',
         headers: authHeaders(),
       })
+    } catch {
+      error.value = 'Failed to load dashboard. Please refresh.'
     } finally {
       isLoading.value = false
     }
   }
 
-  return { data, isLoading, fetchDashboard }
+  return { data, isLoading, error, fetchDashboard }
 }

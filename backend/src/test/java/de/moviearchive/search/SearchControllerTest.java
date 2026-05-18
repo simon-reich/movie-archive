@@ -470,9 +470,9 @@ class SearchControllerTest extends AbstractOpenSearchTest {
 
     @Test
     void shouldReturnEmpty_whenWatchedFilterApplied() throws Exception {
-        // watched field is null for all Phase 4/5 docs (D-05).
-        // term(watched=false) only matches explicit false, NOT null — returns empty.
-        // This is expected behaviour per D-10 and 05-RESEARCH.md Pitfall 6.
+        // Phase 6 (Plan 06-01): DocumentBuilder now indexes watched=false (not null).
+        // term(watched=false) matches documents with watched=false — returns 1 result.
+        // A newly saved movie has watched=false (D-09 default), so notYetWatched filter finds it.
         indexTestMovie("SomeFilm");
         refreshIndex("movies-" + testUser.getId());
 
@@ -481,7 +481,7 @@ class SearchControllerTest extends AbstractOpenSearchTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"filters\":{\"notYetWatched\":true},\"page\":0}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(0));
+                .andExpect(jsonPath("$.total").value(1));
     }
 
     @Test

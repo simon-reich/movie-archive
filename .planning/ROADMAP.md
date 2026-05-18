@@ -128,10 +128,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Wave 0 test scaffolding: SearchControllerTest @Disabled stubs, MSW handlers, frontend .todo spec files
-- [ ] 05-02-PLAN.md — Backend: search/dashboard DTOs, SearchService, SearchController, DashboardService, DashboardController, MovieRepository query, 14 integration tests
-- [ ] 05-03-PLAN.md — Frontend /search: useSearch composable, useSearchStore, all search components (SearchBar, FilterPanel, SortSelect, ViewToggle, MovieGrid, MovieCard, MovieList, MovieListItem), search.vue page, AppNav /search link, frontend tests
-- [ ] 05-04-PLAN.md — Frontend /: useDashboard composable, DashboardStats, MovieOfTheDay, ImdbHistogram, index.vue dashboard page, frontend tests
+- [x] 05-01-PLAN.md — Wave 0 test scaffolding: SearchControllerTest @Disabled stubs, MSW handlers, frontend .todo spec files
+- [x] 05-02-PLAN.md — Backend: search/dashboard DTOs, SearchService, SearchController, DashboardService, DashboardController, MovieRepository query, 14 integration tests
+- [x] 05-03-PLAN.md — Frontend /search: useSearch composable, useSearchStore, all search components (SearchBar, FilterPanel, SortSelect, ViewToggle, MovieGrid, MovieCard, MovieList, MovieListItem), search.vue page, AppNav /search link, frontend tests
+- [x] 05-04-PLAN.md — Frontend /: useDashboard composable, DashboardStats, MovieOfTheDay, ImdbHistogram, index.vue dashboard page, frontend tests
 
 ### Phase 6: Movie Detail & Personal Fields
 **Goal**: Users can view complete film metadata and record their personal relationship to each film

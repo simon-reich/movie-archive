@@ -143,8 +143,15 @@ Plans:
   3. User can set watched status, personal rating (0–10), and free-text notes on any film; notes are indexed for search
   4. Film detail page shows YouTube trailer embed when a trailer key is available via TMDB
   5. Clicking an actor, director, or genre on the detail page opens a filtered search results list
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 6 plans
+
+Plans:
+- [ ] 06-00-PLAN.md — Wave 0 test scaffolding: @Disabled backend stubs, MSW handlers, frontend it.todo specs (MovieDetailControllerTest, useMovieDetail.spec, movies-id.spec, TrailerEmbed.spec)
+- [ ] 06-01-PLAN.md — Backend foundation: V7 Flyway migration (watched/personal_rating/personal_notes), Movie entity update, DocumentBuilder personal fields fix, MovieDetailResponse DTO, MovieDetailService.getDetail(), MovieDetailController GET /movies/{id}
+- [ ] 06-02-PLAN.md — Backend PATCH + DELETE: updatePersonal() service (Map-based partial update, OS full re-index), deleteMovie() (OS-first then Postgres), IndexingService.deleteDocument(), all 13 integration tests green
+- [ ] 06-03-PLAN.md — Frontend composable: useMovieDetail.ts (MovieDetail type, fetchDetail, updatePersonal, deleteMovie), 7 Vitest tests green
+- [ ] 06-04-PLAN.md — Frontend detail page: /pages/movies/[id].vue (cinematic hero, two-column layout, OMDB null hiding, Wikipedia conditional, clickable actor/director/genre chips, delete modal), 12 page tests green
+- [ ] 06-05-PLAN.md — Frontend components: StarRating.vue (10-star deselect), TrailerEmbed.vue (lazy YouTube embed), MovieCard.vue + MovieListItem.vue NuxtLink activation, 5 TrailerEmbed tests green
 
 ### Phase 7: Polish & Quality
 **Goal**: The app works well on mobile and is covered by E2E tests with a clear README for setup
@@ -170,5 +177,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Save Movie Flow | 6/6 | Complete | 2026-05-17 |
 | 4. OpenSearch Indexing | 0/3 | Not started | - |
 | 5. Search | 0/4 | Not started | - |
-| 6. Movie Detail & Personal Fields | 0/TBD | Not started | - |
+| 6. Movie Detail & Personal Fields | 0/6 | Not started | - |
 | 7. Polish & Quality | 0/TBD | Not started | - |

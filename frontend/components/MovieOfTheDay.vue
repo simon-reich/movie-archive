@@ -18,7 +18,6 @@ function posterUrl(posterPath: string | null): string {
 
 <template>
   <div v-if="props.movie">
-    <p class="text-xs tracking-widest uppercase text-muted-foreground mb-3">Film of the Day</p>
     <img
       :src="posterUrl(props.movie.posterPath)"
       :alt="props.movie.title"

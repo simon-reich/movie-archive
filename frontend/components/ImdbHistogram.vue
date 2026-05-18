@@ -20,7 +20,6 @@ const hasData = computed(() =>
 
 <template>
   <div>
-    <p class="text-xs tracking-widest uppercase text-muted-foreground mb-4">IMDB Rating Distribution</p>
     <p v-if="!hasData" class="text-sm text-muted-foreground">No rating data yet</p>
     <div v-else class="flex items-end gap-2 h-24">
       <div

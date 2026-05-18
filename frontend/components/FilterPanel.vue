@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { SlidersHorizontal } from 'lucide-vue-next'
 import { CollapsibleRoot, CollapsibleTrigger, CollapsibleContent } from 'radix-vue'
 
 const { updateFilter, genres, director, actors, yearFrom, yearTo, imdbFrom, imdbTo,
-  contentRatings, runtimeMax, watched, languages, countries } = useSearch()
+  contentRatings, runtimeMax, watched, languages, countries, facets, fetchFacets } = useSearch()
 
 const isOpen = ref(false)
 
@@ -17,6 +17,9 @@ const actorSuggestions = ref<string[]>([])
 // Debounce timers for autocomplete
 let directorDebounce: ReturnType<typeof setTimeout> | null = null
 let actorsDebounce: ReturnType<typeof setTimeout> | null = null
+
+// Load dynamic filter options once on mount
+onMounted(() => fetchFacets())
 
 async function fetchDirectorSuggestions(prefix: string) {
   if (!prefix || prefix.length < 2) {
@@ -68,14 +71,6 @@ function onActorsInput(e: Event) {
   actorsDebounce = setTimeout(() => fetchActorSuggestions(val), 300)
 }
 
-// Genre multi-select (from common values)
-const COMMON_GENRES = ['Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary',
-  'Drama', 'Fantasy', 'Horror', 'Mystery', 'Romance', 'Science Fiction', 'Thriller', 'War', 'Western']
-
-const COMMON_CONTENT_RATINGS = ['G', 'PG', 'PG-13', 'R', 'NC-17', 'NR', 'TV-G', 'TV-PG', 'TV-14', 'TV-MA']
-const COMMON_LANGUAGES = ['English', 'French', 'German', 'Spanish', 'Italian', 'Japanese', 'Korean', 'Mandarin', 'Portuguese', 'Russian']
-const COMMON_COUNTRIES = ['United States', 'United Kingdom', 'France', 'Germany', 'Italy', 'Japan', 'South Korea', 'Spain', 'Australia', 'Canada']
-
 function toggleArrayFilter(key: string, current: string[], value: string) {
   const next = current.includes(value)
     ? current.filter(v => v !== value)
@@ -110,12 +105,12 @@ const hasActiveFilters = computed(() =>
 </script>
 
 <template>
-  <div class="border border-border">
+  <div class="border border-border flex-1 min-w-0">
     <CollapsibleRoot v-model:open="isOpen">
       <CollapsibleTrigger
         class="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/30 transition-colors text-left"
       >
-        <SlidersHorizontal class="w-4 h-4" />
+        <SlidersHorizontal class="w-4 h-4 flex-shrink-0" />
         <span>Filters</span>
         <span v-if="hasActiveFilters" class="ml-1 text-xs text-primary">(active)</span>
         <span class="ml-auto text-xs text-muted-foreground">{{ isOpen ? '▲' : '▼' }}</span>
@@ -124,12 +119,12 @@ const hasActiveFilters = computed(() =>
       <CollapsibleContent>
         <div class="p-4 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-          <!-- Genre -->
-          <div>
+          <!-- Genre (dynamic from index) -->
+          <div v-if="facets.genres.length > 0">
             <label class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 block">Genre</label>
             <div class="flex flex-wrap gap-1">
               <button
-                v-for="g in COMMON_GENRES"
+                v-for="g in facets.genres"
                 :key="g"
                 type="button"
                 :class="[
@@ -248,12 +243,12 @@ const hasActiveFilters = computed(() =>
             />
           </div>
 
-          <!-- Content rating -->
-          <div>
+          <!-- Content rating (dynamic from index) -->
+          <div v-if="facets.contentRatings.length > 0">
             <label class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 block">Content Rating</label>
             <div class="flex flex-wrap gap-1">
               <button
-                v-for="cr in COMMON_CONTENT_RATINGS"
+                v-for="cr in facets.contentRatings"
                 :key="cr"
                 type="button"
                 :class="[
@@ -269,12 +264,12 @@ const hasActiveFilters = computed(() =>
             </div>
           </div>
 
-          <!-- Language -->
-          <div>
+          <!-- Language (dynamic from index — ISO-639-1 codes, displayed uppercase) -->
+          <div v-if="facets.languages.length > 0">
             <label class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 block">Language</label>
             <div class="flex flex-wrap gap-1">
               <button
-                v-for="lang in COMMON_LANGUAGES"
+                v-for="lang in facets.languages"
                 :key="lang"
                 type="button"
                 :class="[
@@ -285,17 +280,17 @@ const hasActiveFilters = computed(() =>
                 ]"
                 @click="toggleArrayFilter('language', languages, lang)"
               >
-                {{ lang }}
+                {{ lang.toUpperCase() }}
               </button>
             </div>
           </div>
 
-          <!-- Production country -->
-          <div>
+          <!-- Production country (dynamic from index — ISO-3166-1 codes) -->
+          <div v-if="facets.countries.length > 0">
             <label class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 block">Production Country</label>
             <div class="flex flex-wrap gap-1">
               <button
-                v-for="country in COMMON_COUNTRIES"
+                v-for="country in facets.countries"
                 :key="country"
                 type="button"
                 :class="[

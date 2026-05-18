@@ -34,6 +34,13 @@ export interface SearchApiResponse {
   hasMore: boolean
 }
 
+export interface Facets {
+  genres: string[]
+  contentRatings: string[]
+  languages: string[]
+  countries: string[]
+}
+
 // URL param normalization helpers (per 05-RESEARCH.md Pattern 10)
 type QueryParam = string | null | (string | null)[]
 
@@ -167,6 +174,20 @@ export function useSearch() {
     router.replace({ query: { ...route.query, page: String(page.value + 1) } })
   }
 
+  const facets = ref<Facets>({ genres: [], contentRatings: [], languages: [], countries: [] })
+
+  async function fetchFacets(): Promise<void> {
+    try {
+      const data = await $fetch<Facets>('/api/search/facets', {
+        credentials: 'include',
+        headers: authHeaders(),
+      })
+      if (data) facets.value = data
+    } catch {
+      // silently ignore — filter chips stay empty until data is available
+    }
+  }
+
   return {
     // State
     results,
@@ -195,5 +216,8 @@ export function useSearch() {
     executeSearch,
     updateFilter,
     loadMore,
+    // Facets (dynamic filter options)
+    facets,
+    fetchFacets,
   }
 }

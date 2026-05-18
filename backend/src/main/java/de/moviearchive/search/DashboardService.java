@@ -32,7 +32,7 @@ import java.util.UUID;
  * (function_score random), and recently indexed films (Postgres query).
  */
 @Service
-@Transactional
+@Transactional(readOnly = true)
 @Slf4j
 public class DashboardService {
 
@@ -63,9 +63,9 @@ public class DashboardService {
                         .aggregations("total_count", Aggregation.of(a -> a
                                 .valueCount(vc -> vc.field("tmdb_id"))))
                         .aggregations("genres", Aggregation.of(a -> a
-                                .terms(t -> t.field("genre_list").size(10))))
+                                .terms(t -> t.field("genre_list").size(1000))))
                         .aggregations("languages", Aggregation.of(a -> a
-                                .terms(t -> t.field("language_list").size(20))))
+                                .terms(t -> t.field("language_list").size(500))))
                         .aggregations("imdb_histogram", Aggregation.of(a -> a
                                 .range(range -> range
                                         .field("imdb_rating")

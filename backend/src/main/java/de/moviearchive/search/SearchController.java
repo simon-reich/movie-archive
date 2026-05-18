@@ -1,6 +1,7 @@
 package de.moviearchive.search;
 
 import de.moviearchive.search.dto.AutocompleteResponse;
+import de.moviearchive.search.dto.FacetsResponse;
 import de.moviearchive.search.dto.SearchRequest;
 import de.moviearchive.search.dto.SearchResponse;
 import de.moviearchive.user.UserRepository;
@@ -51,6 +52,18 @@ public class SearchController {
         log.debug("Search request for userId={} query='{}' sort={} page={}",
                 userId, request.getQuery(), request.getSort(), request.getPage());
         return ResponseEntity.ok(searchService.search(indexName, request));
+    }
+
+    /**
+     * GET /search/facets
+     * Returns distinct values for chip-based filters (genres, contentRatings, languages, countries)
+     * sourced from the caller's index — no hardcoded lists.
+     */
+    @GetMapping("/facets")
+    public ResponseEntity<FacetsResponse> facets(Authentication auth) throws IOException {
+        UUID userId = resolveUserId(auth);
+        String indexName = "movies-" + userId;
+        return ResponseEntity.ok(searchService.getFacets(indexName));
     }
 
     /**

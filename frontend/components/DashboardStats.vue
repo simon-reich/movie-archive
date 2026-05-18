@@ -24,16 +24,17 @@ const props = defineProps<{
       <p class="text-4xl font-bold text-foreground">{{ props.totalFilms }}</p>
     </div>
 
-    <!-- Top Genres -->
+    <!-- All Genres -->
     <div class="flex-1 bg-card border border-border p-4">
-      <p class="text-xs tracking-widest uppercase text-muted-foreground mb-2">Top Genres</p>
+      <p class="text-xs tracking-widest uppercase text-muted-foreground mb-2">Genres</p>
       <ul class="space-y-1">
-        <li
-          v-for="genre in props.topGenres.slice(0, 5)"
-          :key="genre.name"
-          class="text-sm text-foreground"
-        >
-          {{ genre.name }} ({{ genre.count }})
+        <li v-for="genre in props.topGenres" :key="genre.name" class="text-sm">
+          <NuxtLink
+            :to="`/search?genre=${encodeURIComponent(genre.name)}`"
+            class="text-foreground hover:text-primary transition-colors"
+          >
+            {{ genre.name }} ({{ genre.count }})
+          </NuxtLink>
         </li>
       </ul>
     </div>
@@ -42,12 +43,13 @@ const props = defineProps<{
     <div class="flex-1 bg-card border border-border p-4">
       <p class="text-xs tracking-widest uppercase text-muted-foreground mb-2">Languages</p>
       <ul class="space-y-1">
-        <li
-          v-for="lang in props.languageBreakdown.slice(0, 5)"
-          :key="lang.code"
-          class="text-sm text-foreground"
-        >
-          {{ lang.code }} ({{ lang.count }})
+        <li v-for="lang in props.languageBreakdown" :key="lang.code" class="text-sm">
+          <NuxtLink
+            :to="`/search?language=${encodeURIComponent(lang.code)}`"
+            class="text-foreground hover:text-primary transition-colors"
+          >
+            {{ lang.code.toUpperCase() }} ({{ lang.count }})
+          </NuxtLink>
         </li>
       </ul>
     </div>

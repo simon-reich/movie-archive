@@ -1,34 +1,19 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-
-function safeLocalStorageGet(key: string): string | null {
-  try {
-    return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null
-  } catch {
-    return null
-  }
-}
-
-function safeLocalStorageSet(key: string, value: string): void {
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(key, value)
-    }
-  } catch {
-    // ignore — localStorage not available (SSR or private browsing)
-  }
-}
+import { computed } from 'vue'
 
 export const useSearchStore = defineStore('search', () => {
-  // Read viewMode from localStorage on client side only — SSR safe
-  const stored = import.meta.client ? safeLocalStorageGet('viewMode') : null
-  const viewMode = ref<'grid' | 'list'>((stored as 'grid' | 'list') ?? 'grid')
+  // useCookie is SSR-safe — unlike localStorage which is unavailable on the server.
+  // On SSR the cookie value comes from the request headers; on client it's document.cookie.
+  // This fixes the hydration mismatch that caused viewMode to reset on page reload.
+  const viewModeCookie = useCookie<'grid' | 'list'>('viewMode', {
+    default: () => 'grid',
+    maxAge: 60 * 60 * 24 * 365,
+  })
+
+  const viewMode = computed(() => viewModeCookie.value)
 
   function setViewMode(mode: 'grid' | 'list'): void {
-    viewMode.value = mode
-    if (import.meta.client) {
-      safeLocalStorageSet('viewMode', mode)
-    }
+    viewModeCookie.value = mode
   }
 
   return { viewMode, setViewMode }

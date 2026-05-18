@@ -23,7 +23,7 @@ const searchStore = useSearchStore()
     </div>
 
     <!-- Controls row: filter trigger + sort + view toggle -->
-    <div class="flex items-center justify-between gap-4 mb-4">
+    <div class="flex items-start justify-between gap-4 mb-4">
       <FilterPanel />
       <div class="flex items-center gap-2 flex-shrink-0">
         <SortSelect

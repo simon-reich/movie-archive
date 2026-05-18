@@ -1,12 +1,14 @@
 package de.moviearchive.search;
 
 import de.moviearchive.search.dto.AutocompleteResponse;
+import de.moviearchive.search.dto.FacetsResponse;
 import de.moviearchive.search.dto.FilterCriteria;
 import de.moviearchive.search.dto.SearchResultItem;
 import lombok.extern.slf4j.Slf4j;
 import org.opensearch.client.json.JsonData;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.FieldValue;
+import org.opensearch.client.opensearch._types.aggregations.Aggregation;
 import org.opensearch.client.opensearch._types.SortOrder;
 import org.opensearch.client.opensearch._types.SortOptions;
 import org.opensearch.client.opensearch._types.query_dsl.BoolQuery;
@@ -154,6 +156,44 @@ public class SearchService {
         }
 
         return new AutocompleteResponse(new ArrayList<>(seen));
+    }
+
+    /**
+     * Returns distinct values for chip-based filter fields from the user's index.
+     * Genres and contentRatings are human-readable strings; languages and countries
+     * are ISO codes (lowercase ISO-639-1 and uppercase ISO-3166-1 respectively).
+     */
+    public FacetsResponse getFacets(String indexName) throws IOException {
+        org.opensearch.client.opensearch.core.SearchRequest req =
+                org.opensearch.client.opensearch.core.SearchRequest.of(r -> r
+                        .index(indexName)
+                        .size(0)
+                        .aggregations("genres", Aggregation.of(a -> a
+                                .terms(t -> t.field("genre_list").size(1000))))
+                        .aggregations("content_ratings", Aggregation.of(a -> a
+                                .terms(t -> t.field("content_rating").size(100))))
+                        .aggregations("languages", Aggregation.of(a -> a
+                                .terms(t -> t.field("language_list").size(500))))
+                        .aggregations("countries", Aggregation.of(a -> a
+                                .terms(t -> t.field("country_list").size(500)))));
+
+        org.opensearch.client.opensearch.core.SearchResponse<Map> resp =
+                client.search(req, Map.class);
+
+        return new FacetsResponse(
+                extractTermKeys(resp, "genres"),
+                extractTermKeys(resp, "content_ratings"),
+                extractTermKeys(resp, "languages"),
+                extractTermKeys(resp, "countries"));
+    }
+
+    private List<String> extractTermKeys(
+            org.opensearch.client.opensearch.core.SearchResponse<Map> resp, String aggName) {
+        var agg = resp.aggregations().get(aggName);
+        if (agg == null || !agg.isSterms()) return List.of();
+        return agg.sterms().buckets().array().stream()
+                .map(org.opensearch.client.opensearch._types.aggregations.StringTermsBucket::key)
+                .collect(Collectors.toList());
     }
 
     // ── Query building ─────────────────────────────────────────────────────────

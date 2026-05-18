@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 import java.time.LocalDate;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -531,5 +532,102 @@ class SearchControllerTest extends AbstractOpenSearchTest {
                         .content("{\"query\":\"\",\"sort\":\"rating_desc\",\"page\":0}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(2));  // both appear, nulls last (not missing)
+    }
+
+    @Test
+    void shouldRejectSearchRequest_whenPageExceedsMaxDepth() throws Exception {
+        // page=501 → from = 501 * 20 = 10020 > 10000 cap → 400
+        mockMvc.perform(post("/search")
+                        .header("Authorization", bearerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"\",\"page\":501}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ── Facets tests ──────────────────────────────────────────────────────────
+
+    @Test
+    void shouldReturnFacets_whenMoviesIndexed() throws Exception {
+        indexTestMovie("Inception", "Thriller");
+        indexTestMovie("Titanic", "Romance");
+        refreshIndex("movies-" + testUser.getId());
+
+        mockMvc.perform(get("/search/facets")
+                        .header("Authorization", bearerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.genres").isArray())
+                .andExpect(jsonPath("$.contentRatings").isArray())
+                .andExpect(jsonPath("$.languages").isArray())
+                .andExpect(jsonPath("$.countries").isArray());
+    }
+
+    @Test
+    void shouldReturnFacetsContainingIndexedGenres() throws Exception {
+        indexTestMovie("Inception", "Thriller");
+        indexTestMovie("Titanic", "Romance");
+        refreshIndex("movies-" + testUser.getId());
+
+        mockMvc.perform(get("/search/facets")
+                        .header("Authorization", bearerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.genres[?(@ == 'Thriller')]").exists())
+                .andExpect(jsonPath("$.genres[?(@ == 'Romance')]").exists());
+    }
+
+    @Test
+    void shouldReturn403ForFacets_whenNotAuthenticated() throws Exception {
+        // Spring Security returns 403 (not 401) when no AuthenticationEntryPoint is configured
+        mockMvc.perform(get("/search/facets"))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── Autocomplete tests ────────────────────────────────────────────────────
+
+    @Test
+    void shouldReturnDirectorSuggestions_forAutocomplete() throws Exception {
+        indexTestMovieWithCrew("Memento", "Christopher Nolan");
+        indexTestMovieWithCrew("Inception", "Christopher Nolan");
+        refreshIndex("movies-" + testUser.getId());
+
+        mockMvc.perform(get("/search/autocomplete")
+                        .header("Authorization", bearerToken)
+                        .param("field", "director")
+                        .param("prefix", "Chr"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.suggestions").isArray())
+                .andExpect(jsonPath("$.suggestions[0]").value("Christopher Nolan"));
+    }
+
+    @Test
+    void shouldReturn400_whenAutocompleteFieldIsInvalid() throws Exception {
+        mockMvc.perform(get("/search/autocomplete")
+                        .header("Authorization", bearerToken)
+                        .param("field", "invalid_field")
+                        .param("prefix", "test"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturn403ForAutocomplete_whenNotAuthenticated() throws Exception {
+        // Spring Security returns 403 (not 401) when no AuthenticationEntryPoint is configured
+        mockMvc.perform(get("/search/autocomplete")
+                        .param("field", "director")
+                        .param("prefix", "Chr"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldSortByYearDescending() throws Exception {
+        indexTestMovieWithYear("OldFilm", 1990);
+        indexTestMovieWithYear("NewFilm", 2020);
+        refreshIndex("movies-" + testUser.getId());
+
+        mockMvc.perform(post("/search")
+                        .header("Authorization", bearerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"\",\"sort\":\"year_desc\",\"page\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[0].title").value("NewFilm"))
+                .andExpect(jsonPath("$.results[1].title").value("OldFilm"));
     }
 }

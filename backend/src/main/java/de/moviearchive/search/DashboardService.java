@@ -8,6 +8,7 @@ import de.moviearchive.search.dto.DashboardResponse;
 import de.moviearchive.search.dto.HistogramBucket;
 import lombok.extern.slf4j.Slf4j;
 import org.opensearch.client.opensearch.OpenSearchClient;
+import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch._types.aggregations.Aggregation;
 import org.opensearch.client.opensearch._types.aggregations.StringTermsBucket;
 import org.opensearch.client.opensearch._types.query_dsl.FunctionBoostMode;
@@ -71,7 +72,18 @@ public class DashboardService {
                                         .minDocCount(0)
                                         .extendedBounds(eb -> eb.min(1.0).max(10.0))))));
 
-        SearchResponse<Map> statsResp = client.search(statsReq, Map.class);
+        SearchResponse<Map> statsResp;
+        try {
+            statsResp = client.search(statsReq, Map.class);
+        } catch (OpenSearchException e) {
+            // Index does not exist yet — user has never saved a movie.
+            // Return a valid empty-state dashboard rather than propagating a 500.
+            if ("index_not_found_exception".equals(e.error().type())) {
+                log.debug("Index {} not found — returning empty dashboard", indexName);
+                return new DashboardResponse(0L, List.of(), List.of(), List.of(), null, List.of());
+            }
+            throw e;
+        }
 
         // Parse totalFilms — null-safe (Pitfall 7: empty archive must not NPE)
         long totalFilms = 0L;

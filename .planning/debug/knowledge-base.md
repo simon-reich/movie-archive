@@ -29,3 +29,11 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 - **Fix:** Change backend to return ResponseEntity.ok().build() (200 OK, consistent with changePassword and other mutation endpoints). Added MSW DELETE handler and deleteApiKey unit test.
 - **Files changed:** backend/src/main/java/de/moviearchive/settings/SettingsController.java, frontend/test/mocks/handlers/settings.ts, frontend/test/unit/composables/useSettings.spec.ts
 ---
+
+## jacoco-coverage-below-threshold — JaCoCo line coverage 72%, threshold 75%
+- **Date:** 2026-05-18
+- **Error patterns:** jacocoTestCoverageVerification, lines covered ratio, Rule violated, 0.72, 0.75, threshold, coverage, DashboardService, SearchService, facets, autocomplete
+- **Root cause:** DashboardService and DashboardController had zero test coverage (95+12 uncovered lines). SearchService facets/autocomplete paths (getFacets, autocomplete) were never exercised by SearchControllerTest. Pure record DTOs (AutocompleteResponse, DashboardMovieItem, DashboardResponse, FacetsResponse, HistogramBucket) were counted by JaCoCo despite having no branching logic. Secondary: DashboardService threw 500 on index_not_found_exception when archive was empty (valid state).
+- **Fix:** (1) Added JaCoCo exclusion list in build.gradle.kts for pure DTO records, simple exception subclasses, and application entry point. (2) Created DashboardControllerTest with 6 integration tests (real OpenSearch + Postgres). (3) Added 8 tests to SearchControllerTest covering facets, autocomplete, page overflow, year sort. (4) Fixed DashboardService to catch index_not_found_exception and return empty dashboard.
+- **Files changed:** backend/build.gradle.kts, backend/src/main/java/de/moviearchive/search/DashboardService.java, backend/src/test/java/de/moviearchive/search/DashboardControllerTest.java, backend/src/test/java/de/moviearchive/search/SearchControllerTest.java
+---

@@ -23,11 +23,13 @@ function navigateToDirector(director: string) {
 
 <template>
   <div class="overflow-hidden">
-    <img
-      :src="posterUrl(movie.posterPath)"
-      :alt="movie.title"
-      class="w-full aspect-[2/3] object-cover bg-card border border-border"
-    />
+    <NuxtLink :to="`/movies/${movie.id}`" class="block">
+      <img
+        :src="posterUrl(movie.posterPath)"
+        :alt="movie.title"
+        class="w-full aspect-[2/3] object-cover bg-card border border-border"
+      />
+    </NuxtLink>
     <div class="pt-2">
       <p class="text-sm font-medium text-foreground truncate">{{ movie.title }}</p>
       <p class="text-xs text-muted-foreground">{{ movie.year }}</p>

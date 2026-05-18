@@ -1,6 +1,7 @@
 package de.moviearchive.movie;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import de.moviearchive.indexing.IndexingService;
 import de.moviearchive.movie.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,8 +9,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -18,6 +21,7 @@ import java.util.UUID;
 public class MovieDetailService {
 
     private final MovieRepository movieRepository;
+    private final IndexingService indexingService;
 
     public MovieDetailResponse getDetail(UUID userId, UUID movieId) {
         Movie movie = movieRepository.findByIdAndUserId(movieId, userId)
@@ -64,6 +68,55 @@ public class MovieDetailService {
             movie.getPersonalRating(),
             movie.getPersonalNotes()
         );
+    }
+
+    public void updatePersonal(UUID userId, UUID movieId, Map<String, Object> fields) {
+        Movie movie = movieRepository.findByIdAndUserId(movieId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found"));
+
+        if (fields.containsKey("watched")) {
+            Object val = fields.get("watched");
+            movie.setWatched(val instanceof Boolean b ? b : Boolean.valueOf(String.valueOf(val)));
+        }
+        if (fields.containsKey("personalRating")) {
+            Object val = fields.get("personalRating");
+            if (val == null) {
+                movie.setPersonalRating(null);
+            } else {
+                // Jackson deserializes integers as Integer — convert to Short
+                movie.setPersonalRating(val instanceof Number n ? n.shortValue() : null);
+            }
+        }
+        if (fields.containsKey("personalNotes")) {
+            Object val = fields.get("personalNotes");
+            movie.setPersonalNotes(val instanceof String s ? s : null);
+        }
+
+        movieRepository.save(movie);
+
+        // Sync to OpenSearch — full re-index (proven pattern, no UpdateRequest API uncertainty)
+        if (movie.getIndexedAt() != null) {
+            try {
+                String indexName = "movies-" + userId;
+                indexingService.ensureIndexExists(indexName);
+                indexingService.index(movie);
+            } catch (IOException e) {
+                log.warn("OS sync failed for personal update movieId={}: {}", movieId, e.getMessage());
+                // Silent fail — Postgres is source of truth
+            }
+        }
+    }
+
+    public void deleteMovie(UUID userId, UUID movieId) {
+        movieRepository.findByIdAndUserId(movieId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found"));
+
+        // Remove from OpenSearch first (idempotent — swallows not-found)
+        String indexName = "movies-" + userId;
+        indexingService.deleteDocument(indexName, movieId);
+
+        movieRepository.deleteById(movieId);
+        log.info("Deleted movie movieId={} for userId={}", movieId, userId);
     }
 
     // ── JSON helpers ──────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import de.moviearchive.movie.MovieRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.OpenSearchException;
+import org.opensearch.client.opensearch.core.DeleteRequest;
 import org.opensearch.client.opensearch.core.IndexRequest;
 import org.opensearch.client.opensearch.generic.Requests;
 import org.opensearch.client.opensearch.indices.ExistsRequest;
@@ -178,5 +179,22 @@ public class IndexingService {
             }
         }
         return pending.size();
+    }
+
+    /**
+     * Removes the OpenSearch document for a movie. Swallows document-missing and
+     * index-missing errors because the movie may not have been indexed yet
+     * (indexed_at = null) or the index may not exist.
+     */
+    public void deleteDocument(String indexName, UUID movieId) {
+        try {
+            client.delete(DeleteRequest.of(r -> r
+                    .index(indexName)
+                    .id(movieId.toString())));
+            log.info("Deleted OS document movieId={} from index={}", movieId, indexName);
+        } catch (Exception e) {
+            // Swallow — document may not exist (never indexed), or index may not exist
+            log.warn("OS delete failed (document may not exist) movieId={}: {}", movieId, e.getMessage());
+        }
     }
 }

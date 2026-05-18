@@ -3,6 +3,7 @@ import { authHandlers } from './handlers/auth'
 import { settingsHandlers } from './handlers/settings'
 import { moviesHandlers } from './handlers/movies'
 import { searchHandlers } from './handlers/search'
+import { movieDetailHandlers } from './handlers/movieDetail'
 
 /**
  * Global MSW request handlers.
@@ -16,4 +17,5 @@ export const handlers = [
   ...settingsHandlers,
   ...moviesHandlers,
   ...searchHandlers,
+  ...movieDetailHandlers,
 ]

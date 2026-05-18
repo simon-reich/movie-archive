@@ -74,7 +74,12 @@ public class SearchService {
         SortOptions sortOptions = buildSort(request.getSort());
 
         // Pagination — PAGE_SIZE=20 hard cap (T-05-02-03)
-        int from = page * PAGE_SIZE;
+        // Use long arithmetic to prevent int overflow on large page values (WR-01)
+        long fromLong = (long) page * PAGE_SIZE;
+        if (fromLong > 10_000) {
+            throw new IllegalArgumentException("Page number exceeds maximum depth (10 000 results).");
+        }
+        int from = (int) fromLong;
 
         // Source filter: only return fields needed by the UI — keeps response small
         org.opensearch.client.opensearch.core.SearchRequest searchReq =

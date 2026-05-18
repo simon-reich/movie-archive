@@ -156,16 +156,26 @@ describe('/movies/[id] page', () => {
     )
   })
 
-  it('navigates to /search?genre=X when genre chip clicked', async () => {
-    const router = useRouter()
-    const pushSpy = vi.spyOn(router, 'push')
+  it('renders genres as plain comma-separated text (not clickable chips)', async () => {
     const wrapper = await mountPage()
+    expect(wrapper.text()).toContain('Action, Science Fiction')
+    // Genres must not be rendered as buttons
     const allButtons = wrapper.findAll('button')
     const genreButton = allButtons.find(b => b.text().trim() === 'Action')
-    expect(genreButton).toBeDefined()
-    await genreButton!.trigger('click')
+    expect(genreButton).toBeUndefined()
+  })
+
+  it('navigates to /search?q=X when writer name clicked', async () => {
+    const router = useRouter()
+    const pushSpy = vi.spyOn(router, 'push')
+    const movie = { ...MOCK_MOVIE, writerList: ['Jonathan Nolan'] }
+    const wrapper = await mountPage(movie)
+    const allButtons = wrapper.findAll('button')
+    const writerButton = allButtons.find(b => b.text().trim() === 'Jonathan Nolan')
+    expect(writerButton).toBeDefined()
+    await writerButton!.trigger('click')
     expect(pushSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ path: '/search', query: { genre: 'Action' } })
+      expect.objectContaining({ path: '/search', query: { q: 'Jonathan Nolan' } })
     )
   })
 

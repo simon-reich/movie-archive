@@ -10,6 +10,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Component
 @Slf4j
@@ -17,6 +18,16 @@ public class WikipediaClient {
 
     private final WebClient webClient;
     private final String baseUrl;
+
+    // Patterns for wikitext cleanup — compiled once at class load
+    private static final Pattern REF_BLOCK   = Pattern.compile("<ref[^>]*>.*?</ref>", Pattern.DOTALL);
+    private static final Pattern REF_SELF    = Pattern.compile("<ref[^/]*/>");
+    private static final Pattern TEMPLATE    = Pattern.compile("\\{\\{[^{}]*(?:\\{\\{[^{}]*}}[^{}]*)*}}", Pattern.DOTALL);
+    private static final Pattern WIKI_PIPE   = Pattern.compile("\\[\\[(?:[^|\\]]+\\|)?([^\\]]+)]]");
+    private static final Pattern SECTION_HDR = Pattern.compile("={2,}[^=\n]+={2,}\\s*");
+    private static final Pattern HTML_TAG    = Pattern.compile("<[^>]+>");
+    private static final Pattern BOLD_ITALIC = Pattern.compile("'{2,3}");
+    private static final Pattern MULTI_NL    = Pattern.compile("\n{3,}");
 
     public WikipediaClient(WebClient.Builder builder,
                            @Value("${wikipedia.base-url:https://en.wikipedia.org}") String baseUrl) {
@@ -28,16 +39,17 @@ public class WikipediaClient {
     }
 
     /**
-     * Tries 6 title candidates in order. Returns a WikipediaResult on first hit.
-     * Throws WikipediaNotFoundException after all 6 are exhausted.
+     * Tries title candidates in order, then falls back to the Wikipedia search API.
+     * Throws WikipediaNotFoundException after all attempts are exhausted.
      *
-     * Candidate order (per CLAUDE.md Wikipedia 6-step fallback):
-     * 1. {OriginalTitle}_{Year}_film
-     * 2. {OriginalTitle}_(film)
-     * 3. {OriginalTitle}
-     * 4. {Title}_{Year}_film
-     * 5. {Title}_(film)
-     * 6. {Title}
+     * Candidate order:
+     * 1. {OriginalTitle}_(Year_film)   — e.g. Falcon_Lake_(2022_film)
+     * 2. {OriginalTitle}_(film)        — e.g. Falcon_Lake_(film)
+     * 3. {OriginalTitle}_Year_film     — legacy pattern kept as fallback
+     * 4. {OriginalTitle}               — plain title
+     * 5–8: same four patterns for {Title} when it differs from {OriginalTitle}
+     * 9. Wikipedia search API for {OriginalTitle} + film
+     * 10. Wikipedia search API for {Title} + film
      */
     public WikipediaResult fetch(String originalTitle, String title, int year) {
         List<String> candidates = buildCandidates(originalTitle, title, year);
@@ -48,29 +60,65 @@ public class WikipediaClient {
                 return result.get();
             }
         }
+        // Search API fallback
+        for (String searchTerm : List.of(originalTitle, title).stream().distinct().toList()) {
+            Optional<WikipediaResult> result = tryFetchViaSearch(searchTerm, year);
+            if (result.isPresent()) {
+                log.debug("Wikipedia page found via search for term={}", searchTerm);
+                return result.get();
+            }
+        }
         throw new WikipediaNotFoundException(
-                "No Wikipedia page found after 6 attempts for titles: " + originalTitle + " / " + title);
+                "No Wikipedia page found for titles: " + originalTitle + " / " + title);
     }
 
     List<String> buildCandidates(String originalTitle, String title, int year) {
-        // Spaces → underscores (NOT URLEncoder.encode which uses +)
-        String origSlug = originalTitle.replace(' ', '_');
+        String origSlug  = originalTitle.replace(' ', '_');
         String titleSlug = title.replace(' ', '_');
         List<String> candidates = new ArrayList<>();
-        candidates.add(origSlug + "_" + year + "_film");
-        candidates.add(origSlug + "_(film)");
-        candidates.add(origSlug);
-        candidates.add(titleSlug + "_" + year + "_film");
-        candidates.add(titleSlug + "_(film)");
-        candidates.add(titleSlug);
+        addPatternsFor(candidates, origSlug, year);
+        if (!titleSlug.equals(origSlug)) {
+            addPatternsFor(candidates, titleSlug, year);
+        }
         return candidates;
+    }
+
+    private void addPatternsFor(List<String> candidates, String slug, int year) {
+        candidates.add(slug + "_(" + year + "_film)");   // Falcon_Lake_(2022_film)
+        candidates.add(slug + "_(film)");                 // Falcon_Lake_(film)
+        candidates.add(slug + "_" + year + "_film");      // legacy: Falcon_Lake_2022_film
+        candidates.add(slug);                             // Falcon_Lake
+    }
+
+    private Optional<WikipediaResult> tryFetchViaSearch(String searchTerm, int year) {
+        try {
+            JsonNode response = webClient.get()
+                    .uri("/w/api.php?action=query&list=search&srsearch={q}+film&srlimit=5&format=json",
+                            searchTerm + " " + year)
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
+            if (response == null) return Optional.empty();
+            JsonNode hits = response.path("query").path("search");
+            if (!hits.isArray()) return Optional.empty();
+            for (JsonNode hit : hits) {
+                String pageTitle = hit.path("title").asText("");
+                if (pageTitle.isBlank()) continue;
+                String slug = pageTitle.replace(' ', '_');
+                Optional<WikipediaResult> result = tryFetch(slug);
+                if (result.isPresent()) return result;
+            }
+        } catch (Exception e) {
+            log.debug("Wikipedia search API exception for term={}: {}", searchTerm, e.getMessage());
+        }
+        return Optional.empty();
     }
 
     private Optional<WikipediaResult> tryFetch(String pageTitle) {
         try {
-            // Step 1: Get sections list to confirm page exists and find Plot/Critical response indices
+            // &redirects causes the API to follow redirects transparently
             JsonNode sectionsResponse = webClient.get()
-                    .uri("/w/api.php?action=parse&page={title}&prop=sections&format=json", pageTitle)
+                    .uri("/w/api.php?action=parse&page={title}&prop=sections&redirects&format=json", pageTitle)
                     .retrieve()
                     .bodyToMono(JsonNode.class)
                     .block();
@@ -79,19 +127,16 @@ public class WikipediaClient {
                 return Optional.empty();
             }
 
-            String wikiUrl = baseUrl + "/wiki/" + pageTitle;
+            String resolvedTitle = sectionsResponse.path("parse").path("title").asText(pageTitle);
+            String resolvedSlug  = resolvedTitle.replace(' ', '_');
+            String wikiUrl = baseUrl + "/wiki/" + resolvedSlug;
             JsonNode sections = sectionsResponse.get("parse").get("sections");
 
-            // Step 2: Fetch section 0 (intro/summary) via prop=wikitext
-            String summary = fetchSection(pageTitle, "0");
-
-            // Step 3: Find and fetch Plot section
+            String summary = cleanWikitext(fetchSection(resolvedSlug, "0"));
             String plotIndex = findSectionIndex(sections, "Plot");
-            String plot = plotIndex != null ? fetchSection(pageTitle, plotIndex) : null;
-
-            // Step 4: Find and fetch Critical response section
-            String criticsIndex = findSectionIndex(sections, "Critical response");
-            String critics = criticsIndex != null ? fetchSection(pageTitle, criticsIndex) : null;
+            String plot = plotIndex != null ? cleanWikitext(fetchSection(resolvedSlug, plotIndex)) : null;
+            String criticsIndex = findSectionIndex(sections, "Critical response", "Reception", "Critical reception");
+            String critics = criticsIndex != null ? cleanWikitext(fetchSection(resolvedSlug, criticsIndex)) : null;
 
             return Optional.of(new WikipediaResult(wikiUrl, summary, plot, critics));
 
@@ -107,7 +152,7 @@ public class WikipediaClient {
     private String fetchSection(String pageTitle, String sectionIndex) {
         try {
             JsonNode response = webClient.get()
-                    .uri("/w/api.php?action=parse&page={title}&prop=wikitext&section={section}&format=json",
+                    .uri("/w/api.php?action=parse&page={title}&prop=wikitext&section={section}&redirects&format=json",
                             pageTitle, sectionIndex)
                     .retrieve()
                     .bodyToMono(JsonNode.class)
@@ -121,13 +166,43 @@ public class WikipediaClient {
         return null;
     }
 
-    private String findSectionIndex(JsonNode sections, String sectionLine) {
+    /** Accepts multiple alternate section names; returns index of first match. */
+    private String findSectionIndex(JsonNode sections, String... names) {
         if (sections == null) return null;
-        for (JsonNode section : sections) {
-            if (sectionLine.equalsIgnoreCase(section.path("line").asText(""))) {
-                return section.path("index").asText(null);
+        for (String name : names) {
+            for (JsonNode section : sections) {
+                if (name.equalsIgnoreCase(section.path("line").asText(""))) {
+                    return section.path("index").asText(null);
+                }
             }
         }
         return null;
+    }
+
+    /**
+     * Strips MediaWiki markup from raw wikitext:
+     * - removes <ref>…</ref> and self-closing <ref/> citation tags
+     * - removes {{template}} blocks (up to two nesting levels)
+     * - resolves [[link|display]] → display, [[link]] → link
+     * - removes ==Section headers==
+     * - removes remaining HTML tags
+     * - removes ''italic'' / '''bold''' markers
+     * - collapses excess blank lines
+     */
+    static String cleanWikitext(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String s = raw;
+        s = REF_BLOCK.matcher(s).replaceAll("");
+        s = REF_SELF.matcher(s).replaceAll("");
+        // Run template removal twice to handle one level of nesting
+        s = TEMPLATE.matcher(s).replaceAll("");
+        s = TEMPLATE.matcher(s).replaceAll("");
+        s = WIKI_PIPE.matcher(s).replaceAll("$1");
+        s = SECTION_HDR.matcher(s).replaceAll("");
+        s = HTML_TAG.matcher(s).replaceAll("");
+        s = BOLD_ITALIC.matcher(s).replaceAll("");
+        s = MULTI_NL.matcher(s).replaceAll("\n\n");
+        s = s.strip();
+        return s.isBlank() ? null : s;
     }
 }

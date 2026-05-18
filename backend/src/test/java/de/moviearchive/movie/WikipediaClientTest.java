@@ -55,7 +55,7 @@ class WikipediaClientTest extends AbstractWireMockTest {
 
         assertThatThrownBy(() -> wikipediaClient.fetch("Inception", "Inception", 2010))
                 .isInstanceOf(WikipediaNotFoundException.class)
-                .hasMessageContaining("No Wikipedia page found after 6 attempts");
+                .hasMessageContaining("No Wikipedia page found for titles");
     }
 
     /**
@@ -68,20 +68,20 @@ class WikipediaClientTest extends AbstractWireMockTest {
         String criticsSectionJson = loadFixture("fixtures/wikipedia/inception-critics-section.json");
         String summaryJson = loadFixture("fixtures/wikipedia/inception-plot.json");
 
-        // Stub sections request for first candidate Inception_2010_film
+        // First candidate is now Inception_(2010_film) — stub sections request for it
         wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
                 .withQueryParam("action", containing("parse"))
-                .withQueryParam("page", containing("Inception_2010_film"))
+                .withQueryParam("page", containing("Inception_(2010_film)"))
                 .withQueryParam("prop", containing("sections"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody(sectionsJson)));
 
-        // Stub section 0 (summary/intro) for Inception_2010_film
+        // Stub section 0 (summary/intro) — resolved title from fixture is "Inception (2010 film)"
         wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
                 .withQueryParam("action", containing("parse"))
-                .withQueryParam("page", containing("Inception_2010_film"))
+                .withQueryParam("page", containing("Inception_(2010_film)"))
                 .withQueryParam("prop", containing("wikitext"))
                 .withQueryParam("section", containing("0"))
                 .willReturn(aResponse()
@@ -92,7 +92,7 @@ class WikipediaClientTest extends AbstractWireMockTest {
         // Stub Plot section (index "1" from sections fixture)
         wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
                 .withQueryParam("action", containing("parse"))
-                .withQueryParam("page", containing("Inception_2010_film"))
+                .withQueryParam("page", containing("Inception_(2010_film)"))
                 .withQueryParam("prop", containing("wikitext"))
                 .withQueryParam("section", containing("1"))
                 .willReturn(aResponse()
@@ -103,7 +103,7 @@ class WikipediaClientTest extends AbstractWireMockTest {
         // Stub Critical response section (index "7" from sections fixture)
         wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
                 .withQueryParam("action", containing("parse"))
-                .withQueryParam("page", containing("Inception_2010_film"))
+                .withQueryParam("page", containing("Inception_(2010_film)"))
                 .withQueryParam("prop", containing("wikitext"))
                 .withQueryParam("section", containing("7"))
                 .willReturn(aResponse()
@@ -114,7 +114,7 @@ class WikipediaClientTest extends AbstractWireMockTest {
         WikipediaResult result = wikipediaClient.fetch("Inception", "Inception", 2010);
 
         assertThat(result).isNotNull();
-        assertThat(result.url()).contains("Inception_2010_film");
+        assertThat(result.url()).contains("Inception_(2010_film)");
         assertThat(result.summary()).isNotBlank();
         assertThat(result.plot()).isNotBlank();
         assertThat(result.critics()).isNotBlank();

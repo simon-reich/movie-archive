@@ -190,7 +190,8 @@ public class IndexingService {
         try {
             client.delete(DeleteRequest.of(r -> r
                     .index(indexName)
-                    .id(movieId.toString())));
+                    .id(movieId.toString())
+                    .refresh(org.opensearch.client.opensearch._types.Refresh.WaitFor)));
             log.info("Deleted OS document movieId={} from index={}", movieId, indexName);
         } catch (Exception e) {
             // Swallow — document may not exist (never indexed), or index may not exist

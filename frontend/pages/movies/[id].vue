@@ -34,9 +34,10 @@ function navigateToActor(name: string) {
 function navigateToDirector(name: string) {
   router.push({ path: '/search', query: { director: name } })
 }
-function navigateToGenre(genre: string) {
-  router.push({ path: '/search', query: { genre } })
+function navigateToWriter(name: string) {
+  router.push({ path: '/search', query: { q: name } })
 }
+
 
 // ── Personal fields — local state + auto-save ──────────────────────────────
 const localWatched = ref(false)
@@ -172,14 +173,9 @@ const crewByDepartment = computed(() => {
           <!-- Primary facts section -->
           <section class="space-y-4">
 
-            <!-- Genres — clickable chips (D-12) -->
-            <div v-if="movie.genreList.length" class="flex flex-wrap gap-2">
-              <button
-                v-for="genre in movie.genreList"
-                :key="genre"
-                class="bg-card border border-border text-sm px-2 py-0.5 cursor-pointer hover:bg-primary hover:text-primary-foreground"
-                @click="navigateToGenre(genre)"
-              >{{ genre }}</button>
+            <!-- Genres — plain text -->
+            <div v-if="movie.genreList.length">
+              <span class="text-sm">{{ movie.genreList.join(', ') }}</span>
             </div>
 
             <!-- Directors — clickable (D-12) -->
@@ -194,25 +190,28 @@ const crewByDepartment = computed(() => {
               </span>
             </div>
 
-            <!-- Writers -->
+            <!-- Writers — clickable like directors -->
             <div v-if="movie.writerList.length" class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Writer</span>
-              <span class="text-sm">{{ movie.writerList.join(', ') }}</span>
+              <span v-for="(writer, i) in movie.writerList" :key="writer">
+                <button
+                  class="text-sm hover:text-primary cursor-pointer"
+                  @click="navigateToWriter(writer)"
+                >{{ writer }}</button>
+                <span v-if="i < movie.writerList.length - 1">, </span>
+              </span>
             </div>
 
-            <!-- Main cast — clickable actor chips (D-12) -->
-            <div v-if="displayCast.length" class="space-y-1">
+            <!-- Main cast — names only, clickable -->
+            <div v-if="displayCast.length" class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Cast</span>
-              <div class="flex flex-wrap gap-2 mt-1">
+              <span v-for="(member, i) in displayCast" :key="member.name ?? ''">
                 <button
-                  v-for="member in displayCast"
-                  :key="member.name ?? ''"
-                  class="bg-card border border-border text-sm px-2 py-0.5 cursor-pointer hover:bg-primary hover:text-primary-foreground"
+                  class="text-sm hover:text-primary cursor-pointer"
                   @click="member.name && navigateToActor(member.name)"
-                >
-                  {{ member.name }}<span v-if="member.character" class="text-muted-foreground ml-1">as {{ member.character }}</span>
-                </button>
-              </div>
+                >{{ member.name }}</button>
+                <span v-if="i < displayCast.length - 1">, </span>
+              </span>
             </div>
 
             <!-- Country & Language -->
@@ -340,7 +339,6 @@ const crewByDepartment = computed(() => {
                 class="text-sm"
               >
                 <button class="hover:text-primary" @click="member.name && navigateToActor(member.name)">{{ member.name }}</button>
-                <span v-if="member.character" class="text-muted-foreground"> — {{ member.character }}</span>
               </li>
             </ul>
           </div>

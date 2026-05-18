@@ -87,8 +87,8 @@ const displayCast = computed(() =>
 
 // ── Crew grouped by department ─────────────────────────────────────────────
 const crewByDepartment = computed(() => {
-  if (!movie.value?.fullCrew) return {} as Record<string, typeof movie.value.fullCrew>
-  const groups: Record<string, typeof movie.value.fullCrew> = {}
+  if (!movie.value?.fullCrew) return {} as Record<string, NonNullable<typeof movie.value>['fullCrew']>
+  const groups: Record<string, NonNullable<typeof movie.value>['fullCrew']> = {}
   for (const member of movie.value.fullCrew) {
     const dept = member.department ?? 'Other'
     if (!groups[dept]) groups[dept] = []
@@ -311,7 +311,7 @@ const crewByDepartment = computed(() => {
 
             <!-- Notes textarea with debounce -->
             <div>
-              <label class="text-xs font-semibold tracking-widests uppercase text-muted-foreground">Notes</label>
+              <label class="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Notes</label>
               <textarea
                 v-model="localNotes"
                 class="mt-1 w-full border border-input bg-background text-sm p-2 resize-none focus-visible:ring-2 ring-ring ring-offset-2 outline-none"

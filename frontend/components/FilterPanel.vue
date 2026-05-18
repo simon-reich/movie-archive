@@ -10,7 +10,7 @@ const isOpen = ref(false)
 
 // Local input state for autocomplete fields
 const directorInput = ref(director.value)
-const actorsInput = ref('')
+const actorsInput = ref(actors.value)
 const directorSuggestions = ref<string[]>([])
 const actorSuggestions = ref<string[]>([])
 
@@ -96,7 +96,7 @@ function clearAllFilters() {
 }
 
 const hasActiveFilters = computed(() =>
-  genres.value.length > 0 || director.value || actors.value.length > 0 ||
+  genres.value.length > 0 || director.value || actors.value ||
   yearFrom.value !== undefined || yearTo.value !== undefined ||
   imdbFrom.value !== undefined || imdbTo.value !== undefined ||
   contentRatings.value.length > 0 || runtimeMax.value !== undefined ||

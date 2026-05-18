@@ -1,0 +1,43 @@
+package de.moviearchive.movie.dto;
+
+import java.util.List;
+import java.util.UUID;
+
+public record MovieDetailResponse(
+    UUID id,
+    Integer tmdbId,
+    String imdbId,
+    String title,
+    String originalTitle,
+    String tagline,
+    String overview,
+    String releaseDate,
+    Integer year,
+    Integer runtime,
+    String posterPath,
+    String backdropPath,
+    Double voteAverage,
+    Integer voteCount,
+    String trailerKey,
+    List<String> genreList,
+    List<String> directorList,
+    List<String> writerList,
+    String mainCast,
+    List<CastMember> fullCast,
+    List<CrewMember> fullCrew,
+    List<String> countryList,
+    List<String> languageList,
+    Double imdbRating,
+    Integer imdbVotes,
+    String contentRating,
+    Long boxOffice,
+    List<Rating> ratingList,
+    String imdbLink,
+    String wikipediaPlot,
+    String wikipediaCritics,
+    String wikipediaSummary,
+    String wikipediaUrl,
+    Boolean watched,
+    Short personalRating,
+    String personalNotes
+) {}

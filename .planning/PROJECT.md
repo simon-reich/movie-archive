@@ -29,7 +29,7 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 - [ ] Settings: API-Key-Management (TMDB + OMDB), E-Mail-Änderung, Passwort-Änderung
 - [ ] Film speichern: TMDB → OMDB (optional) → Wikipedia → Postgres → OpenSearch (async)
 - [ ] OpenSearch-Index mit Custom Analyzer (movies-{userId})
-- [ ] Suche: Freitext + Advanced Filters
+- ✓ SRCH-01..04: Suche: Freitext + Advanced Filters + Dashboard — Phase 5
 - [ ] Film-Detailseite + persönliche Felder (Bewertung, Notizen, Watched)
 - [ ] E2E-Tests, Mobile-Polish, README
 
@@ -42,7 +42,7 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 
 ## Context
 
-- **Laufende Entwicklung:** Phase 0 + Phase 1 abgeschlossen. MOV-1 bis MOV-40 auf Jira Done. Nächste Phase: 2 (Settings & API Keys).
+- **Laufende Entwicklung:** Phasen 0–5 abgeschlossen. Nächste Phase: 6 (Film-Detailseite + persönliche Felder). Suchinfrastruktur (POST /search, GET /dashboard, GET /search/facets) vollständig in Betrieb.
 - **Stack:** Spring Boot 3 + Java 25 / Nuxt 3 + Vue 3 + TypeScript + TailwindCSS / PostgreSQL 16 / OpenSearch 2.x / Caddy
 - **Mono-Repo:** `backend/`, `frontend/`, `docker-compose.yml`
 - **API-Strategie:** TMDB = Pflicht (kein Key → kein Speichern). OMDB = optional (kein Key → Film ohne IMDB-Daten). Wikipedia = immer versucht, 6-Step-Fallback.
@@ -97,4 +97,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-16 after Phase 1 (Authentication) completion*
+*Last updated: 2026-05-18 after Phase 5 (Search) completion*

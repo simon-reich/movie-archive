@@ -69,6 +69,15 @@ public class Movie {
     @Column(name = "indexed_at")
     private Instant indexedAt;
 
+    @Column(name = "watched", nullable = false)
+    private Boolean watched = false;
+
+    @Column(name = "personal_rating")
+    private Short personalRating;
+
+    @Column(name = "personal_notes", columnDefinition = "text")
+    private String personalNotes;
+
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
     private MovieStatus status = MovieStatus.PENDING;

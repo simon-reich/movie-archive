@@ -232,10 +232,11 @@ public class DocumentBuilder {
         doc.put("wikipedia_plot_html", null);
         doc.put("wikipedia_full_html", null);
 
-        // ── Personal fields (Phase 4: always null — D-05) ─────────────────
-        doc.put("watched", null);
-        doc.put("personal_rating", null);
-        doc.put("personal_notes", null);
+        // ── Personal fields (Phase 6: real values from entity) ────────────
+        doc.put("watched", movie.getWatched() != null ? movie.getWatched() : false);
+        doc.put("personal_rating", movie.getPersonalRating() != null
+                ? movie.getPersonalRating().doubleValue() : null);
+        doc.put("personal_notes", movie.getPersonalNotes());
 
         return doc;
     }

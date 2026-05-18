@@ -9,8 +9,6 @@ import de.moviearchive.search.dto.HistogramBucket;
 import lombok.extern.slf4j.Slf4j;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.aggregations.Aggregation;
-import org.opensearch.client.opensearch._types.aggregations.AggregationRange;
-import org.opensearch.client.opensearch._types.aggregations.RangeBucket;
 import org.opensearch.client.opensearch._types.aggregations.StringTermsBucket;
 import org.opensearch.client.opensearch._types.query_dsl.FunctionBoostMode;
 import org.opensearch.client.opensearch._types.query_dsl.FunctionScore;
@@ -67,15 +65,11 @@ public class DashboardService {
                         .aggregations("languages", Aggregation.of(a -> a
                                 .terms(t -> t.field("language_list").size(500))))
                         .aggregations("imdb_histogram", Aggregation.of(a -> a
-                                .range(range -> range
+                                .histogram(h -> h
                                         .field("imdb_rating")
-                                        .ranges(List.of(
-                                                AggregationRange.of(ar -> ar.key("1-2").from("1.0").to("3.0")),
-                                                AggregationRange.of(ar -> ar.key("3-4").from("3.0").to("5.0")),
-                                                AggregationRange.of(ar -> ar.key("5-6").from("5.0").to("7.0")),
-                                                AggregationRange.of(ar -> ar.key("7-8").from("7.0").to("9.0")),
-                                                AggregationRange.of(ar -> ar.key("9-10").from("9.0").to("10.1"))
-                                        ))))));
+                                        .interval(1.0)
+                                        .minDocCount(0)
+                                        .extendedBounds(eb -> eb.min(1.0).max(10.0))))));
 
         SearchResponse<Map> statsResp = client.search(statsReq, Map.class);
 
@@ -113,11 +107,13 @@ public class DashboardService {
         // IMDB histogram — null-safe bucket iteration
         List<HistogramBucket> imdbHistogram = new ArrayList<>();
         var histAgg = statsResp.aggregations().get("imdb_histogram");
-        if (histAgg != null && histAgg.isRange()) {
-            List<RangeBucket> histBuckets = histAgg.range().buckets().array();
+        if (histAgg != null && histAgg.isHistogram()) {
+            List<org.opensearch.client.opensearch._types.aggregations.HistogramBucket> histBuckets =
+                    histAgg.histogram().buckets().array();
             if (histBuckets != null) {
-                for (RangeBucket bucket : histBuckets) {
-                    imdbHistogram.add(new HistogramBucket(bucket.key(), bucket.docCount()));
+                for (var bucket : histBuckets) {
+                    imdbHistogram.add(new HistogramBucket(
+                            String.valueOf((int) bucket.key()), bucket.docCount()));
                 }
             }
         }

@@ -29,7 +29,7 @@ function navigateToDirector(director: string) {
       class="w-16 aspect-[2/3] object-cover bg-card border border-border flex-shrink-0"
     />
     <div class="flex flex-col min-w-0 gap-1">
-      <p class="text-sm font-medium text-foreground truncate">{{ movie.title }}</p>
+      <NuxtLink :to="`/movies/${movie.id}`" class="text-sm font-medium text-foreground truncate hover:text-primary block">{{ movie.title }}</NuxtLink>
       <p class="text-xs text-muted-foreground">{{ movie.year }}</p>
       <div v-if="movie.directorList?.length" class="flex flex-wrap gap-1">
         <button

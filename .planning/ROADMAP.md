@@ -146,12 +146,12 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 06-00-PLAN.md — Wave 0 test scaffolding: @Disabled backend stubs, MSW handlers, frontend it.todo specs (MovieDetailControllerTest, useMovieDetail.spec, movies-id.spec, TrailerEmbed.spec)
-- [ ] 06-01-PLAN.md — Backend foundation: V7 Flyway migration (watched/personal_rating/personal_notes), Movie entity update, DocumentBuilder personal fields fix, MovieDetailResponse DTO, MovieDetailService.getDetail(), MovieDetailController GET /movies/{id}
-- [ ] 06-02-PLAN.md — Backend PATCH + DELETE: updatePersonal() service (Map-based partial update, OS full re-index), deleteMovie() (OS-first then Postgres), IndexingService.deleteDocument(), all 13 integration tests green
-- [ ] 06-03-PLAN.md — Frontend composable: useMovieDetail.ts (MovieDetail type, fetchDetail, updatePersonal, deleteMovie), 7 Vitest tests green
-- [ ] 06-04-PLAN.md — Frontend detail page: /pages/movies/[id].vue (cinematic hero, two-column layout, OMDB null hiding, Wikipedia conditional, clickable actor/director/genre chips, delete modal), 12 page tests green
-- [ ] 06-05-PLAN.md — Frontend components: StarRating.vue (10-star deselect), TrailerEmbed.vue (lazy YouTube embed), MovieCard.vue + MovieListItem.vue NuxtLink activation, 5 TrailerEmbed tests green
+- [x] 06-00-PLAN.md — Wave 0 test scaffolding: @Disabled backend stubs, MSW handlers, frontend it.todo specs (MovieDetailControllerTest, useMovieDetail.spec, movies-id.spec, TrailerEmbed.spec)
+- [x] 06-01-PLAN.md — Backend foundation: V7 Flyway migration (watched/personal_rating/personal_notes), Movie entity update, DocumentBuilder personal fields fix, MovieDetailResponse DTO, MovieDetailService.getDetail(), MovieDetailController GET /movies/{id}
+- [x] 06-02-PLAN.md — Backend PATCH + DELETE: updatePersonal() service (Map-based partial update, OS full re-index), deleteMovie() (OS-first then Postgres), IndexingService.deleteDocument(), all 13 integration tests green
+- [x] 06-03-PLAN.md — Frontend composable: useMovieDetail.ts (MovieDetail type, fetchDetail, updatePersonal, deleteMovie), 7 Vitest tests green
+- [x] 06-04-PLAN.md — Frontend detail page: /pages/movies/[id].vue (cinematic hero, two-column layout, OMDB null hiding, Wikipedia conditional, clickable actor/director/genre chips, delete modal), 12 page tests green
+- [x] 06-05-PLAN.md — Frontend components: StarRating.vue (10-star deselect), TrailerEmbed.vue (lazy YouTube embed), MovieCard.vue + MovieListItem.vue NuxtLink activation, 5 TrailerEmbed tests green
 
 ### Phase 7: Polish & Quality
 **Goal**: The app works well on mobile and is covered by E2E tests with a clear README for setup

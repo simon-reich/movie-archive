@@ -1,10 +1,11 @@
 ---
 phase: 6
 slug: movie-detail-personal-fields
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-05-18
+audited: 2026-05-19
 ---
 
 # Phase 6 — Validation Strategy
@@ -19,7 +20,7 @@ created: 2026-05-18
 |----------|-------|
 | **Framework** | JUnit 5 + Testcontainers (BE) / Vitest + Vue Test Utils (FE) |
 | **Config file** | `backend/build.gradle.kts` / `frontend/vitest.config.ts` |
-| **Quick run command** | `cd backend && ./gradlew test --tests "*MovieDetail*" -x integrationTest` |
+| **Quick run command** | `cd backend && ./gradlew test --tests "*MovieDetail*"` |
 | **Full suite command** | `cd backend && ./gradlew test && cd ../frontend && pnpm test run` |
 | **Estimated runtime** | ~90 seconds |
 
@@ -27,7 +28,7 @@ created: 2026-05-18
 
 ## Sampling Rate
 
-- **After every task commit:** Run `cd backend && ./gradlew test --tests "*MovieDetail*" -x integrationTest`
+- **After every task commit:** Run `cd backend && ./gradlew test --tests "*MovieDetail*"`
 - **After every plan wave:** Run `cd backend && ./gradlew test && cd ../frontend && pnpm test run`
 - **Before `/gsd-verify-work`:** Full suite must be green
 - **Max feedback latency:** 90 seconds
@@ -38,17 +39,17 @@ created: 2026-05-18
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 6-01-01 | 01 | 1 | DETAIL-01 | — | N/A | migration | `cd backend && ./gradlew flywayMigrate` | ❌ W0 | ⬜ pending |
-| 6-01-02 | 01 | 1 | DETAIL-01 | — | JWT ownership check | integration | `cd backend && ./gradlew integrationTest --tests "*MovieDetailController*"` | ❌ W0 | ⬜ pending |
-| 6-01-03 | 01 | 1 | DETAIL-01 | — | N/A | unit | `cd backend && ./gradlew test --tests "*MovieDetailService*"` | ❌ W0 | ⬜ pending |
-| 6-02-01 | 02 | 1 | DETAIL-02 | — | JWT ownership; no cross-user update | integration | `cd backend && ./gradlew integrationTest --tests "*PersonalFields*"` | ❌ W0 | ⬜ pending |
-| 6-02-02 | 02 | 1 | DETAIL-02 | — | N/A | unit | `cd backend && ./gradlew test --tests "*PersonalFields*"` | ❌ W0 | ⬜ pending |
-| 6-03-01 | 03 | 1 | DETAIL-01 | — | JWT ownership; deletion idempotent | integration | `cd backend && ./gradlew integrationTest --tests "*DeleteMovie*"` | ❌ W0 | ⬜ pending |
-| 6-04-01 | 04 | 2 | DETAIL-01 | — | N/A | component | `cd frontend && pnpm test run MovieDetail` | ❌ W0 | ⬜ pending |
-| 6-04-02 | 04 | 2 | DETAIL-03 | — | N/A | component | `cd frontend && pnpm test run PersonalFields` | ❌ W0 | ⬜ pending |
-| 6-04-03 | 04 | 2 | DETAIL-04 | — | N/A | component | `cd frontend && pnpm test run TrailerEmbed` | ❌ W0 | ⬜ pending |
-| 6-04-04 | 04 | 2 | DETAIL-05 | — | N/A | component | `cd frontend && pnpm test run ClickableAttr` | ❌ W0 | ⬜ pending |
-| 6-05-01 | 05 | 2 | DETAIL-01 | — | N/A | component | `cd frontend && pnpm test run MovieCard` | ❌ W0 | ⬜ pending |
+| 6-01-01 | 01 | 1 | DETAIL-01 | — | N/A | integration | `cd backend && ./gradlew test --tests "*MovieDetailController*"` | ✅ | ✅ green |
+| 6-01-02 | 01 | 1 | DETAIL-01 | — | JWT ownership check | integration | `cd backend && ./gradlew test --tests "*MovieDetailController*"` | ✅ | ✅ green |
+| 6-01-03 | 01 | 1 | DETAIL-01 | — | N/A | integration | `cd backend && ./gradlew test --tests "*MovieDetailController*"` | ✅ | ✅ green |
+| 6-02-01 | 02 | 1 | DETAIL-02 | — | JWT ownership; no cross-user update | integration | `cd backend && ./gradlew test --tests "*MovieDetailController*"` | ✅ | ✅ green |
+| 6-02-02 | 02 | 1 | DETAIL-02 | — | N/A | unit | `cd frontend && npx vitest run test/unit/composables/useMovieDetail.spec.ts` | ✅ | ✅ green |
+| 6-03-01 | 03 | 1 | DETAIL-01 | — | JWT ownership; deletion idempotent | integration | `cd backend && ./gradlew test --tests "*MovieDetailController*"` | ✅ | ✅ green |
+| 6-04-01 | 04 | 2 | DETAIL-01 | — | N/A | component | `cd frontend && npx vitest run test/unit/pages/movies-id.spec.ts` | ✅ | ✅ green |
+| 6-04-02 | 04 | 2 | DETAIL-03 | — | N/A | component | `cd frontend && npx vitest run test/unit/pages/movies-id.spec.ts` | ✅ | ✅ green |
+| 6-04-03 | 04 | 2 | DETAIL-04 | — | N/A | component | `cd frontend && npx vitest run test/unit/components/TrailerEmbed.spec.ts` | ✅ | ✅ green |
+| 6-04-04 | 04 | 2 | DETAIL-05 | — | N/A | component | `cd frontend && npx vitest run test/unit/pages/movies-id.spec.ts` | ✅ | ✅ green |
+| 6-05-01 | 05 | 2 | DETAIL-01 | — | N/A | component | `cd frontend && npx vitest run test/unit/components/MovieCard.spec.ts` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -56,13 +57,12 @@ created: 2026-05-18
 
 ## Wave 0 Requirements
 
-- [ ] `backend/src/test/java/.../MovieDetailControllerTest.java` — stubs for DETAIL-01 (GET /movies/{id})
-- [ ] `backend/src/test/java/.../PersonalFieldsIntegrationTest.java` — stubs for DETAIL-02 (PATCH /movies/{id}/personal)
-- [ ] `backend/src/test/java/.../DeleteMovieIntegrationTest.java` — stubs for DETAIL-01 delete endpoint
-- [ ] `frontend/components/__tests__/MovieDetailPage.test.ts` — stubs for DETAIL-01 through DETAIL-05
-- [ ] MSW handlers in `frontend/test/msw/handlers.ts` — GET /movies/{id}, PATCH /movies/{id}/personal, DELETE /movies/{id}
-
-*Existing Testcontainers and Vitest infrastructure covers the framework layer. Only test files need to be created.*
+- [x] `backend/src/test/java/de/moviearchive/movie/MovieDetailControllerTest.java` — GET, PATCH, DELETE coverage for DETAIL-01 through DETAIL-03
+- [x] `frontend/test/unit/pages/movies-id.spec.ts` — DETAIL-01 through DETAIL-05 page component
+- [x] `frontend/test/unit/composables/useMovieDetail.spec.ts` — composable unit tests
+- [x] `frontend/test/unit/components/TrailerEmbed.spec.ts` — DETAIL-04 lazy embed
+- [x] `frontend/test/unit/components/MovieCard.spec.ts` — DETAIL-01/DETAIL-05 navigation and poster URL
+- [x] MSW handlers in `frontend/test/mocks/handlers/movieDetail.ts` — GET /movies/{id}, PATCH /movies/{id}/personal, DELETE /movies/{id}
 
 ---
 
@@ -79,11 +79,23 @@ created: 2026-05-18
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 90s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have automated verify commands
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 requirements all met
+- [x] No watch-mode flags
+- [x] Feedback latency < 90s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** 2026-05-19
+
+---
+
+## Validation Audit 2026-05-19
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 1 |
+| Resolved | 1 |
+| Escalated | 0 |
+
+*Gap resolved: 6-05-01 — added `frontend/test/unit/components/MovieCard.spec.ts` (5 tests: NuxtLink wrapping, posterUrl TMDB/placeholder, genre chip navigation, director chip navigation). All 11 tasks now have green automated coverage.*

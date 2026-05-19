@@ -129,62 +129,60 @@ const crewByDepartment = computed(() => {
         <!-- Gradient overlay -->
         <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
 
-        <!-- Delete button — top right -->
-        <button
-          class="absolute top-4 right-4 z-20 flex items-center gap-1 text-sm text-white/80 hover:text-white"
-          @click="deleteModalOpen = true"
-        >
-          <TrashIcon class="w-4 h-4" />
-          <span>Remove</span>
-        </button>
-
-        <!-- Hero content: poster + title/year/tagline -->
-        <div class="relative z-10 flex items-end gap-6 h-full px-8 pb-6">
-          <img
-            v-if="posterUrl"
-            :src="posterUrl"
-            :alt="movie.title"
-            class="w-32 aspect-[2/3] object-cover border border-white/20 flex-shrink-0"
-          >
-          <div
-            v-else
-            class="w-32 aspect-[2/3] bg-card flex-shrink-0 flex items-center justify-center border border-border"
-          >
-            <span class="text-2xl text-muted-foreground">{{ movie.title?.[0] }}</span>
+        <!-- Hero content: poster + title/year/tagline on left, Delete button bottom-right -->
+        <div class="relative z-10 max-w-7xl mx-auto px-4 h-full flex items-end justify-between pb-6">
+          <div class="flex items-end gap-6">
+            <img
+              v-if="posterUrl"
+              :src="posterUrl"
+              :alt="movie.title"
+              class="w-32 aspect-[2/3] object-cover border border-white/20 flex-shrink-0"
+            >
+            <div
+              v-else
+              class="w-32 aspect-[2/3] bg-card flex-shrink-0 flex items-center justify-center border border-border"
+            >
+              <span class="text-2xl text-muted-foreground">{{ movie.title?.[0] }}</span>
+            </div>
+            <div class="flex-1">
+              <h1 class="text-2xl font-semibold tracking-wide text-white">{{ movie.title }}</h1>
+              <p class="text-sm text-white/70 mt-0.5">
+                {{ movie.year }}
+                <span v-if="movie.runtime"> · {{ movie.runtime }} min</span>
+                <span
+                  v-if="movie.contentRating"
+                  class="ml-2 border border-white/40 px-1 text-xs"
+                >{{ movie.contentRating }}</span>
+              </p>
+              <p v-if="movie.tagline" class="text-sm text-white/60 italic mt-1">{{ movie.tagline }}</p>
+              <div v-if="movie.genreList.length" class="flex flex-wrap gap-2 mt-3">
+                <button
+                  v-for="genre in movie.genreList"
+                  :key="genre"
+                  class="text-xs text-white/70 hover:text-white cursor-pointer"
+                  @click="navigateToGenre(genre)"
+                >{{ genre }}</button>
+              </div>
+            </div>
           </div>
-          <div class="flex-1">
-            <h1 class="text-2xl font-semibold tracking-wide text-white">{{ movie.title }}</h1>
-            <p class="text-sm text-white/70 mt-0.5">
-              {{ movie.year }}
-              <span v-if="movie.runtime"> · {{ movie.runtime }} min</span>
-              <span
-                v-if="movie.contentRating"
-                class="ml-2 border border-white/40 px-1 text-xs"
-              >{{ movie.contentRating }}</span>
-            </p>
-            <p v-if="movie.tagline" class="text-sm text-white/60 italic mt-1">{{ movie.tagline }}</p>
-          </div>
+          <button
+            class="flex items-center gap-1 text-sm text-white/80 hover:text-white"
+            @click="deleteModalOpen = true"
+          >
+            <TrashIcon class="w-4 h-4" />
+            <span>Remove</span>
+          </button>
         </div>
       </div>
 
       <!-- Two-column body (D-03): left facts+wiki, right sidebar -->
-      <div class="max-w-7xl mx-auto px-8 py-8 grid grid-cols-3 gap-8">
+      <div class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-3 gap-8">
 
         <!-- Left column: primary facts + Wikipedia (D-04) -->
         <div class="col-span-2 space-y-8">
 
           <!-- Primary facts section -->
           <section class="space-y-4">
-
-            <!-- Genres — clickable -->
-            <div v-if="movie.genreList.length" class="flex flex-wrap gap-2">
-              <button
-                v-for="genre in movie.genreList"
-                :key="genre"
-                class="text-sm hover:text-primary cursor-pointer"
-                @click="navigateToGenre(genre)"
-              >{{ genre }}</button>
-            </div>
 
             <!-- Directors — clickable (D-12) -->
             <div v-if="movie.directorList.length" class="flex items-center gap-2 flex-wrap">
@@ -230,16 +228,12 @@ const crewByDepartment = computed(() => {
               </div>
               <div v-if="movie.languageList.length">
                 <span class="font-semibold tracking-widest uppercase text-muted-foreground text-xs">Language</span>
-                <p class="mt-0.5">{{ movie.languageList.join(', ') }}</p>
+                <p class="mt-0.5">{{ movie.languageList.map(l => l.toUpperCase()).join(', ') }}</p>
               </div>
             </div>
 
-            <!-- Ratings block: TMDB + OMDB (D-10: hide individually when null) -->
+            <!-- Ratings block: all sources in one row (D-10) -->
             <div class="flex flex-wrap gap-4 text-sm">
-              <div v-if="movie.voteAverage !== null">
-                <span class="font-semibold tracking-widest uppercase text-muted-foreground text-xs">TMDB</span>
-                <p class="mt-0.5">{{ movie.voteAverage?.toFixed(1) }} / 10</p>
-              </div>
               <div v-if="movie.imdbRating !== null">
                 <span class="font-semibold tracking-widest uppercase text-muted-foreground text-xs">IMDB</span>
                 <p class="mt-0.5">
@@ -253,17 +247,27 @@ const crewByDepartment = computed(() => {
                   <span v-else>{{ movie.imdbRating }} / 10</span>
                 </p>
               </div>
-              <div v-if="movie.boxOffice !== null">
-                <span class="font-semibold tracking-widest uppercase text-muted-foreground text-xs">Box Office</span>
-                <p class="mt-0.5">${{ movie.boxOffice?.toLocaleString() }}</p>
+              <!-- OMDB ratings: skip "Internet Movie Database" if TMDB already provides imdbRating -->
+              <template v-if="movie.ratingList?.length">
+                <div
+                  v-for="r in movie.ratingList.filter(r => movie?.imdbRating !== null ? r.source !== 'Internet Movie Database' : true)"
+                  :key="r.source"
+                >
+                  <span class="font-semibold tracking-widest uppercase text-muted-foreground text-xs">
+                    {{ r.source === 'Internet Movie Database' ? 'IMDB' : r.source === 'Rotten Tomatoes' ? 'RT' : r.source }}
+                  </span>
+                  <p class="mt-0.5">{{ r.value }}</p>
+                </div>
+              </template>
+              <div v-if="movie.voteAverage !== null">
+                <span class="font-semibold tracking-widest uppercase text-muted-foreground text-xs">TMDB</span>
+                <p class="mt-0.5">{{ movie.voteAverage?.toFixed(1) }} / 10</p>
               </div>
             </div>
-
-            <!-- RT / Metacritic from ratingList (D-10: hide when null/empty) -->
-            <div v-if="movie.ratingList?.length" class="flex flex-wrap gap-4 text-sm">
-              <div v-for="r in movie.ratingList" :key="r.source">
-                <span class="font-semibold tracking-widest uppercase text-muted-foreground text-xs">{{ r.source }}</span>
-                <p class="mt-0.5">{{ r.value }}</p>
+            <div v-if="movie.boxOffice !== null" class="flex flex-wrap gap-4 text-sm">
+              <div>
+                <span class="font-semibold tracking-widest uppercase text-muted-foreground text-xs">Box Office</span>
+                <p class="mt-0.5">${{ movie.boxOffice?.toLocaleString() }}</p>
               </div>
             </div>
 
@@ -333,7 +337,7 @@ const crewByDepartment = computed(() => {
       </div>
 
       <!-- Full cast & crew — full width at page bottom (D-05) -->
-      <section class="max-w-7xl mx-auto px-8 pb-16">
+      <section class="max-w-7xl mx-auto px-4 pb-16">
         <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground mb-6 border-t border-border pt-8">Cast & Crew</h2>
         <div class="columns-3 gap-8">
 

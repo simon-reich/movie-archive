@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search } from 'lucide-vue-next'
+import { Search, Settings, LogOut } from 'lucide-vue-next'
 
 const props = defineProps<{ overlay?: boolean }>()
 
@@ -20,9 +20,8 @@ async function handleLogout() {
 const textClass = computed(() =>
   props.overlay ? 'text-white/90 hover:text-white' : 'text-foreground hover:text-primary'
 )
-const mutedClass = computed(() =>
-  props.overlay ? 'text-white/60' : 'text-muted-foreground'
-)
+const avatarBg = 'bg-black text-white hover:bg-neutral-800'
+const userInitial = computed(() => authStore.userEmail?.[0]?.toUpperCase() ?? '?')
 </script>
 
 <template>
@@ -32,7 +31,6 @@ const mutedClass = computed(() =>
         MovieArchive
       </NuxtLink>
       <div class="flex items-center gap-4">
-        <span :class="['text-sm hidden sm:inline', mutedClass]">{{ authStore.userEmail }}</span>
         <NuxtLink to="/add" :class="['text-sm font-medium', textClass]">
           Add Film
         </NuxtLink>
@@ -40,15 +38,22 @@ const mutedClass = computed(() =>
           <Search class="w-4 h-4" />
           Search
         </NuxtLink>
-        <NuxtLink to="/settings" :class="['text-sm font-medium', textClass]">
-          Settings
+        <NuxtLink to="/settings" :class="textClass" title="Settings">
+          <Settings class="w-4 h-4" />
         </NuxtLink>
         <button
           :disabled="loading"
-          :class="['text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed', textClass]"
+          :class="['disabled:opacity-50 disabled:cursor-not-allowed', textClass]"
+          :title="loading ? 'Signing out…' : 'Sign out'"
           @click="handleLogout"
         >
-          {{ loading ? 'Signing out...' : 'Sign out' }}
+          <LogOut class="w-4 h-4" />
+        </button>
+        <button
+          :class="['w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-semibold transition-colors', avatarBg]"
+          :title="authStore.userEmail ?? ''"
+        >
+          {{ userInitial }}
         </button>
       </div>
     </div>

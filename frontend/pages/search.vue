@@ -11,6 +11,24 @@ useHead({ title: 'Search — MovieArchive' })
 
 const { searchQuery, sort, results, total, hasMore, isLoading, updateFilter, loadMore } = useSearch()
 const searchStore = useSearchStore()
+
+const sentinel = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+function setupObserver() {
+  observer?.disconnect()
+  if (!sentinel.value) return
+  observer = new IntersectionObserver(([entry]) => {
+    if (entry?.isIntersecting && hasMore.value && !isLoading.value) {
+      loadMore()
+    }
+  }, { rootMargin: '200px' })
+  observer.observe(sentinel.value)
+}
+
+onMounted(setupObserver)
+onUnmounted(() => observer?.disconnect())
+watch(sentinel, setupObserver)
 </script>
 
 <template>
@@ -55,16 +73,9 @@ const searchStore = useSearchStore()
         <p class="text-muted-foreground">No films found. Try adjusting your search or filters.</p>
       </div>
 
-      <!-- Load more -->
-      <div v-if="hasMore" class="mt-8 flex justify-center">
-        <button
-          type="button"
-          :disabled="isLoading"
-          class="px-6 h-10 bg-primary text-primary-foreground text-sm font-semibold rounded-none hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          @click="loadMore"
-        >
-          {{ isLoading ? 'Loading...' : 'Load more' }}
-        </button>
+      <!-- Infinite scroll sentinel -->
+      <div ref="sentinel" class="mt-8 flex justify-center h-8">
+        <SpinnerIcon v-if="isLoading && results.length > 0" class="w-6 h-6 text-muted-foreground" />
       </div>
     </template>
   </main>

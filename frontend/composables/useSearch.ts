@@ -4,7 +4,7 @@ export interface SearchResultItem {
   tmdbId: number
   title: string
   year: number
-  posterPath: string
+  posterPath: string | null
   directorList: string[]
   genreList: string[]
   imdbRating: number | null

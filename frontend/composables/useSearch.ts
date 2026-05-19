@@ -163,10 +163,11 @@ export function useSearch() {
 
   // URL update helpers for use by search.vue and components
   function updateFilter(key: string, value: string | string[] | null): void {
-    const q = { ...route.query }
-    if (value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
-      delete q[key]
-    } else {
+    const q: Record<string, string | string[]> = {}
+    for (const [k, v] of Object.entries(route.query)) {
+      if (k !== key && v !== undefined) q[k] = v as string | string[]
+    }
+    if (value !== null && value !== '' && !(Array.isArray(value) && value.length === 0)) {
       q[key] = value as string | string[]
     }
     q.page = '0'

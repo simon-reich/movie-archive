@@ -28,7 +28,7 @@ function navigateToDirector(director: string) {
         :src="posterUrl(movie.posterPath)"
         :alt="movie.title"
         class="w-full aspect-[2/3] object-cover bg-card border border-border"
-      />
+      >
     </NuxtLink>
     <div class="pt-2">
       <p class="text-sm font-medium text-foreground truncate">{{ movie.title }}</p>

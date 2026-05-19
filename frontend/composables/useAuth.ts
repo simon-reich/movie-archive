@@ -2,7 +2,6 @@ import { useAuthStore } from '@/stores/auth'
 
 export function useAuth() {
   const authStore = useAuthStore()
-  const router = useRouter()
 
   async function login(email: string, password: string): Promise<void> {
     const data = await $fetch<{ accessToken: string; email: string }>('/api/auth/login', {

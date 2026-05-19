@@ -57,7 +57,7 @@ async function handleSubmit() {
 
 <template>
   <AuthCard heading="Create an account" subtext="Enter your details to get started">
-    <form @submit.prevent="handleSubmit" novalidate>
+    <form novalidate @submit.prevent="handleSubmit">
       <div class="space-y-4">
         <FormField id="email" label="Email" :error="emailError ?? undefined">
           <InputText

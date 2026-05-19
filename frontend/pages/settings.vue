@@ -221,7 +221,7 @@ async function handleChangePassword() {
       <!-- Email change form -->
       <div>
         <h2 class="text-base font-semibold tracking-widest uppercase mb-4">Change email</h2>
-        <form @submit.prevent="handleChangeEmail" novalidate>
+        <form novalidate @submit.prevent="handleChangeEmail">
           <div class="space-y-4">
             <FormField id="new-email" label="New email">
               <InputText
@@ -249,7 +249,7 @@ async function handleChangePassword() {
       <!-- Password change form -->
       <div class="mt-8">
         <h2 class="text-base font-semibold tracking-widest uppercase mb-4">Change password</h2>
-        <form @submit.prevent="handleChangePassword" novalidate>
+        <form novalidate @submit.prevent="handleChangePassword">
           <div class="space-y-4">
             <FormField id="current-password" label="Current password">
               <InputText
@@ -291,7 +291,7 @@ async function handleChangePassword() {
       </div>
     </section>
 
-    <hr class="border-border my-8" />
+    <hr class="border-border my-8" >
 
     <!-- Section 2: API Keys -->
     <section id="api-keys">
@@ -366,7 +366,7 @@ async function handleChangePassword() {
       </div>
     </section>
 
-    <hr class="border-border my-8" />
+    <hr class="border-border my-8" >
 
     <!-- Section 3: Import & Export -->
     <section id="import-export">

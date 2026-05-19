@@ -116,7 +116,7 @@ async function handleSubmit() {
       </NuxtLink>
     </div>
 
-    <form v-else @submit.prevent="handleSubmit" novalidate>
+    <form v-else novalidate @submit.prevent="handleSubmit">
       <div class="space-y-4">
         <FormField id="new-password" label="New password" :error="passwordError ?? undefined">
           <InputText

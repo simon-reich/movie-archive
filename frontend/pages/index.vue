@@ -18,6 +18,7 @@ onMounted(async () => {
 </script>
 
 <template>
+  <div>
   <Head><Title>Dashboard — MovieArchive</Title></Head>
 
   <div class="min-h-screen bg-background">
@@ -34,9 +35,9 @@ onMounted(async () => {
         <!-- Stats section -->
         <section class="mb-12">
           <DashboardStats
-            :totalFilms="data.totalFilms"
-            :topGenres="data.topGenres"
-            :languageBreakdown="data.languageBreakdown"
+            :total-films="data.totalFilms"
+            :top-genres="data.topGenres"
+            :language-breakdown="data.languageBreakdown"
           />
         </section>
 
@@ -66,7 +67,7 @@ onMounted(async () => {
                   :src="posterUrl(film.posterPath)"
                   :alt="film.title"
                   class="w-full object-cover hover:scale-105 transition-transform duration-300"
-                />
+                >
               </NuxtLink>
               <NuxtLink :to="`/movies/${film.id}`" class="text-sm font-medium text-foreground truncate hover:text-primary">{{ film.title }}</NuxtLink>
               <p class="text-xs text-muted-foreground">{{ film.year }}</p>
@@ -91,5 +92,6 @@ onMounted(async () => {
         </NuxtLink>
       </div>
     </main>
+  </div>
   </div>
 </template>

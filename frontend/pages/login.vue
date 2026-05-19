@@ -73,7 +73,7 @@ async function handleSubmit() {
 
 <template>
   <AuthCard heading="Sign in" subtext="Welcome back">
-    <form @submit.prevent="handleSubmit" novalidate>
+    <form novalidate @submit.prevent="handleSubmit">
       <div class="space-y-4">
         <FormField id="email" label="Email">
           <InputText

@@ -13,7 +13,6 @@ describe('/add page', () => {
     expect(AddPage).toBeDefined()
     // Component exists and has expected structure (DOM rendering via mountSuspended
     // requires full Nuxt context; behavior covered by composable tests + backend integration)
-    const template = String(AddPage.__hmrId ?? AddPage)
     expect(AddPage).toBeTruthy()
   })
 

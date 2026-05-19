@@ -124,7 +124,7 @@ const crewByDepartment = computed(() => {
           :src="backdropUrl"
           alt=""
           class="absolute inset-0 w-full h-full object-cover"
-        />
+        >
         <div v-else class="absolute inset-0 bg-card" />
         <!-- Gradient overlay -->
         <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
@@ -145,7 +145,7 @@ const crewByDepartment = computed(() => {
             :src="posterUrl"
             :alt="movie.title"
             class="w-32 aspect-[2/3] object-cover border border-white/20 flex-shrink-0"
-          />
+          >
           <div
             v-else
             class="w-32 aspect-[2/3] bg-card flex-shrink-0 flex items-center justify-center border border-border"
@@ -306,7 +306,7 @@ const crewByDepartment = computed(() => {
                 type="checkbox"
                 class="w-4 h-4 accent-primary"
                 @change="onWatchedChange"
-              />
+              >
               <span class="text-sm">Watched</span>
             </label>
 

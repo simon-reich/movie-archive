@@ -23,7 +23,7 @@ function posterUrl(posterPath: string | null): string {
         :src="posterUrl(props.movie.posterPath)"
         :alt="props.movie.title"
         class="w-full object-cover hover:scale-105 transition-transform duration-300"
-      />
+      >
     </NuxtLink>
     <NuxtLink :to="`/movies/${props.movie.id}`" class="text-xl font-bold text-foreground hover:text-primary">{{ props.movie.title }}</NuxtLink>
     <p class="text-sm text-muted-foreground">{{ props.movie.year }}</p>

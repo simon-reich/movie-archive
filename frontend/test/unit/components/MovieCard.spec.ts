@@ -1,18 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import type { SearchResultItem } from '@/composables/useSearch'
 
 const NUXT_LINK_STUB = {
   template: '<a :href="to"><slot /></a>',
   props: ['to'],
 }
 
-const MOCK_MOVIE = {
+const MOCK_MOVIE: SearchResultItem = {
   id: '550e8400-e29b-41d4-a716-446655440000',
+  tmdbId: 27205,
   title: 'Inception',
   year: 2010,
   posterPath: '/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg',
   genreList: ['Action', 'Science Fiction'],
   directorList: ['Christopher Nolan'],
+  imdbRating: null,
+  runtime: null,
 }
 
 describe('MovieCard component', () => {
@@ -23,7 +27,7 @@ describe('MovieCard component', () => {
   it('NuxtLink wraps poster with route to /movies/{movie.id}', async () => {
     const { default: MovieCard } = await import('@/components/MovieCard.vue')
     const wrapper = mount(MovieCard, {
-      props: { movie: MOCK_MOVIE as any },
+      props: { movie: MOCK_MOVIE },
       global: { stubs: { NuxtLink: NUXT_LINK_STUB } },
     })
     const link = wrapper.find('a')
@@ -34,7 +38,7 @@ describe('MovieCard component', () => {
   it('posterUrl returns TMDB w300 URL when posterPath starts with "/"', async () => {
     const { default: MovieCard } = await import('@/components/MovieCard.vue')
     const wrapper = mount(MovieCard, {
-      props: { movie: MOCK_MOVIE as any },
+      props: { movie: MOCK_MOVIE },
       global: { stubs: { NuxtLink: NUXT_LINK_STUB } },
     })
     const img = wrapper.find('img')
@@ -46,9 +50,9 @@ describe('MovieCard component', () => {
 
   it('posterUrl returns placeholder when posterPath is null', async () => {
     const { default: MovieCard } = await import('@/components/MovieCard.vue')
-    const movieWithoutPoster = { ...MOCK_MOVIE, posterPath: null }
+    const movieWithoutPoster: SearchResultItem = { ...MOCK_MOVIE, posterPath: null }
     const wrapper = mount(MovieCard, {
-      props: { movie: movieWithoutPoster as any },
+      props: { movie: movieWithoutPoster },
       global: { stubs: { NuxtLink: NUXT_LINK_STUB } },
     })
     const img = wrapper.find('img')
@@ -62,7 +66,7 @@ describe('MovieCard component', () => {
     const pushSpy = vi.spyOn(router, 'push')
 
     const wrapper = mount(MovieCard, {
-      props: { movie: MOCK_MOVIE as any },
+      props: { movie: MOCK_MOVIE },
       global: { stubs: { NuxtLink: NUXT_LINK_STUB } },
     })
 
@@ -82,7 +86,7 @@ describe('MovieCard component', () => {
     const pushSpy = vi.spyOn(router, 'push')
 
     const wrapper = mount(MovieCard, {
-      props: { movie: MOCK_MOVIE as any },
+      props: { movie: MOCK_MOVIE },
       global: { stubs: { NuxtLink: NUXT_LINK_STUB } },
     })
 

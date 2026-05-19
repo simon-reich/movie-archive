@@ -26,5 +26,5 @@ defineEmits<{
     class="w-full border bg-background text-sm rounded-none h-10 px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
     :class="hasError ? 'border-[#7A3520]' : 'border-input'"
     @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-  />
+  >
 </template>

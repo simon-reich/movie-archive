@@ -2,7 +2,6 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CheckCircle2, XCircle } from 'lucide-vue-next'
 import InputText from '@/components/InputText.vue'
-import ButtonPrimary from '@/components/ButtonPrimary.vue'
 import FormErrorBanner from '@/components/FormErrorBanner.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import type { SearchResultItem } from '@/composables/useMovies'
@@ -37,8 +36,9 @@ async function handleSearch() {
       ...item,
       state: savedTmdbIds.value.has(item.tmdbId) ? ('saved' as const) : ('idle' as const),
     }))
-  } catch (e: any) {
-    if (e?.status === 422) {
+  } catch (e: unknown) {
+    const err = e as { status?: number }
+    if (err?.status === 422) {
       searchError.value = 'No TMDB key configured. Add your key in Settings.'
     } else {
       searchError.value = 'Search failed. Please try again.'
@@ -134,7 +134,7 @@ function posterUrl(posterPath: string | null): string {
           :src="posterUrl(item.posterPath)"
           :alt="item.title ?? ''"
           class="w-full aspect-[2/3] object-cover bg-card border border-border transition-transform duration-200 group-hover:scale-105"
-        />
+        >
 
         <div
           v-if="item.state === 'pending'"

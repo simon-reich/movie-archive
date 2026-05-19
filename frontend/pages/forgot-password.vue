@@ -45,7 +45,7 @@ async function handleSubmit() {
         If an account exists for that email, a reset link is on its way.
       </p>
     </div>
-    <form v-else @submit.prevent="handleSubmit" novalidate>
+    <form v-else novalidate @submit.prevent="handleSubmit">
       <div class="space-y-4">
         <FormField id="email" label="Email">
           <InputText

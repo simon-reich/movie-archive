@@ -10,7 +10,7 @@ export function useSettings() {
   }
 
   async function saveApiKey(provider: 'tmdb' | 'omdb', key: string): Promise<void> {
-    await $fetch<void>(`/api/settings/api-keys/${provider}` as string, {
+    await $fetch(`/api/settings/api-keys/${provider}` as string, {
       method: 'PUT',
       body: { key },
       credentials: 'include',
@@ -26,7 +26,7 @@ export function useSettings() {
   }
 
   async function deleteApiKey(provider: 'tmdb' | 'omdb'): Promise<void> {
-    await $fetch<void>(`/api/settings/api-keys/${provider}` as string, {
+    await $fetch(`/api/settings/api-keys/${provider}` as string, {
       method: 'DELETE',
       credentials: 'include',
       headers: authHeaders(),
@@ -34,7 +34,7 @@ export function useSettings() {
   }
 
   async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await $fetch<void>('/api/settings/password' as string, {
+    await $fetch('/api/settings/password' as string, {
       method: 'POST',
       body: { currentPassword, newPassword },
       credentials: 'include',
@@ -46,7 +46,7 @@ export function useSettings() {
   }
 
   async function changeEmail(newEmail: string): Promise<void> {
-    await $fetch<void>('/api/settings/email' as string, {
+    await $fetch('/api/settings/email' as string, {
       method: 'POST',
       body: { newEmail },
       credentials: 'include',

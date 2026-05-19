@@ -25,6 +25,7 @@ describe('/login page', () => {
     mockNavigateTo.mockReset()
     mockRouterReplace.mockReset()
     // Clear query params between tests
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     for (const key of Object.keys(mockRouteQuery)) delete mockRouteQuery[key]
   })
 

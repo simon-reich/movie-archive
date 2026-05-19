@@ -152,7 +152,7 @@ const hasActiveFilters = computed(() =>
               class="w-full h-10 px-3 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               @input="onDirectorInput"
               @change="onDirectorChange"
-            />
+            >
             <datalist id="director-suggestions-list">
               <option v-for="s in directorSuggestions" :key="s" :value="s" />
             </datalist>
@@ -170,7 +170,7 @@ const hasActiveFilters = computed(() =>
               class="w-full h-10 px-3 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               @input="onActorsInput"
               @change="updateFilter('actors', actorsInput || null)"
-            />
+            >
             <datalist id="actors-suggestions-list">
               <option v-for="s in actorSuggestions" :key="s" :value="s" />
             </datalist>
@@ -188,7 +188,7 @@ const hasActiveFilters = computed(() =>
                 max="2030"
                 class="w-full h-10 px-3 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 @change="updateFilter('year_from', ($event.target as HTMLInputElement).value || null)"
-              />
+              >
               <span class="text-muted-foreground text-xs">–</span>
               <input
                 type="number"
@@ -198,7 +198,7 @@ const hasActiveFilters = computed(() =>
                 max="2030"
                 class="w-full h-10 px-3 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 @change="updateFilter('year_to', ($event.target as HTMLInputElement).value || null)"
-              />
+              >
             </div>
           </div>
 
@@ -215,7 +215,7 @@ const hasActiveFilters = computed(() =>
                 max="10"
                 class="w-full h-10 px-3 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 @change="updateFilter('imdb_from', ($event.target as HTMLInputElement).value || null)"
-              />
+              >
               <span class="text-muted-foreground text-xs">–</span>
               <input
                 type="number"
@@ -226,7 +226,7 @@ const hasActiveFilters = computed(() =>
                 max="10"
                 class="w-full h-10 px-3 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 @change="updateFilter('imdb_to', ($event.target as HTMLInputElement).value || null)"
-              />
+              >
             </div>
           </div>
 
@@ -240,7 +240,7 @@ const hasActiveFilters = computed(() =>
               min="0"
               class="w-full h-10 px-3 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               @change="updateFilter('runtime_max', ($event.target as HTMLInputElement).value || null)"
-            />
+            >
           </div>
 
           <!-- Content rating (dynamic from index) -->
@@ -315,7 +315,7 @@ const hasActiveFilters = computed(() =>
                 :checked="watched === false"
                 class="w-4 h-4 mt-1"
                 @change="updateFilter('watched', ($event.target as HTMLInputElement).checked ? 'false' : null)"
-              />
+              >
               <p class="text-xs text-muted-foreground">Requires film status to be set (coming soon)</p>
             </div>
           </div>

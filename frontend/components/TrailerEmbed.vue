@@ -33,7 +33,7 @@ const embedUrl = computed(() =>
         :src="thumbnailUrl!"
         alt="Trailer thumbnail"
         class="w-full aspect-video object-cover"
-      />
+      >
       <!-- Play button overlay (terracotta square — no rounded corners) -->
       <div class="absolute inset-0 flex items-center justify-center">
         <div class="w-12 h-12 bg-primary flex items-center justify-center">

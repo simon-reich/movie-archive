@@ -27,7 +27,7 @@ function navigateToDirector(director: string) {
       :src="posterUrl(movie.posterPath)"
       :alt="movie.title"
       class="w-16 aspect-[2/3] object-cover bg-card border border-border flex-shrink-0"
-    />
+    >
     <div class="flex flex-col min-w-0 gap-1">
       <NuxtLink :to="`/movies/${movie.id}`" class="text-sm font-medium text-foreground truncate hover:text-primary block">{{ movie.title }}</NuxtLink>
       <p class="text-xs text-muted-foreground">{{ movie.year }}</p>

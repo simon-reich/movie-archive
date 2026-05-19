@@ -116,9 +116,9 @@ public class WikipediaClient {
 
     private Optional<WikipediaResult> tryFetch(String pageTitle) {
         try {
-            // &redirects causes the API to follow redirects transparently
+            // String concat avoids Spring's URI template encoding of ( and ) to %28/%29
             JsonNode sectionsResponse = webClient.get()
-                    .uri("/w/api.php?action=parse&page={title}&prop=sections&redirects&format=json", pageTitle)
+                    .uri("/w/api.php?action=parse&page=" + pageTitle + "&prop=sections&redirects=1&format=json")
                     .retrieve()
                     .bodyToMono(JsonNode.class)
                     .block();
@@ -152,8 +152,7 @@ public class WikipediaClient {
     private String fetchSection(String pageTitle, String sectionIndex) {
         try {
             JsonNode response = webClient.get()
-                    .uri("/w/api.php?action=parse&page={title}&prop=wikitext&section={section}&redirects&format=json",
-                            pageTitle, sectionIndex)
+                    .uri("/w/api.php?action=parse&page=" + pageTitle + "&prop=wikitext&section=" + sectionIndex + "&redirects=1&format=json")
                     .retrieve()
                     .bodyToMono(JsonNode.class)
                     .block();

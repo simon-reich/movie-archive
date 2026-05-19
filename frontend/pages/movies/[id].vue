@@ -34,8 +34,11 @@ function navigateToActor(name: string) {
 function navigateToDirector(name: string) {
   router.push({ path: '/search', query: { director: name } })
 }
-function navigateToWriter(name: string) {
-  router.push({ path: '/search', query: { q: name } })
+function navigateToGenre(genre: string) {
+  router.push({ path: '/search', query: { genre } })
+}
+function navigateToCrew(name: string) {
+  router.push({ path: '/search', query: { crew: name } })
 }
 
 
@@ -114,8 +117,8 @@ const crewByDepartment = computed(() => {
 
     <template v-else-if="movie">
 
-      <!-- Hero (D-02): full-width cinematic backdrop -->
-      <div class="relative w-full h-72 overflow-hidden">
+      <!-- Hero (D-02): full-width cinematic backdrop — -mt-12 pulls it under the fixed nav -->
+      <div class="relative w-full h-72 overflow-hidden -mt-12">
         <img
           v-if="backdropUrl"
           :src="backdropUrl"
@@ -173,9 +176,14 @@ const crewByDepartment = computed(() => {
           <!-- Primary facts section -->
           <section class="space-y-4">
 
-            <!-- Genres — plain text -->
-            <div v-if="movie.genreList.length">
-              <span class="text-sm">{{ movie.genreList.join(', ') }}</span>
+            <!-- Genres — clickable -->
+            <div v-if="movie.genreList.length" class="flex flex-wrap gap-2">
+              <button
+                v-for="genre in movie.genreList"
+                :key="genre"
+                class="text-sm hover:text-primary cursor-pointer"
+                @click="navigateToGenre(genre)"
+              >{{ genre }}</button>
             </div>
 
             <!-- Directors — clickable (D-12) -->
@@ -196,7 +204,7 @@ const crewByDepartment = computed(() => {
               <span v-for="(writer, i) in movie.writerList" :key="writer">
                 <button
                   class="text-sm hover:text-primary cursor-pointer"
-                  @click="navigateToWriter(writer)"
+                  @click="navigateToCrew(writer)"
                 >{{ writer }}</button>
                 <span v-if="i < movie.writerList.length - 1">, </span>
               </span>
@@ -327,10 +335,10 @@ const crewByDepartment = computed(() => {
       <!-- Full cast & crew — full width at page bottom (D-05) -->
       <section class="max-w-7xl mx-auto px-8 pb-16">
         <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground mb-6 border-t border-border pt-8">Cast & Crew</h2>
-        <div class="grid grid-cols-3 gap-8">
+        <div class="columns-3 gap-8">
 
-          <!-- Full cast column -->
-          <div>
+          <!-- Full cast -->
+          <div class="break-inside-avoid mb-6">
             <h3 class="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">Cast</h3>
             <ul class="space-y-1">
               <li
@@ -343,10 +351,11 @@ const crewByDepartment = computed(() => {
             </ul>
           </div>
 
-          <!-- Crew by department (remaining columns) -->
+          <!-- Crew by department -->
           <div
             v-for="(members, dept) in crewByDepartment"
             :key="dept"
+            class="break-inside-avoid mb-6"
           >
             <h3 class="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">{{ dept }}</h3>
             <ul class="space-y-1">
@@ -355,7 +364,7 @@ const crewByDepartment = computed(() => {
                 :key="(member.name ?? '') + (member.job ?? '')"
                 class="text-sm"
               >
-                {{ member.name }}<span v-if="member.job" class="text-muted-foreground"> — {{ member.job }}</span>
+                <button class="hover:text-primary" @click="member.name && navigateToCrew(member.name)">{{ member.name }}</button><span v-if="member.job" class="text-muted-foreground"> — {{ member.job }}</span>
               </li>
             </ul>
           </div>

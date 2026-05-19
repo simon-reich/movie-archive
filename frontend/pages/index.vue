@@ -61,12 +61,14 @@ onMounted(async () => {
           <h2 class="text-xs tracking-widest uppercase text-muted-foreground mb-4">Recently Added</h2>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             <div v-for="film in data.recentlyAdded" :key="film.id" class="flex flex-col gap-1">
-              <img
-                :src="posterUrl(film.posterPath)"
-                :alt="film.title"
-                class="w-full object-cover"
-              />
-              <p class="text-sm font-medium text-foreground truncate">{{ film.title }}</p>
+              <NuxtLink :to="`/movies/${film.id}`" class="block overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300">
+                <img
+                  :src="posterUrl(film.posterPath)"
+                  :alt="film.title"
+                  class="w-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </NuxtLink>
+              <NuxtLink :to="`/movies/${film.id}`" class="text-sm font-medium text-foreground truncate hover:text-primary">{{ film.title }}</NuxtLink>
               <p class="text-xs text-muted-foreground">{{ film.year }}</p>
             </div>
           </div>

@@ -156,16 +156,20 @@ describe('/movies/[id] page', () => {
     )
   })
 
-  it('renders genres as plain comma-separated text (not clickable chips)', async () => {
+  it('navigates to /search?genre=X when genre clicked', async () => {
+    const router = useRouter()
+    const pushSpy = vi.spyOn(router, 'push')
     const wrapper = await mountPage()
-    expect(wrapper.text()).toContain('Action, Science Fiction')
-    // Genres must not be rendered as buttons
     const allButtons = wrapper.findAll('button')
     const genreButton = allButtons.find(b => b.text().trim() === 'Action')
-    expect(genreButton).toBeUndefined()
+    expect(genreButton).toBeDefined()
+    await genreButton!.trigger('click')
+    expect(pushSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ path: '/search', query: { genre: 'Action' } })
+    )
   })
 
-  it('navigates to /search?q=X when writer name clicked', async () => {
+  it('navigates to /search?crew=X when writer name clicked', async () => {
     const router = useRouter()
     const pushSpy = vi.spyOn(router, 'push')
     const movie = { ...MOCK_MOVIE, writerList: ['Jonathan Nolan'] }
@@ -175,7 +179,7 @@ describe('/movies/[id] page', () => {
     expect(writerButton).toBeDefined()
     await writerButton!.trigger('click')
     expect(pushSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ path: '/search', query: { q: 'Jonathan Nolan' } })
+      expect.objectContaining({ path: '/search', query: { crew: 'Jonathan Nolan' } })
     )
   })
 

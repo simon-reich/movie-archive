@@ -8,11 +8,14 @@ const publicRoutes = [
 ]
 const route = useRoute()
 const showNav = computed(() => !publicRoutes.includes(route.path))
+const navOverlay = computed(() => route.path.startsWith('/movies/'))
 </script>
 
 <template>
   <div class="min-h-screen bg-background text-foreground">
-    <AppNav v-if="showNav" />
-    <slot />
+    <AppNav v-if="showNav" :overlay="navOverlay" />
+    <div :class="showNav ? 'pt-12' : ''">
+      <slot />
+    </div>
   </div>
 </template>

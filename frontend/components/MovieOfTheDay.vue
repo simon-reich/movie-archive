@@ -18,12 +18,14 @@ function posterUrl(posterPath: string | null): string {
 
 <template>
   <div v-if="props.movie">
-    <img
-      :src="posterUrl(props.movie.posterPath)"
-      :alt="props.movie.title"
-      class="w-full object-cover mb-3"
-    />
-    <p class="text-xl font-bold text-foreground">{{ props.movie.title }}</p>
+    <NuxtLink :to="`/movies/${props.movie.id}`" class="block overflow-hidden mb-3 shadow-md hover:shadow-2xl transition-shadow duration-300">
+      <img
+        :src="posterUrl(props.movie.posterPath)"
+        :alt="props.movie.title"
+        class="w-full object-cover hover:scale-105 transition-transform duration-300"
+      />
+    </NuxtLink>
+    <NuxtLink :to="`/movies/${props.movie.id}`" class="text-xl font-bold text-foreground hover:text-primary">{{ props.movie.title }}</NuxtLink>
     <p class="text-sm text-muted-foreground">{{ props.movie.year }}</p>
   </div>
 </template>

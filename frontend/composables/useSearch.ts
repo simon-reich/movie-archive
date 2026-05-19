@@ -15,6 +15,7 @@ export interface FilterCriteria {
   genres?: string[]
   director?: string
   actors?: string
+  crew?: string
   yearFrom?: number
   yearTo?: number
   imdbRatingFrom?: number
@@ -86,6 +87,7 @@ export function useSearch() {
   const genres = computed(() => normalizeQueryParam(route.query.genre))
   const director = computed(() => paramAsString(route.query.director))
   const actors = computed(() => paramAsString(route.query.actors))
+  const crew = computed(() => paramAsString(route.query.crew))
   const yearFrom = computed(() => paramAsNumber(route.query.year_from))
   const yearTo = computed(() => paramAsNumber(route.query.year_to))
   const imdbFrom = computed(() => paramAsNumber(route.query.imdb_from))
@@ -116,6 +118,7 @@ export function useSearch() {
     if (genres.value.length > 0) f.genres = genres.value
     if (director.value) f.director = director.value
     if (actors.value) f.actors = actors.value
+    if (crew.value) f.crew = crew.value
     if (yearFrom.value !== undefined) f.yearFrom = yearFrom.value
     if (yearTo.value !== undefined) f.yearTo = yearTo.value
     if (imdbFrom.value !== undefined) f.imdbRatingFrom = imdbFrom.value
@@ -201,6 +204,7 @@ export function useSearch() {
     genres,
     director,
     actors,
+    crew,
     yearFrom,
     yearTo,
     imdbFrom,

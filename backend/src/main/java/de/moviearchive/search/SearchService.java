@@ -247,18 +247,25 @@ public class SearchService {
                     .terms(tv -> tv.value(toFieldValues(criteria.getGenres()))))));
         }
 
-        // Director — match on director_list.text (analyzed; accent-folding + stemming)
+        // Director — match_phrase for exact full-name search
         if (hasText(criteria.getDirector())) {
-            bool.filter(Query.of(q -> q.match(m -> m
+            bool.filter(Query.of(q -> q.matchPhrase(m -> m
                     .field("director_list.text")
-                    .query(fv -> fv.stringValue(criteria.getDirector())))));
+                    .query(criteria.getDirector()))));
         }
 
-        // Actors — match on full_cast_names.text
+        // Actors — match_phrase for exact full-name search
         if (hasText(criteria.getActors())) {
-            bool.filter(Query.of(q -> q.match(m -> m
+            bool.filter(Query.of(q -> q.matchPhrase(m -> m
                     .field("full_cast_names.text")
-                    .query(fv -> fv.stringValue(criteria.getActors())))));
+                    .query(criteria.getActors()))));
+        }
+
+        // Crew — match_phrase on full_crew_names (writers, directors of photography, etc.)
+        if (hasText(criteria.getCrew())) {
+            bool.filter(Query.of(q -> q.matchPhrase(m -> m
+                    .field("full_crew_names.text")
+                    .query(criteria.getCrew()))));
         }
 
         // Year range — integer field

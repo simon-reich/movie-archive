@@ -12,6 +12,7 @@ public class FilterCriteria {
     private List<String> genres;
     private String director;
     private String actors;
+    private String crew;
     private Integer yearFrom;
     private Integer yearTo;
     private Double imdbRatingFrom;

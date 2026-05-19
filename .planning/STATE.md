@@ -87,6 +87,12 @@ None.
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260519-fcg | Fix all ESLint errors and warnings from CI lint output across the frontend | 2026-05-19 | b944dc0 | [260519-fcg-fix-all-eslint-errors-and-warnings-from-](./quick/260519-fcg-fix-all-eslint-errors-and-warnings-from-/) |
+
 ## Session Continuity
 
 Last session: 2026-05-18T08:43:59.737Z

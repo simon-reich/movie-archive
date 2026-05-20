@@ -8,7 +8,25 @@ const publicRoutes = [
 ]
 const route = useRoute()
 const showNav = computed(() => !publicRoutes.includes(route.path))
-const navOverlay = computed(() => route.path.startsWith('/movies/'))
+
+// Hero height (h-72 = 288px) minus nav height (48px) = threshold where
+// the hero ends and dark content begins.
+const HERO_THRESHOLD = 240
+const scrollY = ref(0)
+
+function onScroll() {
+  scrollY.value = window.scrollY
+}
+
+onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
+onUnmounted(() => window.removeEventListener('scroll', onScroll))
+
+// Reset scroll when navigating to a new page
+watch(() => route.path, () => { scrollY.value = 0 })
+
+const navOverlay = computed(() =>
+  route.path.startsWith('/movies/') && scrollY.value < HERO_THRESHOLD
+)
 </script>
 
 <template>

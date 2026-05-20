@@ -290,18 +290,18 @@ const crewByDepartment = computed(() => {
           <!-- Personal fields panel (D-06, D-07) -->
           <div class="bg-card border border-border p-3 space-y-3">
 
-            <!-- Watched + Rating on one row -->
-            <div class="flex items-center gap-6">
-              <label class="flex items-center gap-2 cursor-pointer">
+            <!-- Watched + Rating on one row, label above control -->
+            <div class="flex items-start gap-6">
+              <label class="flex flex-col gap-1 cursor-pointer">
+                <span class="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Watched</span>
                 <input
                   v-model="localWatched"
                   type="checkbox"
                   class="w-4 h-4 accent-primary"
                   @change="onWatchedChange"
                 >
-                <span class="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Watched</span>
               </label>
-              <div class="flex items-center gap-2">
+              <div class="flex flex-col gap-1">
                 <span class="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Rating</span>
                 <StarRating :model-value="localRating" @update:model-value="onRatingChange" />
               </div>

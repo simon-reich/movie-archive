@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { TrashIcon } from 'lucide-vue-next'
+import { TrashIcon, PlusCircleIcon } from 'lucide-vue-next'
 import { useMovieDetail } from '@/composables/useMovieDetail'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import StarRating from '@/components/StarRating.vue'
@@ -165,13 +165,6 @@ const crewByDepartment = computed(() => {
               </div>
             </div>
           </div>
-          <button
-            class="flex items-center gap-1 text-sm text-white/80 hover:text-white"
-            @click="deleteModalOpen = true"
-          >
-            <TrashIcon class="w-4 h-4" />
-            <span>Remove</span>
-          </button>
         </div>
       </div>
 
@@ -374,6 +367,17 @@ const crewByDepartment = computed(() => {
 
         </div>
       </section>
+
+      <!-- Remove button at bottom -->
+      <div class="max-w-7xl mx-auto px-4 pb-12 pt-4 flex justify-end">
+        <button
+          class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive"
+          @click="deleteModalOpen = true"
+        >
+          <TrashIcon class="w-4 h-4" />
+          <span>Remove from archive</span>
+        </button>
+      </div>
 
     </template>
 

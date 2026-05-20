@@ -34,7 +34,7 @@ watch(sentinel, setupObserver)
 <template>
   <main class="max-w-7xl mx-auto px-4 py-8">
     <!-- Title row with sort + view toggle -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col gap-3 mb-6 md:flex-row md:items-center md:justify-between">
       <h1 class="text-2xl font-semibold tracking-wide text-foreground">Search Archive</h1>
       <div class="flex items-center gap-2">
         <SortSelect

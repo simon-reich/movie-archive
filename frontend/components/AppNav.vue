@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, Settings, LogOut, Menu, X } from 'lucide-vue-next'
+import { Search, Settings, LogOut, Menu, X, PlusCircle } from 'lucide-vue-next'
 
 const props = defineProps<{ overlay?: boolean }>()
 
@@ -33,7 +33,8 @@ const drawerOpen = ref(false)
         MovieArchive
       </NuxtLink>
       <div class="hidden md:flex items-center gap-4">
-        <NuxtLink to="/add" :class="['text-sm font-medium', textClass]">
+        <NuxtLink to="/add" :class="['text-sm font-medium flex items-center gap-1', textClass]">
+          <PlusCircle class="w-4 h-4" />
           Add Film
         </NuxtLink>
         <NuxtLink to="/search" :class="['text-sm font-medium flex items-center gap-1', textClass]">
@@ -88,10 +89,13 @@ const drawerOpen = ref(false)
       <!-- Nav links: uppercase tracking-widest, terracotta on active route -->
       <NuxtLink
         to="/add"
-        class="text-sm font-medium tracking-widest uppercase text-foreground hover:text-primary"
+        class="text-sm font-medium tracking-widest uppercase text-foreground hover:text-primary flex items-center gap-2"
         active-class="text-primary"
         @click="drawerOpen = false"
-      >Add Film</NuxtLink>
+      >
+        <PlusCircle class="w-4 h-4" />
+        Add Film
+      </NuxtLink>
 
       <NuxtLink
         to="/search"

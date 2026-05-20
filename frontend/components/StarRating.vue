@@ -21,7 +21,7 @@ function isFilled(star: number): boolean {
 </script>
 
 <template>
-  <div class="flex gap-0.5" role="group" aria-label="Rating">
+  <div class="grid grid-cols-5 md:grid-cols-10 gap-0.5" role="group" aria-label="Rating">
     <button
       v-for="star in 10"
       :key="star"

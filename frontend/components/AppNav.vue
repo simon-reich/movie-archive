@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, Settings, LogOut } from 'lucide-vue-next'
+import { Search, Settings, LogOut, Menu, X } from 'lucide-vue-next'
 
 const props = defineProps<{ overlay?: boolean }>()
 
@@ -22,6 +22,8 @@ const textClass = computed(() =>
 )
 const avatarBg = 'bg-black text-white hover:bg-neutral-800'
 const userInitial = computed(() => authStore.userEmail?.[0]?.toUpperCase() ?? '?')
+
+const drawerOpen = ref(false)
 </script>
 
 <template>
@@ -30,7 +32,7 @@ const userInitial = computed(() => authStore.userEmail?.[0]?.toUpperCase() ?? '?
       <NuxtLink to="/" :class="['tracking-widest uppercase font-semibold text-sm', textClass]">
         MovieArchive
       </NuxtLink>
-      <div class="flex items-center gap-4">
+      <div class="hidden md:flex items-center gap-4">
         <NuxtLink to="/add" :class="['text-sm font-medium', textClass]">
           Add Film
         </NuxtLink>
@@ -56,6 +58,80 @@ const userInitial = computed(() => authStore.userEmail?.[0]?.toUpperCase() ?? '?
           {{ userInitial }}
         </button>
       </div>
+      <!-- Mobile hamburger: visible only below md -->
+      <button
+        class="md:hidden"
+        :class="textClass"
+        aria-label="Open navigation"
+        @click="drawerOpen = true"
+      >
+        <Menu class="w-5 h-5" />
+      </button>
     </div>
   </nav>
+
+  <!-- Slide-in drawer: only on mobile, solid off-white panel, no backdrop, no rounded corners -->
+  <Transition name="slide">
+    <div
+      v-if="drawerOpen"
+      class="fixed top-0 right-0 h-full w-64 bg-background border-l border-border z-[60] flex flex-col pt-16 px-6 gap-6 md:hidden"
+    >
+      <!-- Close button -->
+      <button
+        class="absolute top-4 right-4 text-foreground"
+        aria-label="Close navigation"
+        @click="drawerOpen = false"
+      >
+        <X class="w-5 h-5" />
+      </button>
+
+      <!-- Nav links: uppercase tracking-widest, terracotta on active route -->
+      <NuxtLink
+        to="/add"
+        class="text-sm font-medium tracking-widest uppercase text-foreground hover:text-primary"
+        active-class="text-primary"
+        @click="drawerOpen = false"
+      >Add Film</NuxtLink>
+
+      <NuxtLink
+        to="/search"
+        class="text-sm font-medium tracking-widest uppercase text-foreground hover:text-primary flex items-center gap-2"
+        active-class="text-primary"
+        @click="drawerOpen = false"
+      >
+        <Search class="w-4 h-4" />
+        Search
+      </NuxtLink>
+
+      <NuxtLink
+        to="/settings"
+        class="text-sm font-medium tracking-widest uppercase text-foreground hover:text-primary flex items-center gap-2"
+        active-class="text-primary"
+        @click="drawerOpen = false"
+      >
+        <Settings class="w-4 h-4" />
+        Settings
+      </NuxtLink>
+
+      <button
+        :disabled="loading"
+        class="text-sm font-medium tracking-widest uppercase text-foreground hover:text-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+        @click="handleLogout(); drawerOpen = false"
+      >
+        <LogOut class="w-4 h-4" />
+        Sign out
+      </button>
+    </div>
+  </Transition>
 </template>
+
+<style scoped>
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease;
+}
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
+}
+</style>

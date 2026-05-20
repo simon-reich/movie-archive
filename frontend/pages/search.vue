@@ -33,17 +33,10 @@ watch(sentinel, setupObserver)
 
 <template>
   <main class="max-w-7xl mx-auto px-4 py-8">
-    <h1 class="text-2xl font-semibold tracking-wide text-foreground mb-6">Search Archive</h1>
-
-    <!-- Search bar -->
-    <div class="mb-4">
-      <SearchBar v-model="searchQuery" />
-    </div>
-
-    <!-- Controls row: filter trigger + sort + view toggle -->
-    <div class="flex items-start justify-between gap-4 mb-4">
-      <FilterPanel />
-      <div class="flex items-center gap-2 flex-shrink-0">
+    <!-- Title row with sort + view toggle -->
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-semibold tracking-wide text-foreground">Search Archive</h1>
+      <div class="flex items-center gap-2">
         <SortSelect
           :model-value="sort"
           @update:model-value="updateFilter('sort', $event)"
@@ -53,6 +46,16 @@ watch(sentinel, setupObserver)
           @update:model-value="searchStore.setViewMode($event)"
         />
       </div>
+    </div>
+
+    <!-- Search bar -->
+    <div class="mb-2">
+      <SearchBar v-model="searchQuery" />
+    </div>
+
+    <!-- Filter panel: full width, same as search bar -->
+    <div class="mb-4">
+      <FilterPanel />
     </div>
 
     <!-- Result count -->

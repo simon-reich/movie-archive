@@ -273,22 +273,10 @@ const crewByDepartment = computed(() => {
 
           </section>
 
-          <!-- Overview / Synopsis (D-04 order: facts → overview → wiki) -->
+          <!-- Overview / Synopsis -->
           <section v-if="movie.overview" class="space-y-2">
             <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Synopsis</h2>
             <p class="text-sm leading-relaxed">{{ movie.overview }}</p>
-          </section>
-
-          <!-- Wikipedia plot (D-02, DETAIL-02) -->
-          <section v-if="movie.wikipediaPlot" class="space-y-2">
-            <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Plot</h2>
-            <p class="text-sm leading-relaxed">{{ movie.wikipediaPlot }}</p>
-          </section>
-
-          <!-- Wikipedia critics (DETAIL-02) -->
-          <section v-if="movie.wikipediaCritics" class="space-y-2">
-            <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Critical Response</h2>
-            <p class="text-sm leading-relaxed">{{ movie.wikipediaCritics }}</p>
           </section>
 
         </div>
@@ -333,6 +321,18 @@ const crewByDepartment = computed(() => {
           </div>
 
         </div>
+      </div>
+
+      <!-- Wikipedia — full width below the two-column block -->
+      <div v-if="movie.wikipediaPlot || movie.wikipediaCritics" class="max-w-7xl mx-auto px-4 pb-8 space-y-8">
+        <section v-if="movie.wikipediaPlot" class="space-y-2">
+          <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Plot</h2>
+          <p class="text-sm leading-relaxed">{{ movie.wikipediaPlot }}</p>
+        </section>
+        <section v-if="movie.wikipediaCritics" class="space-y-2">
+          <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Critical Response</h2>
+          <p class="text-sm leading-relaxed">{{ movie.wikipediaCritics }}</p>
+        </section>
       </div>
 
       <!-- Full cast & crew — full width at page bottom (D-05) -->

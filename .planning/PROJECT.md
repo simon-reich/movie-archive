@@ -31,7 +31,9 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 - [ ] OpenSearch-Index mit Custom Analyzer (movies-{userId})
 - ✓ SRCH-01..04: Suche: Freitext + Advanced Filters + Dashboard — Phase 5
 - [ ] Film-Detailseite + persönliche Felder (Bewertung, Notizen, Watched)
-- [ ] E2E-Tests, Mobile-Polish, README
+- ✓ QLTY-01: Mobile-responsive core pages (hamburger nav, reflow) — Phase 7
+- ✓ QLTY-02: Playwright E2E happy-path spec (login→save→search→detail) — Phase 7
+- ✓ QLTY-03: GitHub Actions E2E CI workflow + README setup docs — Phase 7
 
 ### Out of Scope
 
@@ -42,7 +44,7 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 
 ## Context
 
-- **Laufende Entwicklung:** Phasen 0–5 abgeschlossen. Nächste Phase: 6 (Film-Detailseite + persönliche Felder). Suchinfrastruktur (POST /search, GET /dashboard, GET /search/facets) vollständig in Betrieb.
+- **Laufende Entwicklung:** Alle Phasen 0–7 abgeschlossen. v1.0 vollständig: Auth, Settings, Film-Save-Flow, OpenSearch-Indexing, Suche, Film-Detailseite, Mobile-Responsiveness, Playwright E2E, GitHub Actions CI, README.
 - **Stack:** Spring Boot 3 + Java 25 / Nuxt 3 + Vue 3 + TypeScript + TailwindCSS / PostgreSQL 16 / OpenSearch 2.x / Caddy
 - **Mono-Repo:** `backend/`, `frontend/`, `docker-compose.yml`
 - **API-Strategie:** TMDB = Pflicht (kein Key → kein Speichern). OMDB = optional (kein Key → Film ohne IMDB-Daten). Wikipedia = immer versucht, 6-Step-Fallback.

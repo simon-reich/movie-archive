@@ -161,8 +161,12 @@ Plans:
   1. All core flows (auth, save, search, detail) are fully usable on a mobile device
   2. Playwright E2E tests cover the happy path: sign-up → verify email → save film → search → view detail
   3. README documents local setup steps and feature overview clearly enough to run the project from scratch
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Mobile responsiveness: AppNav hamburger + slide-in drawer (D-01–D-03), detail page mobile reflow (D-04–D-05), data-testid attributes for E2E selectors
+- [ ] 07-02-PLAN.md — E2E infrastructure: TestSetupController (@Profile test), application-test.properties, SecurityConfig /test/** permit, docker-compose SPRING_PROFILES_ACTIVE passthrough, Playwright happy-path spec (D-07–D-14)
+- [ ] 07-03-PLAN.md — CI + docs: GitHub Actions e2e-ci.yml workflow (D-08), .env.example new E2E vars, README "Running E2E Tests" section (D-15, QLTY-03)
 
 ## Progress
 
@@ -178,4 +182,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. OpenSearch Indexing | 0/3 | Not started | - |
 | 5. Search | 0/4 | Not started | - |
 | 6. Movie Detail & Personal Fields | 0/6 | Not started | - |
-| 7. Polish & Quality | 0/TBD | Not started | - |
+| 7. Polish & Quality | 0/3 | Not started | - |

@@ -324,7 +324,7 @@ const crewByDepartment = computed(() => {
       </div>
 
       <!-- Wikipedia — full width below the two-column block -->
-      <div v-if="movie.wikipediaPlot || movie.wikipediaCritics" class="max-w-7xl mx-auto px-4 pb-8 space-y-8">
+      <div v-if="movie.wikipediaPlot || movie.wikipediaCritics" class="max-w-7xl mx-auto px-4 pb-8 space-y-8 border-t border-border pt-8">
         <section v-if="movie.wikipediaPlot" class="space-y-2">
           <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Plot</h2>
           <p class="text-sm leading-relaxed">{{ movie.wikipediaPlot }}</p>

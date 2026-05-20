@@ -300,24 +300,23 @@ const crewByDepartment = computed(() => {
           <TrailerEmbed v-if="movie.trailerKey" :trailer-key="movie.trailerKey" />
 
           <!-- Personal fields panel (D-06, D-07) -->
-          <div class="bg-card border border-border p-4 space-y-4">
-            <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Your Archive</h2>
+          <div class="bg-card border border-border p-3 space-y-3">
 
-            <!-- Watched toggle -->
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input
-                v-model="localWatched"
-                type="checkbox"
-                class="w-4 h-4 accent-primary"
-                @change="onWatchedChange"
-              >
-              <span class="text-sm">Watched</span>
-            </label>
-
-            <!-- Star rating (StarRating component) -->
-            <div>
-              <p class="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-2">Rating</p>
-              <StarRating :model-value="localRating" @update:model-value="onRatingChange" />
+            <!-- Watched + Rating on one row -->
+            <div class="flex items-center gap-6">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input
+                  v-model="localWatched"
+                  type="checkbox"
+                  class="w-4 h-4 accent-primary"
+                  @change="onWatchedChange"
+                >
+                <span class="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Watched</span>
+              </label>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Rating</span>
+                <StarRating :model-value="localRating" @update:model-value="onRatingChange" />
+              </div>
             </div>
 
             <!-- Notes textarea with debounce -->
@@ -326,7 +325,7 @@ const crewByDepartment = computed(() => {
               <textarea
                 v-model="localNotes"
                 class="mt-1 w-full border border-input bg-background text-sm p-2 resize-none focus-visible:ring-2 ring-ring ring-offset-2 outline-none"
-                rows="4"
+                rows="3"
                 placeholder="Your thoughts..."
                 @input="onNotesInput"
               />

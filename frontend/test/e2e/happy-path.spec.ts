@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
-// Backend URL for direct API calls (setup endpoint bypasses Caddy)
-const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8080'
+// Backend URL for direct API calls — routed via Caddy (/api/* → backend:8080 with prefix stripped)
+const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost/api'
 
 const TEST_EMAIL = process.env.TEST_USER_EMAIL ?? 'e2e@moviearchive.test'
 const TEST_PASSWORD = process.env.TEST_USER_PASSWORD ?? 'E2ePassword1!'

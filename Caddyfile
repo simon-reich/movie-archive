@@ -17,7 +17,7 @@
     email admin@moviearchive.local
 }
 
-localhost {
+http://localhost {
     # ── API: Spring Boot backend ──────────────────────────────
     handle /api/* {
         uri strip_prefix /api
@@ -43,7 +43,7 @@ localhost {
 
             # WebSocket upgrade for Nuxt HMR
             transport http {
-                versions h1 h2
+                versions 1.1 2
             }
         }
     }

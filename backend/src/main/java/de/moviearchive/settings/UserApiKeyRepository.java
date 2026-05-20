@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface UserApiKeyRepository extends JpaRepository<UserApiKey, UUID> {
 
     Optional<UserApiKey> findByUserIdAndProvider(UUID userId, ApiKeyProvider provider);
+
+    void deleteByUserId(UUID userId);
 }

@@ -1,0 +1,77 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    name: Playwright E2E (Desktop + Mobile Chrome)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers (Chromium only)
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Start full Docker Compose stack
+        env:
+          DB_PASSWORD: e2e-test-db-password
+          JWT_SECRET: e2e-jwt-secret-minimum-32-chars!!
+          ENCRYPTION_MASTER_KEY: e2e-master-key-exactly-32chars!
+          SPRING_PROFILES_ACTIVE: test
+          TEST_TMDB_KEY: ${{ secrets.TEST_TMDB_KEY }}
+        run: docker compose --profile app up -d
+
+      - name: Wait for backend health
+        run: |
+          echo "Waiting for backend health via Caddy proxy..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost/api/actuator/health > /dev/null 2>&1; then
+              echo "Backend healthy after attempt $i"
+              break
+            fi
+            echo "Attempt $i/30 — waiting 10s..."
+            sleep 10
+          done
+
+      - name: Run Playwright E2E tests
+        working-directory: frontend
+        env:
+          BASE_URL: http://localhost
+          BACKEND_URL: http://localhost/api
+          TEST_TMDB_KEY: ${{ secrets.TEST_TMDB_KEY }}
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose --profile app down -v

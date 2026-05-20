@@ -71,7 +71,16 @@ const drawerOpen = ref(false)
     </div>
   </nav>
 
-  <!-- Slide-in drawer: only on mobile, solid off-white panel, no backdrop, no rounded corners -->
+  <!-- Backdrop: blocks interaction with page behind the drawer -->
+  <Transition name="fade">
+    <div
+      v-if="drawerOpen"
+      class="fixed inset-0 z-[59] md:hidden"
+      @click="drawerOpen = false"
+    />
+  </Transition>
+
+  <!-- Slide-in drawer: only on mobile, solid off-white panel, no rounded corners -->
   <Transition name="slide">
     <div
       v-if="drawerOpen"
@@ -137,5 +146,13 @@ const drawerOpen = ref(false)
 .slide-enter-from,
 .slide-leave-to {
   transform: translateX(100%);
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

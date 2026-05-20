@@ -22,7 +22,7 @@ function navigateToDirector(director: string) {
 </script>
 
 <template>
-  <div class="overflow-hidden">
+  <div data-testid="movie-card" class="overflow-hidden">
     <NuxtLink :to="`/movies/${movie.id}`" class="block">
       <img
         :src="posterUrl(movie.posterPath)"

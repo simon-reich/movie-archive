@@ -131,21 +131,21 @@ const crewByDepartment = computed(() => {
 
         <!-- Hero content: poster + title/year/tagline on left, Delete button bottom-right -->
         <div class="relative z-10 max-w-7xl mx-auto px-4 h-full flex items-end justify-between pb-6">
-          <div class="flex items-end gap-6">
+          <div class="flex items-end gap-3 sm:gap-6">
             <img
               v-if="posterUrl"
               :src="posterUrl"
               :alt="movie.title"
-              class="w-32 aspect-[2/3] object-cover border border-white/20 flex-shrink-0"
+              class="w-20 sm:w-32 aspect-[2/3] object-cover border border-white/20 flex-shrink-0"
             >
             <div
               v-else
-              class="w-32 aspect-[2/3] bg-card flex-shrink-0 flex items-center justify-center border border-border"
+              class="w-20 sm:w-32 aspect-[2/3] bg-card flex-shrink-0 flex items-center justify-center border border-border"
             >
               <span class="text-2xl text-muted-foreground">{{ movie.title?.[0] }}</span>
             </div>
             <div class="flex-1">
-              <h1 class="text-2xl font-semibold tracking-wide text-white">{{ movie.title }}</h1>
+              <h1 data-testid="movie-title" class="text-2xl font-semibold tracking-wide text-white">{{ movie.title }}</h1>
               <p class="text-sm text-white/70 mt-0.5">
                 {{ movie.year }}
                 <span v-if="movie.runtime"> · {{ movie.runtime }} min</span>
@@ -176,10 +176,10 @@ const crewByDepartment = computed(() => {
       </div>
 
       <!-- Two-column body (D-03): left facts+wiki, right sidebar -->
-      <div class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-3 gap-8">
+      <div class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
 
         <!-- Left column: primary facts + Wikipedia (D-04) -->
-        <div class="col-span-2 space-y-8">
+        <div class="col-span-1 md:col-span-2 space-y-8">
 
           <!-- Primary facts section -->
           <section class="space-y-4">
@@ -338,7 +338,7 @@ const crewByDepartment = computed(() => {
       <!-- Full cast & crew — full width at page bottom (D-05) -->
       <section class="max-w-7xl mx-auto px-4 pb-16">
         <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground mb-6 border-t border-border pt-8">Cast & Crew</h2>
-        <div class="columns-3 gap-8">
+        <div class="columns-1 md:columns-3 gap-8">
 
           <!-- Full cast -->
           <div class="break-inside-avoid mb-6">

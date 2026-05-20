@@ -127,6 +127,7 @@ function posterUrl(posterPath: string | null): string {
       <div
         v-for="item in results"
         :key="item.tmdbId"
+        data-testid="poster-card"
         class="relative cursor-pointer group overflow-hidden"
         @click="handlePosterClick(item)"
       >
@@ -138,6 +139,7 @@ function posterUrl(posterPath: string | null): string {
 
         <div
           v-if="item.state === 'pending'"
+          data-testid="save-status"
           class="absolute inset-0 bg-background/70 flex items-center justify-center"
         >
           <SpinnerIcon class="w-8 h-8 text-foreground" />

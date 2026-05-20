@@ -11,5 +11,6 @@ public record SearchResultItem(
     List<String> directorList,
     List<String> genreList,
     Double imdbRating,
-    Integer runtime
+    Integer runtime,
+    Double score
 ) {}

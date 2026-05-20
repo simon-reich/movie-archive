@@ -9,6 +9,7 @@ export interface SearchResultItem {
   genreList: string[]
   imdbRating: number | null
   runtime: number | null
+  score: number | null
 }
 
 export interface FilterCriteria {
@@ -83,7 +84,10 @@ export function useSearch() {
   // Computed filter state from URL params
   const query = computed(() => paramAsString(route.query.q))
   const page = computed(() => parseInt(paramAsString(route.query.page) || '0'))
-  const sort = computed(() => paramAsString(route.query.sort) || 'title_asc')
+  const sort = computed(() => {
+    if (route.query.sort) return paramAsString(route.query.sort)
+    return query.value ? 'relevance' : 'title_asc'
+  })
   const genres = computed(() => normalizeQueryParam(route.query.genre))
   const director = computed(() => paramAsString(route.query.director))
   const actors = computed(() => paramAsString(route.query.actors))

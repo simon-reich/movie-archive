@@ -17,6 +17,7 @@ const MOCK_MOVIE: SearchResultItem = {
   directorList: ['Christopher Nolan'],
   imdbRating: null,
   runtime: null,
+  score: null,
 }
 
 describe('MovieCard component', () => {

@@ -359,6 +359,7 @@ public class SearchService {
             case "imdb_desc"   -> SortOptions.of(s -> s.field(f -> f
                     .field("imdb_rating").order(SortOrder.Desc)
                     .missing(mv -> mv.stringValue("_last"))));
+            case "relevance"   -> SortOptions.of(s -> s.score(sc -> sc.order(SortOrder.Desc)));
             default            -> SortOptions.of(s -> s.field(f -> f
                     .field("title.raw").order(SortOrder.Asc)));
         };
@@ -379,7 +380,8 @@ public class SearchService {
                 castStringList(src.get("director_list")),
                 castStringList(src.get("genre_list")),
                 castDouble(src.get("imdb_rating")),
-                castInt(src.get("runtime")));
+                castInt(src.get("runtime")),
+                hit.score() != null ? hit.score().doubleValue() : null);
     }
 
     private String castString(Object val) {

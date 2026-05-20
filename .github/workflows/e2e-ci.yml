@@ -50,11 +50,13 @@ jobs:
           for i in $(seq 1 30); do
             if curl -sf http://localhost/api/actuator/health > /dev/null 2>&1; then
               echo "Backend healthy after attempt $i"
-              break
+              exit 0
             fi
             echo "Attempt $i/30 — waiting 10s..."
             sleep 10
           done
+          echo "ERROR: backend did not become healthy after 300s"
+          exit 1
 
       - name: Run Playwright E2E tests
         working-directory: frontend

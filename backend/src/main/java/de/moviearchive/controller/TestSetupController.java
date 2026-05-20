@@ -62,6 +62,6 @@ public class TestSetupController {
         }
 
         log.info("Test user setup complete: {}", testEmail);
-        return ResponseEntity.ok(Map.of("email", testEmail, "password", testPassword));
+        return ResponseEntity.ok(Map.of("email", testEmail));
     }
 }

@@ -93,6 +93,46 @@ pnpm test:e2e       # E2E tests (Playwright) — requires full stack running
 
 ---
 
+## Running E2E Tests
+
+Playwright E2E tests run against the full Docker Compose stack (`backend`, `frontend`, `caddy`, `postgres`, `opensearch`).
+
+### Prerequisites
+
+1. Copy `.env.example` to `.env` and set:
+   - `SPRING_PROFILES_ACTIVE=test` — enables the test seed endpoint
+   - `TEST_TMDB_KEY=<your-tmdb-api-key>` — used to search and save a real film
+
+2. Start the full stack:
+   ```bash
+   docker compose --profile app up -d
+   ```
+
+3. Wait for the backend health check to pass:
+   ```bash
+   curl http://localhost/api/actuator/health
+   ```
+
+### Run
+
+```bash
+cd frontend
+pnpm test:e2e
+```
+
+This runs all E2E specs on both Desktop Chrome and Mobile Chrome (Pixel 5). A Playwright HTML report is generated in `frontend/playwright-report/`.
+
+To run only the happy-path spec:
+```bash
+pnpm test:e2e --grep "Happy path"
+```
+
+### CI
+
+E2E tests run automatically on every push to `main` and on pull requests via the `e2e-ci.yml` GitHub Actions workflow. The `TEST_TMDB_KEY` secret must be set in the repository's GitHub Actions secrets.
+
+---
+
 ## SMTP Configuration (Production)
 
 Set the following ENV vars (in `.env` or your deployment config):

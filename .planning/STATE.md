@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 6 context gathered
-last_updated: "2026-05-20T17:05:26.351Z"
-last_activity: 2026-05-20
+stopped_at: Phase 7 complete — v1.0 shipped
+last_updated: "2026-05-21T00:00:00.000Z"
+last_activity: 2026-05-21
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 25
-  completed_plans: 25
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 28
+  completed_plans: 28
   percent: 100
 ---
 
@@ -21,47 +21,42 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-16)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 05 — Search (Simple + Advanced)
 
 ## Current Position
 
-Phase: 07
-Plan: Not started
-Status: Phase 4 complete — ready for Phase 5 (Search)
-Last activity: 2026-05-20
+Phase: COMPLETE
+Plan: All plans complete
+Status: v1.0 shipped — all 7 phases done, all Jira tickets closed (MOV-1–MOV-101)
+Last activity: 2026-05-21
 
-Progress: [███░░░░░░░] ~53% (Phase 0 + Phase 1 + Phase 2 + Phase 3 + Phase 4 complete)
+Progress: [██████████] 100% (Phase 0–7 complete)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 11
+- Total plans completed: 28
 - Average duration: ~23 min/plan
-- Total execution time: ~92 min
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1. Authentication | 3 | ~77 min | ~26 min |
-| 4. OpenSearch Indexing | 3 | ~55 min | ~18 min |
-| 05 | 4 | - | - |
-| 07 | 3 | - | - |
-
-**Recent Trend:**
-
-- Last 4 plans: 01-03 (~7 min), 04-01 (~15 min), 04-02 (~15 min), 04-03 (~25 min)
-- Trend: Stable
-
-*Updated after each plan completion*
+| Phase | Plans | Status |
+|-------|-------|--------|
+| 0. Setup & Infrastructure | — | COMPLETE |
+| 1. Authentication | 3 | COMPLETE — 2026-05-16 |
+| 2. Settings & API Keys | 3 | COMPLETE — 2026-05-16 |
+| 3. Save Movie Flow | 6 | COMPLETE |
+| 4. OpenSearch Indexing | 3 | COMPLETE |
+| 5. Search | 4 | COMPLETE |
+| 6. Movie Detail & Personal Fields | 6 | COMPLETE |
+| 7. E2E Tests, Mobile, Polish, README | 3 | COMPLETE — 2026-05-21 |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
+Key decisions:
 
 - [Phase 1]: JwtAuthFilter without @Component — instantiate directly in SecurityFilterChain to prevent double-registration
 - [Phase 1]: grace_until = now + 5s on refresh token rotation — handles concurrent tab race condition
@@ -79,6 +74,9 @@ Recent decisions affecting current work:
 - [Phase 4, Plan 02]: IndexingService.index() does NOT set indexed_at — EnrichmentService does after calling it (D-01 contract)
 - [Phase 4, Plan 03]: auth.getName() returns email (UserDetailsServiceImpl username=email) — ReindexController resolves userId from email for ownership check
 - [Phase 4, Plan 03]: (user_id, tmdb_id) unique constraint — test movie helpers must use unique tmdbId per movie per user
+- [Phase 7]: OpenSearch Refresh.WaitFor on index() call — document immediately searchable, fixes E2E Mobile Chrome race condition
+- [Phase 7]: Star rating uses Tailwind viewport breakpoints (grid-cols-5 sm:grid-cols-10 md:grid-cols-5) — container queries failed due to flex shrink-to-fit sizing
+- [Phase 7]: useHead injects html { background-color: #111 } on detail page — browsers use <html> background for top-overscroll gutter area
 
 ### Pending Todos
 
@@ -96,6 +94,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-18T08:43:59.737Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-movie-detail-personal-fields/06-CONTEXT.md
+Last session: 2026-05-21
+Stopped at: v1.0 complete — all phases, plans, and Jira tickets closed

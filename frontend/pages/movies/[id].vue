@@ -375,7 +375,7 @@ const crewByDepartment = computed(() => {
       </section>
 
       <!-- Remove button at bottom -->
-      <div class="max-w-7xl mx-auto px-4 pb-12 border-t border-border pt-8 flex justify-center">
+      <div class="max-w-7xl mx-auto px-4 py-8 border-t border-border flex justify-center">
         <button
           class="flex items-center gap-1.5 text-sm text-foreground hover:opacity-70"
           @click="deleteModalOpen = true"

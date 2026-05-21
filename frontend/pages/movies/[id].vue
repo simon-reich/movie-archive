@@ -6,7 +6,7 @@ import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import StarRating from '@/components/StarRating.vue'
 import TrailerEmbed from '@/components/TrailerEmbed.vue'
 
-useHead({ title: 'Film Detail — MovieArchive' })
+useHead({ title: 'Film Detail — MovieArchive', htmlAttrs: { class: 'detail-overscroll' } })
 
 const route = useRoute()
 const id = route.params.id as string

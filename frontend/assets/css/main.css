@@ -57,8 +57,3 @@
     @apply bg-background text-foreground;
   }
 }
-
-/* Detail page: black overscroll at top (behind hero), page-bg at bottom */
-html.detail-overscroll {
-  background: linear-gradient(to bottom, #000 0%, hsl(37 33% 96%) 100%);
-}

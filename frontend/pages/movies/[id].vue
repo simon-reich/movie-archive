@@ -6,7 +6,7 @@ import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import StarRating from '@/components/StarRating.vue'
 import TrailerEmbed from '@/components/TrailerEmbed.vue'
 
-useHead({ title: 'Film Detail — MovieArchive', htmlAttrs: { class: 'detail-overscroll' } })
+useHead({ title: 'Film Detail — MovieArchive' })
 
 const route = useRoute()
 const id = route.params.id as string
@@ -104,6 +104,8 @@ const crewByDepartment = computed(() => {
 
 <template>
   <div class="min-h-screen bg-background text-foreground">
+    <!-- Black panel above viewport: revealed by iOS top-overscroll bounce -->
+    <div class="fixed left-0 right-0 top-0 -z-10 h-screen -translate-y-full bg-black" aria-hidden="true" />
 
     <!-- Loading state -->
     <div v-if="isLoading" class="flex items-center justify-center py-24">

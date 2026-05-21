@@ -21,19 +21,37 @@ function isFilled(star: number): boolean {
 </script>
 
 <template>
-  <div class="grid grid-cols-5 md:grid-cols-10 gap-0.5" role="group" aria-label="Rating">
-    <button
-      v-for="star in 10"
-      :key="star"
-      type="button"
-      class="p-0.5 cursor-pointer focus-visible:ring-2 ring-ring outline-none"
-      :aria-label="`Rate ${star} out of 10`"
-      @click="handleStarClick(star)"
-    >
-      <StarIcon
-        class="w-5 h-5"
-        :class="isFilled(star) ? 'text-primary fill-primary' : 'text-muted-foreground'"
-      />
-    </button>
+  <div class="star-rating-ctr">
+    <div class="star-grid gap-0.5" role="group" aria-label="Rating">
+      <button
+        v-for="star in 10"
+        :key="star"
+        type="button"
+        class="p-0.5 cursor-pointer focus-visible:ring-2 ring-ring outline-none"
+        :aria-label="`Rate ${star} out of 10`"
+        @click="handleStarClick(star)"
+      >
+        <StarIcon
+          class="w-5 h-5"
+          :class="isFilled(star) ? 'text-primary fill-primary' : 'text-muted-foreground'"
+        />
+      </button>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.star-rating-ctr {
+  container-type: inline-size;
+}
+.star-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+/* 10 stars × 24px + 9 × 2px gap = 258px — switch to single row when space is available */
+@container (min-width: 258px) {
+  .star-grid {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+}
+</style>

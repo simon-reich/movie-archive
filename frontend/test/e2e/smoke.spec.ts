@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('Smoke test', () => {
-  test('should load the home page and show the app heading', async ({ page }) => {
+  test('should redirect unauthenticated users to login page', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('h1')).toHaveText('MovieArchive')
+    await expect(page).toHaveURL('/login', { timeout: 10_000 })
+    await expect(page.locator('h1')).toBeVisible()
   })
 })

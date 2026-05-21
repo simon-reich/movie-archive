@@ -37,6 +37,8 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
     @Query("SELECT m FROM Movie m WHERE m.user.id = :userId")
     List<Movie> findAllByUserId(@Param("userId") UUID userId);
 
+    void deleteByUserId(UUID userId);
+
     /**
      * Returns movies not yet indexed in OpenSearch. Used by partial reindex.
      */

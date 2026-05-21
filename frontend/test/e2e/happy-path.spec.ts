@@ -35,15 +35,13 @@ test.describe('Happy path', () => {
     await expect(page.locator('[data-testid="poster-card"]').first()).toBeVisible({ timeout: 15_000 })
     // Click the first poster to save it
     await page.locator('[data-testid="poster-card"]').first().click()
-    // Wait for save status to appear (pending spinner)
+    // Wait for save status to appear (pending spinner), then disappear (enrichment done)
     await expect(page.locator('[data-testid="save-status"]').first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.locator('[data-testid="save-status"]').first()).not.toBeVisible({ timeout: 30_000 })
 
     // ── Step 3: Search for the film ─────────────────────────────────────
-    // Navigate to /search — enrichment pipeline needs time (async, up to ~10s)
-    await page.goto('/search')
-    await page.fill('input[placeholder*="Search"]', 'Inception')
-    await page.keyboard.press('Enter')
-    // Wait up to 30s for enrichment to complete and film to appear in OpenSearch results
+    // Navigate directly with q param — triggers useSearch immediately via route watcher
+    await page.goto('/search?q=Inception')
     await expect(page.locator('[data-testid="movie-card"]').first()).toBeVisible({ timeout: 30_000 })
 
     // ── Step 4: Open detail page ────────────────────────────────────────

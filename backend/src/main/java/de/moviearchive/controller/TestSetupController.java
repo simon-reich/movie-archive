@@ -1,5 +1,6 @@
 package de.moviearchive.controller;
 
+import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.settings.ApiKeyProvider;
 import de.moviearchive.settings.EncryptionService;
 import de.moviearchive.settings.UserApiKey;
@@ -29,6 +30,7 @@ public class TestSetupController {
 
     private final UserRepository userRepository;
     private final UserApiKeyRepository apiKeyRepository;
+    private final MovieRepository movieRepository;
     private final EncryptionService encryptionService;
     private final BCryptPasswordEncoder passwordEncoder;
 
@@ -44,11 +46,15 @@ public class TestSetupController {
     @PostMapping("/setup")
     @Transactional
     public ResponseEntity<Map<String, String>> setup() {
-        // 1. Clean: delete existing test user and their API keys
+        // 1. Clean: delete existing test user and all their data
         userRepository.findByEmail(testEmail).ifPresent(u -> {
+            movieRepository.deleteByUserId(u.getId());
             apiKeyRepository.deleteByUserId(u.getId());
             userRepository.delete(u);
         });
+        // Flush the delete to DB before inserting the same email again —
+        // without this JPA may batch INSERT before DELETE, hitting uq_users_email.
+        userRepository.flush();
 
         // 2. Create a fully ACTIVE user (bypasses email verification flow)
         User user = new User(testEmail, passwordEncoder.encode(testPassword));

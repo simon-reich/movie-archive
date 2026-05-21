@@ -95,6 +95,9 @@ services:
       ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:?ENCRYPTION_MASTER_KEY is required}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      TEST_USER_EMAIL: ${TEST_USER_EMAIL:-}
+      TEST_USER_PASSWORD: ${TEST_USER_PASSWORD:-}
+      TEST_TMDB_KEY: ${TEST_TMDB_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

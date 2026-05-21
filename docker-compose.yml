@@ -112,6 +112,7 @@ services:
       dockerfile: Dockerfile
     environment:
       NUXT_PUBLIC_API_BASE: /api
+      BACKEND_INTERNAL_URL: http://backend:8080
     depends_on:
       - backend
     restart: unless-stopped

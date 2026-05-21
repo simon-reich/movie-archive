@@ -114,7 +114,8 @@ public class IndexingService {
         client.index(IndexRequest.of(r -> r
                 .index(indexName)
                 .id(movie.getId().toString())
-                .document(doc)));
+                .document(doc)
+                .refresh(org.opensearch.client.opensearch._types.Refresh.WaitFor)));
     }
 
     /**

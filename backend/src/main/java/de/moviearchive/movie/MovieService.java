@@ -83,7 +83,8 @@ public class MovieService {
         return new MovieStatusResponse(
                 movie.getId().toString(),
                 movie.getStatus().name(),
-                movie.getTitle()
+                movie.getTitle(),
+                movie.getIndexedAt() != null ? movie.getIndexedAt().toString() : null
         );
     }
 

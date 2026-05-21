@@ -65,7 +65,7 @@ function startPolling(item: SearchResultItem, movieId: string) {
   const interval = setInterval(async () => {
     try {
       const response = await getStatus(movieId)
-      if (response.status === 'SUCCESS') {
+      if (response.status === 'SUCCESS' && response.indexedAt !== null) {
         item.state = 'success'
         savedTmdbIds.value.add(item.tmdbId)
         clearInterval(interval)

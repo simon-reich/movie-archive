@@ -10,6 +10,7 @@ export interface MovieStatusResponse {
   id: string
   status: 'PENDING' | 'SUCCESS' | 'ERROR'
   title: string | null
+  indexedAt: string | null
 }
 
 export type PosterState = 'idle' | 'pending' | 'success' | 'error' | 'saved'

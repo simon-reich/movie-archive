@@ -178,38 +178,44 @@ const crewByDepartment = computed(() => {
           <section class="space-y-4">
 
             <!-- Directors — clickable (D-12) -->
-            <div v-if="movie.directorList.length" class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Director</span>
-              <span v-for="(dir, i) in movie.directorList" :key="dir">
-                <button
-                  class="text-sm hover:text-primary cursor-pointer"
-                  @click="navigateToDirector(dir)"
-                >{{ dir }}</button>
-                <span v-if="i < movie.directorList.length - 1">, </span>
+            <div v-if="movie.directorList.length" class="flex items-baseline gap-2">
+              <span class="shrink-0 text-sm font-semibold tracking-widest uppercase text-muted-foreground">Director</span>
+              <span class="text-sm leading-snug">
+                <span v-for="(dir, i) in movie.directorList" :key="dir">
+                  <button
+                    class="hover:text-primary cursor-pointer"
+                    @click="navigateToDirector(dir)"
+                  >{{ dir }}</button>
+                  <span v-if="i < movie.directorList.length - 1">, </span>
+                </span>
               </span>
             </div>
 
             <!-- Writers — clickable like directors -->
-            <div v-if="movie.writerList.length" class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Writer</span>
-              <span v-for="(writer, i) in movie.writerList" :key="writer">
-                <button
-                  class="text-sm hover:text-primary cursor-pointer"
-                  @click="navigateToCrew(writer)"
-                >{{ writer }}</button>
-                <span v-if="i < movie.writerList.length - 1">, </span>
+            <div v-if="movie.writerList.length" class="flex items-baseline gap-2">
+              <span class="shrink-0 text-sm font-semibold tracking-widest uppercase text-muted-foreground">Writer</span>
+              <span class="text-sm leading-snug">
+                <span v-for="(writer, i) in movie.writerList" :key="writer">
+                  <button
+                    class="hover:text-primary cursor-pointer"
+                    @click="navigateToCrew(writer)"
+                  >{{ writer }}</button>
+                  <span v-if="i < movie.writerList.length - 1">, </span>
+                </span>
               </span>
             </div>
 
             <!-- Main cast — names only, clickable -->
-            <div v-if="displayCast.length" class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Cast</span>
-              <span v-for="(member, i) in displayCast" :key="member.name ?? ''">
-                <button
-                  class="text-sm hover:text-primary cursor-pointer"
-                  @click="member.name && navigateToActor(member.name)"
-                >{{ member.name }}</button>
-                <span v-if="i < displayCast.length - 1">, </span>
+            <div v-if="displayCast.length" class="flex items-baseline gap-2">
+              <span class="shrink-0 text-sm font-semibold tracking-widest uppercase text-muted-foreground">Cast</span>
+              <span class="text-sm leading-snug">
+                <span v-for="(member, i) in displayCast" :key="member.name ?? ''">
+                  <button
+                    class="hover:text-primary cursor-pointer"
+                    @click="member.name && navigateToActor(member.name)"
+                  >{{ member.name }}</button>
+                  <span v-if="i < displayCast.length - 1">, </span>
+                </span>
               </span>
             </div>
 

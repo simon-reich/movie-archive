@@ -8,7 +8,7 @@ import TrailerEmbed from '@/components/TrailerEmbed.vue'
 
 useHead({
   title: 'Film Detail — MovieArchive',
-  style: [{ innerHTML: 'body { background: linear-gradient(to bottom, #000 0%, hsl(37 33% 96%) 100%) !important; }' }],
+  style: [{ innerHTML: 'html { background-color: #111 !important; }' }],
 })
 
 const route = useRoute()

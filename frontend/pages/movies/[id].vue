@@ -6,7 +6,10 @@ import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import StarRating from '@/components/StarRating.vue'
 import TrailerEmbed from '@/components/TrailerEmbed.vue'
 
-useHead({ title: 'Film Detail — MovieArchive' })
+useHead({
+  title: 'Film Detail — MovieArchive',
+  style: [{ children: 'body { background-color: hsl(30 12% 10%) !important; }' }],
+})
 
 const route = useRoute()
 const id = route.params.id as string
@@ -103,9 +106,7 @@ const crewByDepartment = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
-    <!-- Black panel above viewport: revealed by iOS top-overscroll bounce -->
-    <div class="fixed left-0 right-0 top-0 -z-10 h-screen -translate-y-full bg-black" aria-hidden="true" />
+  <div class="dark min-h-screen bg-background text-foreground">
 
     <!-- Loading state -->
     <div v-if="isLoading" class="flex items-center justify-center py-24">
@@ -379,7 +380,7 @@ const crewByDepartment = computed(() => {
       <!-- Remove button at bottom -->
       <div class="max-w-7xl mx-auto px-4 py-8 border-t border-border flex justify-center">
         <button
-          class="flex items-center gap-1.5 text-sm text-foreground hover:opacity-70"
+          class="flex items-center gap-1.5 text-sm text-primary hover:opacity-80"
           @click="deleteModalOpen = true"
         >
           <TrashIcon class="w-4 h-4" />

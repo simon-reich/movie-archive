@@ -50,24 +50,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENRICH-01 | TBD | Pending |
-| ENRICH-02 | TBD | Pending |
-| ENRICH-03 | TBD | Pending |
-| ENRICH-04 | TBD | Pending |
-| ENRICH-05 | TBD | Pending |
-| IMPORT-01 | TBD | Pending |
-| IMPORT-02 | TBD | Pending |
-| IMPORT-03 | TBD | Pending |
-| IMPORT-04 | TBD | Pending |
-| IMPORT-05 | TBD | Pending |
-| IMPORT-06 | TBD | Pending |
-| IMPORT-07 | TBD | Pending |
+| ENRICH-01 | Phase 8 | Pending |
+| ENRICH-02 | Phase 8 | Pending |
+| ENRICH-03 | Phase 8 | Pending |
+| ENRICH-04 | Phase 9 | Pending |
+| ENRICH-05 | Phase 9 | Pending |
+| IMPORT-01 | Phase 10 | Pending |
+| IMPORT-02 | Phase 10 | Pending |
+| IMPORT-03 | Phase 10 | Pending |
+| IMPORT-04 | Phase 10 | Pending |
+| IMPORT-05 | Phase 11 | Pending |
+| IMPORT-06 | Phase 11 | Pending |
+| IMPORT-07 | Phase 10 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 12 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 12 ⚠️
+- Mapped to phases: 12/12 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-08-22*
-*Last updated: 2026-08-22 after initial definition*
+*Last updated: 2026-08-22 after ROADMAP.md creation (Phases 8–11)*

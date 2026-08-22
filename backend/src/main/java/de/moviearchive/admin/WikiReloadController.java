@@ -4,6 +4,7 @@ import de.moviearchive.enrichment.WikiReloadService;
 import de.moviearchive.user.User;
 import de.moviearchive.user.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -14,10 +15,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * TRACER (Plan 08-01) — POST /admin/wiki-reload/{userId} triggers a Wikipedia-only
- * batch retry for the user's films missing wiki data. Synchronous and unpaced in this
- * plan; Plan 08-02 switches batchReload() to fire-and-forget @Async and this endpoint's
- * response to 202 Accepted.
+ * POST /admin/wiki-reload/{userId} triggers a fire-and-forget Wikipedia-only batch retry
+ * (D-05) for the user's cooldown-eligible films missing wiki data. Returns 202 Accepted
+ * immediately; the batch runs async on the dedicated wikiReloadExecutor. A third
+ * overlapping trigger (beyond 1 running + 1 queued) is rejected with 503 (T-08-02).
  *
  * No hasRole("ADMIN") check — no such role/authority exists anywhere in this codebase's
  * SecurityConfig or User entity; "admin" endpoints here mean ownership-checked +
@@ -48,7 +49,7 @@ public class WikiReloadController {
         assertOwnership(auth, userId);
         log.info("Wiki batch-reload requested for userId={}", userId);
         wikiReloadService.batchReload(userId);
-        return ResponseEntity.ok(Map.of("status", "completed"));
+        return ResponseEntity.accepted().body(Map.of("status", "started"));
     }
 
     /**
@@ -69,5 +70,15 @@ public class WikiReloadController {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(403).body(Map.of("message", "Access denied."));
+    }
+
+    /**
+     * Fires when wikiReloadExecutor's bounded queue (1 running + 1 queued) is already full
+     * and a third overlapping trigger is submitted (T-08-02, DoS mitigation).
+     */
+    @ExceptionHandler(TaskRejectedException.class)
+    public ResponseEntity<Map<String, String>> handleTaskRejected(TaskRejectedException ex) {
+        return ResponseEntity.status(503).body(Map.of(
+                "message", "A wiki-reload is already in progress for this user; try again shortly."));
     }
 }

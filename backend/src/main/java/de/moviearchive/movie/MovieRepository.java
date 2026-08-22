@@ -56,11 +56,14 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
     List<Movie> findRecentlyIndexedByUserId(@Param("userId") UUID userId, Pageable pageable);
 
     /**
-     * TRACER version (Plan 08-01) — returns movies for the user missing Wikipedia data
-     * (wiki_url IS NULL), with no cooldown filter. Used by the tracer batch-reload path.
-     * Plan 08-02 replaces this with findEligibleForWikiReload, which adds cooldown-window
-     * eligibility filtering (wiki_last_attempted_at IS NULL OR < cutoff).
+     * Returns movies for the user missing Wikipedia data (wiki_url IS NULL) whose last
+     * attempt was either never made or is outside the cooldown window. Only SUCCESS-status
+     * movies are eligible — ERROR-status movies never reached the Wikipedia step and have
+     * no reliable title/year to look up, so including them would waste a paced Wikipedia
+     * call on incomplete data. Used by batch-reload (ENRICH-02).
      */
-    @Query("SELECT m FROM Movie m WHERE m.user.id = :userId AND m.wikiUrl IS NULL")
-    List<Movie> findByUserIdAndWikiUrlIsNull(@Param("userId") UUID userId);
+    @Query("SELECT m FROM Movie m WHERE m.user.id = :userId AND m.wikiUrl IS NULL " +
+           "AND m.status = de.moviearchive.movie.MovieStatus.SUCCESS " +
+           "AND (m.wikiLastAttemptedAt IS NULL OR m.wikiLastAttemptedAt < :cutoff)")
+    List<Movie> findEligibleForWikiReload(@Param("userId") UUID userId, @Param("cutoff") Instant cutoff);
 }

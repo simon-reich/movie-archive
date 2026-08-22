@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Controller test for POST /admin/wiki-reload/{userId} (TRACER — Plan 08-01).
+ * Controller test for POST /admin/wiki-reload/{userId}.
  * Needs BOTH OpenSearch (via AbstractOpenSearchTest) AND WireMock (Wikipedia stubbing).
  * Java forbids extending two base test classes, so the WireMockExtension registration
  * is duplicated locally here rather than inherited from AbstractWireMockTest.
@@ -147,6 +147,27 @@ class WikiReloadControllerTest extends AbstractOpenSearchTest {
                 StandardCharsets.UTF_8);
     }
 
+    /**
+     * Polls until the movie's indexedAt is set (batchReload is now fire-and-forget @Async,
+     * so the triggering request returns before the batch finishes) or the timeout elapses.
+     * Mirrors EnrichmentIntegrationTest.pollForCompletion. Polls on indexedAt rather than
+     * wikiLastAttemptedAt — the latter is set by the FIRST of retryWikipedia()'s two save()
+     * calls, well before the re-index step's second save() sets indexedAt; polling on the
+     * earlier field would let the test assert (and the next test's @BeforeEach cleanDb()
+     * delete the row) while the async re-index save is still in flight.
+     */
+    private Movie pollForWikiAttempt(java.util.UUID movieId, long timeoutMs) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            Movie m = movieRepository.findById(movieId).orElseThrow();
+            if (m.getIndexedAt() != null) {
+                return m;
+            }
+            Thread.sleep(100);
+        }
+        return movieRepository.findById(movieId).orElseThrow();
+    }
+
     // ── Tests ─────────────────────────────────────────────────────────────────
 
     /**
@@ -225,10 +246,10 @@ class WikiReloadControllerTest extends AbstractOpenSearchTest {
 
         mockMvc.perform(post("/admin/wiki-reload/" + user.getId())
                         .header("Authorization", token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("completed"));
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("started"));
 
-        Movie reloaded = movieRepository.findById(movie.getId()).orElseThrow();
+        Movie reloaded = pollForWikiAttempt(movie.getId(), 5000);
         assertThat(reloaded.getWikiUrl()).isNotNull();
         assertThat(reloaded.getWikiLastAttemptedAt()).isNotNull();
         assertThat(reloaded.getIndexedAt()).isNotNull();

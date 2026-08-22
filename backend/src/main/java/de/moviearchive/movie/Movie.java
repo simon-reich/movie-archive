@@ -69,6 +69,9 @@ public class Movie {
     @Column(name = "indexed_at")
     private Instant indexedAt;
 
+    @Column(name = "wiki_last_attempted_at")
+    private Instant wikiLastAttemptedAt;
+
     @Column(name = "watched", nullable = false)
     private Boolean watched = false;
 

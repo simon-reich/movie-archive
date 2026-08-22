@@ -95,6 +95,7 @@ public class EnrichmentService {
 
             // === Step 3: Wikipedia (OPTIONAL — 6-step fallback, always silent on failure) ===
             try {
+                movie.setWikiLastAttemptedAt(Instant.now());
                 int year = movie.getReleaseDate() != null ? movie.getReleaseDate().getYear() : 0;
                 String origTitle = movie.getOriginalTitle() != null ? movie.getOriginalTitle() : movie.getTitle();
                 String movieTitle = movie.getTitle() != null ? movie.getTitle() : "";

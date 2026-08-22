@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,4 +54,13 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
     @Query("SELECT m FROM Movie m WHERE m.user.id = :userId AND m.indexedAt IS NOT NULL " +
            "ORDER BY m.indexedAt DESC")
     List<Movie> findRecentlyIndexedByUserId(@Param("userId") UUID userId, Pageable pageable);
+
+    /**
+     * TRACER version (Plan 08-01) — returns movies for the user missing Wikipedia data
+     * (wiki_url IS NULL), with no cooldown filter. Used by the tracer batch-reload path.
+     * Plan 08-02 replaces this with findEligibleForWikiReload, which adds cooldown-window
+     * eligibility filtering (wiki_last_attempted_at IS NULL OR < cutoff).
+     */
+    @Query("SELECT m FROM Movie m WHERE m.user.id = :userId AND m.wikiUrl IS NULL")
+    List<Movie> findByUserIdAndWikiUrlIsNull(@Param("userId") UUID userId);
 }

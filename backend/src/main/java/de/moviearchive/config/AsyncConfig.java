@@ -19,4 +19,22 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    /**
+     * Dedicated executor for WikiReloadService.batchReload (D-05). Sized core=1/max=1/
+     * queue=1 by design (D-07) — a larger pool would allow two batch runs to pace
+     * Wikipedia calls simultaneously from different threads, defeating the point of
+     * sequential pacing. A third overlapping trigger is rejected (TaskRejectedException)
+     * once the single run-slot and single queue-slot are both occupied.
+     */
+    @Bean(name = "wikiReloadExecutor")
+    public Executor wikiReloadExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        executor.setQueueCapacity(1);
+        executor.setThreadNamePrefix("wiki-reload-");
+        executor.initialize();
+        return executor;
+    }
 }

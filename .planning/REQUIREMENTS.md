@@ -11,7 +11,7 @@ Requirements for the v1.1 milestone. Each maps to roadmap phases.
 
 - [x] **ENRICH-01**: System speichert `wiki_last_attempted_at` Zeitstempel pro Film bei jedem Wikipedia-Enrichment-Versuch (Erfolg oder Fehlschlag)
 - [x] **ENRICH-02**: Batch-Reload-Endpoint findet alle Filme eines Users ohne Wikipedia-Daten, deren letzter Versuch außerhalb des Cooldown-Fensters liegt (oder nie versucht wurde)
-- [ ] **ENRICH-03**: Batch-Reload verarbeitet gefundene Filme gepaced (Delay zwischen Wikipedia-Calls), um erneutes Rate-Limiting zu vermeiden
+- [x] **ENRICH-03**: Batch-Reload verarbeitet gefundene Filme gepaced (Delay zwischen Wikipedia-Calls), um erneutes Rate-Limiting zu vermeiden
 - [ ] **ENRICH-04**: User kann auf der Film-Detailseite eines Films ohne Wikipedia-Daten einen Retry-Button klicken, der einen einzelnen Enrichment-Versuch auslöst
 - [ ] **ENRICH-05**: Retry-Button zeigt Ergebnis an (Erfolg: Wiki-Daten erscheinen; Fehlschlag: Hinweis, `wiki_last_attempted_at` aktualisiert)
 
@@ -52,7 +52,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | ENRICH-01 | Phase 8 | Complete |
 | ENRICH-02 | Phase 8 | Complete |
-| ENRICH-03 | Phase 8 | Pending |
+| ENRICH-03 | Phase 8 | Complete |
 | ENRICH-04 | Phase 9 | Pending |
 | ENRICH-05 | Phase 9 | Pending |
 | IMPORT-01 | Phase 10 | Pending |

@@ -7,6 +7,7 @@ import de.moviearchive.enrichment.WikiReloadService;
 import de.moviearchive.indexing.IndexingService;
 import de.moviearchive.user.User;
 import de.moviearchive.user.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -39,9 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * stubbing); WireMockExtension registration is duplicated locally (same pattern as
  * WikiReloadControllerTest) since Java forbids extending two base test classes.
  *
- * The whole class overrides wiki.retry.pacing-delay-ms=500 (the global test-suite default
- * from application-test.properties is 1ms, too fast to observe timing) — RESEARCH.md
- * Pitfall 5.
+ * The whole class overrides wiki.retry.pacing-delay-ms (the global test-suite default from
+ * application-test.properties is 1ms, too fast to observe timing) — RESEARCH.md Pitfall 5.
  */
 class WikiReloadServiceIntegrationTest extends AbstractOpenSearchTest {
 
@@ -85,6 +85,20 @@ class WikiReloadServiceIntegrationTest extends AbstractOpenSearchTest {
 
     @BeforeEach
     void cleanDb() {
+        movieRepository.deleteAll();
+        userRepository.deleteAll();
+    }
+
+    /**
+     * Cleans up after each test too, not just before — @BeforeEach alone only guarantees a
+     * clean slate for the NEXT run of THIS class. Other test classes sharing the same
+     * singleton Postgres container (e.g. AuthControllerTest, which only deletes users, not
+     * movies, in its own @BeforeEach) can run immediately after this class in the same JVM;
+     * leaving no residue here prevents this class's users/movies from tripping an unrelated
+     * class's FK-constrained deleteAll(), regardless of JUnit's test class execution order.
+     */
+    @AfterEach
+    void cleanDbAfter() {
         movieRepository.deleteAll();
         userRepository.deleteAll();
     }

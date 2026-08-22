@@ -7,6 +7,7 @@ import de.moviearchive.enrichment.OmdbClient;
 import de.moviearchive.enrichment.TmdbClient;
 import de.moviearchive.enrichment.WikipediaClient;
 import de.moviearchive.enrichment.WikipediaNotFoundException;
+import de.moviearchive.enrichment.WikipediaResult;
 import de.moviearchive.indexing.IndexingService;
 import de.moviearchive.settings.SettingsService;
 import de.moviearchive.user.User;
@@ -27,7 +28,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -76,8 +79,11 @@ class EnrichmentServiceTest {
         when(movieRepository.findByIdWithUser(movieId)).thenReturn(Optional.of(movie));
         when(movieRepository.save(any(Movie.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Default Wikipedia: throws not found (silent)
-        when(wikipediaClient.fetch(anyString(), anyString(), anyInt()))
+        // Default Wikipedia: throws not found (silent). lenient() because
+        // shouldSetWikiLastAttemptedAt_onWikipediaSuccess() overrides this stub entirely
+        // (doReturn) before ever invoking it, which would otherwise trip Mockito's strict
+        // unnecessary-stubbing check.
+        lenient().when(wikipediaClient.fetch(anyString(), anyString(), anyInt()))
                 .thenThrow(new WikipediaNotFoundException("not found"));
 
         // Default OpenSearch: simulate connection failure (D-01 silent fail — no real OS in unit tests).
@@ -148,5 +154,27 @@ class EnrichmentServiceTest {
         verify(movieRepository).save(saved.capture());
         assertThat(saved.getValue().getStatus()).isEqualTo(MovieStatus.SUCCESS);
         assertThat(saved.getValue().getWikiUrl()).isNull();
+        assertThat(saved.getValue().getWikiLastAttemptedAt()).isNotNull();
+    }
+
+    @Test
+    void shouldSetWikiLastAttemptedAt_onWikipediaSuccess() throws Exception {
+        when(settingsService.getApiKeys("test@example.com"))
+                .thenReturn(Map.of("tmdb", "tmdb-key"));
+        when(tmdbClient.fetchDetail(27205, "tmdb-key"))
+                .thenReturn(tmdbDetailWithImdbId("tt1375666"));
+        // Override the @BeforeEach not-found default for this test only. Use doReturn().when()
+        // (not when().thenReturn()) because the mock is already stubbed to throw — calling
+        // wikipediaClient.fetch(...) as part of when(...) would trigger that throw first.
+        WikipediaResult wiki = new WikipediaResult(
+                "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
+        doReturn(wiki).when(wikipediaClient).fetch(anyString(), anyString(), anyInt());
+
+        enrichmentService.enrich(movieId);
+
+        ArgumentCaptor<Movie> saved = ArgumentCaptor.forClass(Movie.class);
+        verify(movieRepository).save(saved.capture());
+        assertThat(saved.getValue().getWikiLastAttemptedAt()).isNotNull();
+        assertThat(saved.getValue().getWikiUrl()).isEqualTo(wiki.url());
     }
 }

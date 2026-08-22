@@ -141,6 +141,7 @@ class EnrichmentIntegrationTest extends AbstractWireMockTest {
         assertThat(enriched.getStatus()).isEqualTo(MovieStatus.SUCCESS);
         assertThat(enriched.getWikiUrl()).isNull();
         assertThat(enriched.getWikiPlot()).isNull();
+        assertThat(enriched.getWikiLastAttemptedAt()).isNotNull();
     }
 
     @Test

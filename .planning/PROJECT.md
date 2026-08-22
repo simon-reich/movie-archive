@@ -8,6 +8,19 @@ Personal web app to build a searchable film archive. Movies are fetched via TMDB
 
 Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso schnell wiederfinden lassen. Beides zusammen macht den Wert, keines davon allein reicht.
 
+## Current Milestone: v1.1 Enrichment Reliability & Bulk Import
+
+**Goal:** Enrichment-Lücken sichtbar und behebbar machen — automatisiert/bulk und manuell pro Film — und Bulk-Import als vollwertiges In-App-Feature mit Nachvollziehbarkeit.
+
+**Target features:**
+- Wiki-Lookup-Status (`wiki_last_attempted_at`) pro Film; Batch-Reload überspringt nur kürzlich (Cooldown, z.B. 30 Tage) erfolglos versuchte Filme
+- Batch-Reload-Funktion mit Pacing, um erneutes Rate-Limiting durch Wikipedia zu vermeiden
+- Manueller Retry-Button auf der Detailseite eines Films ohne Wiki-Daten
+- Bulk-Import als In-App-Feature (Bereich "Add Film"): Datei-Upload statt externem Script
+- Import-Feedback-UI: Live-Fortschritt + Ergebnisübersicht mit Titel/Poster/Status pro Zeile
+
+**Trigger:** Bulk-Import von ~630 Filmen (externes Node-Script) führte zu einem Enrichment-Burst, der Wikipedia offenbar ins Rate-Limiting/Blocking trieb — ~89% der importierten Filme blieben ohne Wikipedia-Daten, silent-failed ohne Retry-Möglichkeit.
+
 ## Requirements
 
 ### Validated
@@ -48,7 +61,16 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 - ✓ QLTY-02: Playwright E2E Happy Paths auf Desktop + Mobile Chrome — Phase 7
 - ✓ QLTY-03: GitHub Actions E2E CI + README Setup-Dokumentation — Phase 7
 
-### Active (v2 candidates)
+### Active
+
+- [ ] ENRICH-01: `wiki_last_attempted_at` Zeitstempel pro Film; unterscheidet "nie versucht", "kürzlich erfolglos" (Cooldown), "lange nicht mehr versucht"
+- [ ] ENRICH-02: Batch-Reload-Endpoint lädt Wiki-Daten für alle Filme mit offenem Status nach (Cooldown-Filter, gepaced)
+- [ ] ENRICH-03: Manueller Retry-Button auf Detailseite für Filme ohne Wiki-Daten
+- [ ] IMPORT-01: Bulk-Import (Titel+Jahr-Liste) als In-App-Feature, Datei-Upload im Bereich "Add Film"
+- [ ] IMPORT-02: Live-Fortschrittsanzeige während des Imports
+- [ ] IMPORT-03: Ergebnisübersicht nach Import — Titel, Poster, Status (gespeichert/mehrdeutig/nicht gefunden) pro Zeile
+
+### v2 candidates (deferred, not in v1.1)
 
 - [ ] SET-05: CSV-Export aller Filmdaten — deferred from v1 (UI placeholder vorhanden)
 - [ ] SET-06: CSV-Import aus Datei — deferred from v1 (UI placeholder vorhanden)
@@ -75,6 +97,8 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 - Stack: Spring Boot 3 + Java 25 / Nuxt 3 + Vue 3 + TypeScript + TailwindCSS + shadcn-vue / PostgreSQL 16 / OpenSearch 2.x / Caddy / Docker Compose
 - Testing: JUnit 5 + Testcontainers (BE), Vitest + Vue Test Utils + MSW (FE), Playwright E2E
 - External APIs: TMDB (required), OMDB (optional), Wikipedia (always tried)
+
+**v1.1 trigger (2026-08-22):** Bulk-imported ~630 Filme via externes Script gegen die bestehenden `/movies/search` + `/movies/save` Endpoints. 462 gespeichert, aber nur 58 von 526 gespeicherten Filmen (~11%) haben Wikipedia-Daten — OMDB (523/526) unauffällig. Root cause: `enrichmentExecutor` (2 core/5 max Threads, `backend/.../config/AsyncConfig.java`) verarbeitete den Burst mit vielen sequenziellen Wikipedia-Calls pro Film; `WikipediaClient` User-Agent `"MovieArchive/0.1"` vermutlich rate-limited/blockiert. `EnrichmentService.enrich()` schluckt Wikipedia-Fehler bewusst still (D-15) — kein Retry, kein Fehlerstatus. `/movies/save` ist idempotent, re-triggert also kein Re-Enrichment für bereits gespeicherte Filme; `ReindexController` re-synct nur Postgres→OpenSearch, ruft nie externe APIs erneut auf. Live verifiziert: Wikipedia-Lookup-Logik selbst funktioniert (Testabruf für "Whiplash" fand sofort Treffer).
 
 ## Constraints
 
@@ -104,10 +128,28 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 | Refresh.WaitFor auf index() | Document sofort suchbar — behebt E2E Mobile Chrome Race Condition | ✓ Good — Phase 7 |
 | Tailwind viewport breakpoints für Star Rating | Container queries scheiterten an flex shrink-to-fit sizing | ✓ Good — Phase 7 |
 | useHead html background für overscroll | Browser nutzen \<html\> background für top-overscroll gutter | ✓ Good — Phase 7 |
+| Cooldown-Zeitstempel statt permanentem "not found"-Flag für Wiki-Lookup | Wikipedia-Seiten entstehen über Zeit neu; permanenter Skip würde das dauerhaft verpassen | — Pending — v1.1 |
 
 ## Design System
 
 **Global UI-SPEC:** `.planning/UI-SPEC.md` — shared app-level design contract (approved, Phase 1). All phases with frontend work use this file.
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-05-21 after v1.0 milestone completion*
+*Last updated: 2026-08-22 after starting v1.1 milestone*

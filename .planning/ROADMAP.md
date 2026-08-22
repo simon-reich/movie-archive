@@ -42,7 +42,9 @@
   1. Every Wikipedia enrichment attempt (success or failure) records a `wiki_last_attempted_at` timestamp on the film.
   2. A batch-reload endpoint reprocesses only films without Wikipedia data whose last attempt is outside the cooldown window (or never attempted); films that failed recently, within the cooldown, are skipped.
   3. Batch-reload requests to Wikipedia are paced with a delay between calls, so reprocessing many eligible films does not fire near-simultaneous requests.
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 08-01-PLAN.md — Wiki attempt tracking (both paths) + minimal end-to-end batch-reload endpoint (tracer)
+- [ ] 08-02-PLAN.md — Cooldown-window eligibility filtering + async execution with pacing + concurrency safeguards
 
 ### Phase 9: Manual Wiki Retry
 **Goal**: Users can manually retry Wikipedia enrichment for a single film from its detail page and immediately see whether it succeeded.

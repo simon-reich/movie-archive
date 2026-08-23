@@ -62,11 +62,12 @@
   3. On success, the film's Wikipedia plot/critics data appears on the page.
   4. On failure, the user sees a clear message that no Wikipedia data was found, and the film's `wiki_last_attempted_at` is updated so the batch-reload cooldown reflects the manual attempt too.
 
-**Plans**: 2 plans
+**Plans**: 2/2 plans executed
 
 Plans:
-- [ ] 09-01-PLAN.md — Per-film Wikipedia retry (ENRICH-04, ENRICH-05): POST /movies/{id}/retry-wiki + detail-page Retry button
-- [ ] 09-02-PLAN.md — Batch-reload trigger button (folded todo): GET /users/me + Settings-page reload button
+
+- [x] 09-01-PLAN.md — Per-film Wikipedia retry (ENRICH-04, ENRICH-05): POST /movies/{id}/retry-wiki + detail-page Retry button
+- [x] 09-02-PLAN.md — Batch-reload trigger button (folded todo): GET /users/me + Settings-page reload button
 
 ### Phase 10: Bulk Import Engine
 
@@ -110,6 +111,6 @@ Plans:
 | 6. Movie Detail & Personal Fields | v1.0 | 6/6 | ✅ Complete | 2026-05-20 |
 | 7. Polish & Quality | v1.0 | 3/3 | ✅ Complete | 2026-05-21 |
 | 8. Wiki Enrichment Tracking & Batch Reload | v1.1 | 0/TBD | Complete    | 2026-08-23 |
-| 9. Manual Wiki Retry | v1.1 | 0/2 | Planned | - |
+| 9. Manual Wiki Retry | v1.1 | 0/2 | In Progress|  |
 | 10. Bulk Import Engine | v1.1 | 0/TBD | Not started | - |
 | 11. Bulk Import Feedback UI | v1.1 | 0/TBD | Not started | - |

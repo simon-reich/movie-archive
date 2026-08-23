@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -50,7 +51,12 @@ class WikiReloadServiceTest {
 
     @BeforeEach
     void setUp() {
-        wikiReloadService = new WikiReloadService(movieRepository, wikipediaClient, indexingService);
+        wikiReloadService = new WikiReloadService(movieRepository, wikipediaClient, indexingService, null);
+        // No Spring context in this unit test, so there's no real @Lazy proxy to inject for
+        // the "self" self-invocation fix (WR-01) — wire the instance to itself so
+        // batchReload()'s self.retryWikipedia(...) call resolves the same way the AOP proxy
+        // would in production (transactional semantics aren't exercised by Mockito anyway).
+        ReflectionTestUtils.setField(wikiReloadService, "self", wikiReloadService);
         user = new User("test@example.com", "hash");
         when(movieRepository.save(any(Movie.class))).thenAnswer(inv -> inv.getArgument(0));
     }

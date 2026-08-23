@@ -5,6 +5,7 @@ import de.moviearchive.movie.Movie;
 import de.moviearchive.movie.MovieRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,7 @@ public class WikiReloadService {
     private final MovieRepository movieRepository;
     private final WikipediaClient wikipediaClient;
     private final IndexingService indexingService;
+    private final WikiReloadService self;
 
     @Value("${wiki.retry.cooldown-days:30}")
     private long cooldownDays;
@@ -43,12 +45,23 @@ public class WikiReloadService {
     @Value("${wiki.retry.pacing-delay-ms:1000}")
     private long pacingDelayMs;
 
+    /**
+     * {@code self} is a lazily-resolved reference to this bean's own Spring proxy. Calling
+     * {@code self.retryWikipedia(...)} instead of {@code this.retryWikipedia(...)} from
+     * batchReload() routes the call through the proxy so @Transactional actually applies —
+     * a same-class unqualified call bypasses Spring AOP entirely (see class javadoc and
+     * this project's CLAUDE.md note on @Async/@Retryable self-invocation, which applies
+     * identically to @Transactional). @Lazy avoids a circular-init failure since the proxy
+     * wraps this same bean.
+     */
     public WikiReloadService(MovieRepository movieRepository,
                              WikipediaClient wikipediaClient,
-                             IndexingService indexingService) {
+                             IndexingService indexingService,
+                             @Lazy WikiReloadService self) {
         this.movieRepository = movieRepository;
         this.wikipediaClient = wikipediaClient;
         this.indexingService = indexingService;
+        this.self = self;
     }
 
     /**
@@ -106,7 +119,7 @@ public class WikiReloadService {
         for (int i = 0; i < eligible.size(); i++) {
             Movie movie = eligible.get(i);
             try {
-                retryWikipedia(movie);
+                self.retryWikipedia(movie);
             } catch (Exception e) {
                 log.warn("Wiki batch-reload: unexpected error for movieId={}: {}",
                         movie.getId(), e.getMessage());

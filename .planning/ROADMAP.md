@@ -82,7 +82,13 @@ Plans:
   4. A line with multiple year-matching candidates is marked ambiguous instead of being auto-guessed.
   5. Re-uploading the same file skips lines already saved in a previous run — no duplicate TMDB calls and no duplicate saves for those lines.
 
-**Plans**: TBD
+**Plans**: 0/2 plans
+
+Plans:
+
+- [ ] 10-01-PLAN.md — Bulk import engine: multipart upload, parse/match/save, dedup-skip-on-reupload (IMPORT-01/02/03/04/07)
+- [ ] 10-02-PLAN.md — Add Film page: bulk import upload trigger (IMPORT-01)
+
 **UI hint**: yes
 
 ### Phase 11: Bulk Import Feedback UI
@@ -112,7 +118,7 @@ Plans:
 | 7. Polish & Quality | v1.0 | 3/3 | ✅ Complete | 2026-05-21 |
 | 8. Wiki Enrichment Tracking & Batch Reload | v1.1 | 0/TBD | Complete    | 2026-08-23 |
 | 9. Manual Wiki Retry | v1.1 | 0/2 | Complete    | 2026-08-23 |
-| 10. Bulk Import Engine | v1.1 | 0/TBD | Not started | - |
+| 10. Bulk Import Engine | v1.1 | 0/2 | Not started | - |
 | 11. Bulk Import Feedback UI | v1.1 | 0/TBD | Not started | - |
 
 ### Phase 12: Wikidata-based Wikipedia lookup

@@ -28,7 +28,7 @@
 **Trigger:** Bulk-Import von ~630 Filmen via externes Node-Script trieb Wikipedia offenbar ins Rate-Limiting — ~89% der importierten Filme blieben ohne Wikipedia-Daten, silent-failed ohne Retry-Möglichkeit (siehe PROJECT.md Context).
 
 - [x] **Phase 8: Wiki Enrichment Tracking & Batch Reload** - Track Wikipedia attempt timestamps per film and batch-reload films missing wiki data with cooldown filtering and paced requests (completed 2026-08-23)
-- [ ] **Phase 9: Manual Wiki Retry** - Per-film retry button on the detail page for films without Wikipedia data, with immediate result feedback
+- [x] **Phase 9: Manual Wiki Retry** - Per-film retry button on the detail page for films without Wikipedia data, with immediate result feedback (completed 2026-08-23)
 - [ ] **Phase 10: Bulk Import Engine** - Upload a title+year list in Add Film; auto-match and save unique TMDB hits, flag ambiguous ones, skip already-imported lines on re-upload
 - [ ] **Phase 11: Bulk Import Feedback UI** - Live progress and a per-line result overview (title, poster, status) for bulk imports
 
@@ -111,6 +111,6 @@ Plans:
 | 6. Movie Detail & Personal Fields | v1.0 | 6/6 | ✅ Complete | 2026-05-20 |
 | 7. Polish & Quality | v1.0 | 3/3 | ✅ Complete | 2026-05-21 |
 | 8. Wiki Enrichment Tracking & Batch Reload | v1.1 | 0/TBD | Complete    | 2026-08-23 |
-| 9. Manual Wiki Retry | v1.1 | 0/2 | In Progress|  |
+| 9. Manual Wiki Retry | v1.1 | 0/2 | Complete    | 2026-08-23 |
 | 10. Bulk Import Engine | v1.1 | 0/TBD | Not started | - |
 | 11. Bulk Import Feedback UI | v1.1 | 0/TBD | Not started | - |

@@ -14,7 +14,7 @@ useHead({
 const route = useRoute()
 const id = route.params.id as string
 
-const { movie, isLoading, error, updatePersonal, deleteMovie, wikiRetrying, retryWiki } = useMovieDetail(id)
+const { movie, isLoading, error, updatePersonal, deleteMovie, wikiRetrying, wikiRetryError, retryWiki } = useMovieDetail(id)
 
 // ── Wikipedia retry (ENRICH-04/ENRICH-05) ───────────────────────────────────
 const wikiRetryAttempted = ref(false)
@@ -348,7 +348,8 @@ const crewByDepartment = computed(() => {
       <div v-else class="max-w-7xl mx-auto px-4 pb-8 space-y-4 border-t border-border pt-8">
         <p class="text-sm text-muted-foreground">
           No Wikipedia data found.
-          <span v-if="wikiRetryAttempted"> Still no page found.</span>
+          <span v-if="wikiRetryError"> Something went wrong — try again.</span>
+          <span v-else-if="wikiRetryAttempted"> Still no page found.</span>
         </p>
         <button
           type="button"

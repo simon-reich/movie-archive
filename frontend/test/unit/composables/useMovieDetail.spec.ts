@@ -117,14 +117,30 @@ describe('useMovieDetail composable', () => {
     expect(movie.value).toEqual(retriedMovie)
   })
 
-  it('retryWiki does not throw when the request rejects', async () => {
+  it('retryWiki sets wikiRetryError (not a silent no-op) when the request rejects', async () => {
     mockFetch.mockResolvedValueOnce(MOCK_MOVIE) // initial fetchDetail() on init
-    const { wikiRetrying, retryWiki } = useMovieDetail('test-id')
+    const { wikiRetrying, wikiRetryError, retryWiki } = useMovieDetail('test-id')
     await nextTick()
     await nextTick()
 
     mockFetch.mockRejectedValueOnce(new Error('Network error'))
     await expect(retryWiki()).resolves.toBeUndefined()
     expect(wikiRetrying.value).toBe(false)
+    expect(wikiRetryError.value).toBe(true)
+  })
+
+  it('retryWiki clears a prior wikiRetryError on a subsequent successful attempt', async () => {
+    mockFetch.mockResolvedValueOnce(MOCK_MOVIE) // initial fetchDetail() on init
+    const { wikiRetryError, retryWiki } = useMovieDetail('test-id')
+    await nextTick()
+    await nextTick()
+
+    mockFetch.mockRejectedValueOnce(new Error('Network error'))
+    await retryWiki()
+    expect(wikiRetryError.value).toBe(true)
+
+    mockFetch.mockResolvedValueOnce(MOCK_MOVIE)
+    await retryWiki()
+    expect(wikiRetryError.value).toBe(false)
   })
 })

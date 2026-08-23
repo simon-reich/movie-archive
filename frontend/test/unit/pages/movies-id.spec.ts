@@ -10,6 +10,7 @@ const mockMovieRef = ref<Record<string, unknown> | null>(null)
 const mockIsLoading = ref(false)
 const mockError = ref<string | null>(null)
 const mockWikiRetrying = ref(false)
+const mockWikiRetryError = ref(false)
 
 vi.mock('@/composables/useMovieDetail', () => ({
   useMovieDetail: () => ({
@@ -20,6 +21,7 @@ vi.mock('@/composables/useMovieDetail', () => ({
     deleteMovie: mockDeleteMovie,
     retryWiki: mockRetryWiki,
     wikiRetrying: mockWikiRetrying,
+    wikiRetryError: mockWikiRetryError,
   }),
 }))
 
@@ -93,6 +95,7 @@ describe('/movies/[id] page', () => {
     mockIsLoading.value = false
     mockError.value = null
     mockWikiRetrying.value = false
+    mockWikiRetryError.value = false
   })
 
   it('renders film title in hero section', async () => {
@@ -255,6 +258,19 @@ describe('/movies/[id] page', () => {
     expect(wrapper.text()).toContain('Still no page found.')
     const buttonAfter = wrapper.findAll('button').find(b => b.text().includes('Retry'))
     expect(buttonAfter!.attributes('disabled')).toBeUndefined()
+  })
+
+  it('shows "Something went wrong" (not "Still no page found") when the retry request itself fails', async () => {
+    mockWikiRetryError.value = true
+    const movie = { ...MOCK_MOVIE, wikipediaPlot: null, wikipediaCritics: null }
+    const wrapper = await mountPage(movie)
+    const retryButton = wrapper.findAll('button').find(b => b.text().includes('Retry'))
+    expect(retryButton).toBeDefined()
+    await retryButton!.trigger('click')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Something went wrong — try again.')
+    expect(wrapper.text()).not.toContain('Still no page found.')
   })
 
   it('shows spinner and disables the button while wikiRetrying is true', async () => {

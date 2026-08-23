@@ -71,6 +71,7 @@ export function useMovieDetail(movieId: string) {
   const isLoading = ref(true)
   const error = ref<string | null>(null)
   const wikiRetrying = ref(false)
+  const wikiRetryError = ref(false)
 
   async function fetchDetail(): Promise<void> {
     isLoading.value = true
@@ -112,15 +113,20 @@ export function useMovieDetail(movieId: string) {
 
   async function retryWiki(): Promise<void> {
     wikiRetrying.value = true
+    wikiRetryError.value = false
     try {
       const data = await $fetch<MovieDetail>(`/api/movies/${movieId}/retry-wiki`, {
         method: 'POST',
         credentials: 'include',
         headers: authHeaders(),
       })
+      // A 200 response with no Wikipedia fields is a genuine "not found" outcome
+      // (the backend always returns 200 here, success or not — see WikiReloadService).
       movie.value = data
     } catch {
-      // leave movie.value as-is; the page tracks "attempt happened" separately
+      // The request itself failed (network/auth/server error) — distinct from a
+      // genuine "no Wikipedia page found" outcome, which returns 200 with empty fields.
+      wikiRetryError.value = true
     } finally {
       wikiRetrying.value = false
     }
@@ -128,5 +134,5 @@ export function useMovieDetail(movieId: string) {
 
   fetchDetail()
 
-  return { movie, isLoading, error, updatePersonal, deleteMovie, wikiRetrying, retryWiki }
+  return { movie, isLoading, error, updatePersonal, deleteMovie, wikiRetrying, wikiRetryError, retryWiki }
 }

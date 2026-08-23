@@ -107,4 +107,31 @@ describe('useSettings composable', () => {
       expect.objectContaining({ method: 'POST', credentials: 'include', body: { newEmail: 'new@example.com' } })
     )
   })
+
+  it('getCurrentUserId fetches GET /api/users/me once and caches the result', async () => {
+    mockFetch.mockResolvedValueOnce({ id: 'user-abc' })
+    const { getCurrentUserId } = useSettings()
+    const first = await getCurrentUserId()
+    const second = await getCurrentUserId()
+    expect(first).toBe('user-abc')
+    expect(second).toBe('user-abc')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/users/me',
+      expect.objectContaining({ credentials: 'include' })
+    )
+  })
+
+  it("triggerWikiReload calls POST /api/admin/wiki-reload/:userId with the resolved id and returns 'started' on success", async () => {
+    mockFetch.mockResolvedValueOnce({ id: 'user-abc' })
+    mockFetch.mockResolvedValueOnce(undefined)
+    const { triggerWikiReload } = useSettings()
+    const result = await triggerWikiReload()
+    expect(result).toBe('started')
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/admin/wiki-reload/user-abc',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
+  })
 })

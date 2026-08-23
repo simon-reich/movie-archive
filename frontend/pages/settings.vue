@@ -182,6 +182,8 @@ async function onTriggerWikiReload() {
     wikiReloadMessage.value = result === 'started'
       ? 'Reload started — this runs in the background and may take a few minutes.'
       : 'A reload is already in progress.'
+  } catch {
+    wikiReloadMessage.value = 'Something went wrong. Please try again.'
   } finally {
     wikiReloadTriggering.value = false
   }

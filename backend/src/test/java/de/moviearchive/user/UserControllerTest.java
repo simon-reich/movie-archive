@@ -2,6 +2,7 @@ package de.moviearchive.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.moviearchive.AbstractIntegrationTest;
+import de.moviearchive.movie.MovieRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,10 +31,17 @@ class UserControllerTest extends AbstractIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private MovieRepository movieRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void cleanDb() {
+        // Movies must be deleted before users — movies.user_id has a FK constraint onto
+        // users.id, and other test classes (e.g. MovieDetailControllerTest) may leave a
+        // movie+user pair behind from their last test method when run in the same suite.
+        movieRepository.deleteAll();
         userRepository.deleteAll();
     }
 

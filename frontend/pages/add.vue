@@ -6,12 +6,17 @@ import FormErrorBanner from '@/components/FormErrorBanner.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import type { SearchResultItem } from '@/composables/useMovies'
 
-const { searchTmdb, saveMovie, getStatus, getSavedTmdbIds } = useMovies()
+const { searchTmdb, saveMovie, getStatus, getSavedTmdbIds, uploadBulkImport } = useMovies()
 
 const query = ref('')
 const searching = ref(false)
 const searchError = ref<string | null>(null)
 const results = ref<SearchResultItem[]>([])
+
+const selectedFile = ref<File | null>(null)
+const bulkImporting = ref(false)
+const bulkImportError = ref<string | null>(null)
+const bulkImportMessage = ref<string | null>(null)
 
 const pollingIntervals = new Map<string, ReturnType<typeof setInterval>>()
 const savedTmdbIds = ref<Set<number>>(new Set())
@@ -99,6 +104,34 @@ function posterUrl(posterPath: string | null): string {
   if (!posterPath || !posterPath.startsWith('/')) return '/placeholder-poster.svg'
   return `https://image.tmdb.org/t/p/w300${posterPath}`
 }
+
+function handleFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  selectedFile.value = input.files?.[0] ?? null
+  bulkImportError.value = null
+  bulkImportMessage.value = null
+}
+
+async function handleBulkImport() {
+  if (!selectedFile.value) return
+  bulkImporting.value = true
+  bulkImportError.value = null
+  bulkImportMessage.value = null
+  try {
+    await uploadBulkImport(selectedFile.value)
+    bulkImportMessage.value = 'Import started — this runs in the background.'
+    selectedFile.value = null
+  } catch (e: unknown) {
+    const err = e as { status?: number }
+    if (err?.status === 422) {
+      bulkImportError.value = 'No TMDB key configured. Add your key in Settings.'
+    } else {
+      bulkImportError.value = 'Import failed. Please try again.'
+    }
+  } finally {
+    bulkImporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -173,5 +206,29 @@ function posterUrl(posterPath: string | null): string {
         </div>
       </div>
     </div>
+
+    <hr class="border-border my-8">
+
+    <section id="bulk-import">
+      <h1 class="text-xl font-semibold tracking-wide mb-6">Bulk Import</h1>
+      <form class="flex items-center gap-3" @submit.prevent="handleBulkImport">
+        <input
+          id="bulk-import-file"
+          type="file"
+          accept=".txt,.csv"
+          class="text-sm text-foreground file:mr-3 file:h-10 file:px-4 file:border-0 file:bg-primary file:text-primary-foreground file:text-sm file:font-semibold file:rounded-none file:cursor-pointer file:hover:opacity-90"
+          @change="handleFileSelect"
+        >
+        <button
+          type="submit"
+          :disabled="!selectedFile || bulkImporting"
+          class="shrink-0 px-5 h-10 bg-primary text-primary-foreground text-sm font-semibold rounded-none hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ bulkImporting ? 'Uploading...' : 'Import' }}
+        </button>
+      </form>
+      <FormErrorBanner v-if="bulkImportError" :message="bulkImportError" />
+      <p v-if="bulkImportMessage" class="text-sm text-foreground mt-2">{{ bulkImportMessage }}</p>
+    </section>
   </main>
 </template>

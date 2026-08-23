@@ -88,4 +88,21 @@ describe('/add page', () => {
     expect(inception?.state).toBe('saved')
     expect(fightClub?.state).toBe('idle')
   })
+
+  it('useMovies.uploadBulkImport sends file and returns started status', async () => {
+    mockFetch.mockResolvedValueOnce({ status: 'started' })
+    const { useMovies } = await import('@/composables/useMovies')
+    const { uploadBulkImport } = useMovies()
+    const file = new File(['Inception;;2010'], 'films.txt', { type: 'text/plain' })
+    const result = await uploadBulkImport(file)
+    expect(result.status).toBe('started')
+  })
+
+  it('shows 422 error when no TMDB key configured for bulk import', async () => {
+    mockFetch.mockRejectedValueOnce({ status: 422, data: { message: 'No TMDB key configured. Add your key in Settings.' } })
+    const { useMovies } = await import('@/composables/useMovies')
+    const { uploadBulkImport } = useMovies()
+    const file = new File(['Inception;;2010'], 'films.txt', { type: 'text/plain' })
+    await expect(uploadBulkImport(file)).rejects.toMatchObject({ status: 422 })
+  })
 })

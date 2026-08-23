@@ -65,4 +65,14 @@ describe('/settings page', () => {
     const { default: AppNav } = await import('@/components/AppNav.vue')
     expect(AppNav).toBeDefined()
   })
+
+  it('useSettings.triggerWikiReload rejects with a non-503 error — page catch-all is reachable', async () => {
+    // Mirrors the other composable-behavior checks in this file: verifies the
+    // rejection this page's onTriggerWikiReload catch branch depends on actually
+    // surfaces from the composable, without full DOM mounting.
+    mockFetch.mockResolvedValueOnce({ id: 'user-abc' })
+    mockFetch.mockRejectedValueOnce(new Error('network down'))
+    const { triggerWikiReload } = (await import('@/composables/useSettings')).useSettings()
+    await expect(triggerWikiReload()).rejects.toThrow()
+  })
 })

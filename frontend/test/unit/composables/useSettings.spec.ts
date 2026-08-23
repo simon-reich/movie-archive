@@ -134,4 +134,19 @@ describe('useSettings composable', () => {
       expect.objectContaining({ method: 'POST', credentials: 'include' })
     )
   })
+
+  it("triggerWikiReload returns 'already-running' when the POST rejects with a 503 response", async () => {
+    mockFetch.mockResolvedValueOnce({ id: 'user-abc' })
+    mockFetch.mockRejectedValueOnce({ response: { status: 503 } })
+    const { triggerWikiReload } = useSettings()
+    const result = await triggerWikiReload()
+    expect(result).toBe('already-running')
+  })
+
+  it('triggerWikiReload rethrows non-503 errors', async () => {
+    mockFetch.mockResolvedValueOnce({ id: 'user-abc' })
+    mockFetch.mockRejectedValueOnce(new Error('network down'))
+    const { triggerWikiReload } = useSettings()
+    await expect(triggerWikiReload()).rejects.toThrow()
+  })
 })

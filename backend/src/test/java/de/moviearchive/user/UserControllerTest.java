@@ -97,4 +97,27 @@ class UserControllerTest extends AbstractIntegrationTest {
                 .andExpect(result -> assertThat(
                         result.getResponse().getStatus()).isIn(401, 403));
     }
+
+    /**
+     * T-09-04 regression guard: the User entity has no @JsonIgnore guard on passwordHash —
+     * this test would catch it if /users/me were ever changed to serialize the entity
+     * directly instead of the minimal Map.of("id", id).
+     */
+    @Test
+    void me_responseContainsOnlyIdField() throws Exception {
+        User user = createActiveUser("me-only-id@example.com");
+        String token = loginAndGetToken("me-only-id@example.com");
+
+        String response = mockMvc.perform(get("/users/me").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(user.getId().toString()))
+                .andReturn().getResponse().getContentAsString();
+
+        var node = objectMapper.readTree(response);
+        assertThat(node.has("id")).isTrue();
+        assertThat(node.has("passwordHash")).isFalse();
+        assertThat(node.has("email")).isFalse();
+        assertThat(node.has("status")).isFalse();
+        assertThat(node.has("createdAt")).isFalse();
+    }
 }

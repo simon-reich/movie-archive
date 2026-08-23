@@ -43,21 +43,22 @@ public class EnrichmentService {
 
     /**
      * Async enrichment pipeline: TMDB -> OMDB (optional) -> Wikipedia -> Postgres.
-     * Only TMDB failure sets status=ERROR. OMDB and Wikipedia failures are silent (D-15).
+     * Any failure while loading the movie/API keys or during the mandatory TMDB step sets
+     * status=ERROR. OMDB and Wikipedia failures are silent (D-15).
      * MUST be called from a different bean (MovieController) — self-invocation bypasses @Async proxy.
      */
     @Async("enrichmentExecutor")
     @Transactional
     public void enrich(UUID movieId) {
-        // JOIN FETCH user to avoid LazyInitializationException on async thread
-        Movie movie = movieRepository.findByIdWithUser(movieId)
-                .orElseThrow(() -> new IllegalStateException("Movie not found for enrichment: " + movieId));
-
-        String email = movie.getUser().getEmail();
-        Map<String, Object> keys = settingsService.getApiKeys(email);
-        String tmdbKey = (String) keys.get("tmdb");
-
         try {
+            // JOIN FETCH user to avoid LazyInitializationException on async thread
+            Movie movie = movieRepository.findByIdWithUser(movieId)
+                    .orElseThrow(() -> new IllegalStateException("Movie not found for enrichment: " + movieId));
+
+            String email = movie.getUser().getEmail();
+            Map<String, Object> keys = settingsService.getApiKeys(email);
+            String tmdbKey = (String) keys.get("tmdb");
+
             // === Step 1: TMDB detail (MANDATORY) ===
             log.info("Enriching movieId={} tmdbId={}", movieId, movie.getTmdbId());
             JsonNode tmdbDetail = tmdbClient.fetchDetail(movie.getTmdbId(), tmdbKey);
@@ -130,10 +131,14 @@ public class EnrichmentService {
             }
 
         } catch (Exception e) {
-            // TMDB failure (or any unexpected error) -> ERROR status
-            log.error("TMDB enrichment failed for movieId={} — setting status=ERROR", movieId, e);
-            movie.setStatus(MovieStatus.ERROR);
-            movieRepository.save(movie);
+            // Any failure before or during enrichment (including API-key decrypt failures
+            // in settingsService.getApiKeys(), previously outside this try block) -> ERROR
+            // status. If the movie itself couldn't be loaded, there's nothing to update.
+            log.error("Enrichment failed for movieId={} — setting status=ERROR", movieId, e);
+            movieRepository.findById(movieId).ifPresent(m -> {
+                m.setStatus(MovieStatus.ERROR);
+                movieRepository.save(m);
+            });
         }
     }
 }

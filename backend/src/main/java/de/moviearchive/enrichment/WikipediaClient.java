@@ -7,9 +7,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 @Component
@@ -44,6 +47,31 @@ public class WikipediaClient {
     @Value("${wikipedia.request-pacing-ms:1000}")
     private long requestPacingMs;
 
+    /**
+     * Fallback backoff (seconds) when a 429 arrives with no parseable Retry-After header.
+     * Observed live Retry-After values were ~55-56s; this is a conservative default for
+     * the rare case the header is missing or malformed.
+     */
+    @Value("${wikipedia.rate-limit-fallback-backoff-s:30}")
+    private long fallbackBackoffSeconds;
+
+    /** Upper bound on how long a single 429 is allowed to stall the batch. */
+    @Value("${wikipedia.rate-limit-max-backoff-s:120}")
+    private long maxBackoffSeconds;
+
+    /**
+     * Shared across all requests from this client (a singleton bean): once ANY request
+     * gets 429'd, every subsequent request — for this movie AND every movie still queued
+     * behind it — waits out the SAME backoff window before trying again. Fixed per-request
+     * pacing alone (paceRequest) was not sufficient: live testing showed even a
+     * conservative 1000ms/request pace still gets 429'd under a real batch's sustained
+     * request volume, because Wikipedia's anonymous-API limiter tracks a longer rolling
+     * window than a single request's own spacing. Blindly moving on to the next candidate
+     * after a 429 (the old behavior) just accumulates MORE 429s in that same window,
+     * turning one rate-limit hit into an entire batch of false "not found" results.
+     */
+    private final AtomicReference<Instant> backoffUntil = new AtomicReference<>(Instant.EPOCH);
+
     public WikipediaClient(WebClient.Builder builder,
                            @Value("${wikipedia.base-url:https://en.wikipedia.org}") String baseUrl) {
         this.baseUrl = baseUrl;
@@ -54,11 +82,46 @@ public class WikipediaClient {
     }
 
     private void paceRequest() {
+        Instant waitUntil = backoffUntil.get();
+        Duration remaining = Duration.between(Instant.now(), waitUntil);
+        if (!remaining.isNegative() && !remaining.isZero()) {
+            log.warn("Wikipedia rate-limit backoff in effect — waiting {}s before next request", remaining.toSeconds());
+            sleepQuietly(remaining.toMillis());
+        }
+        sleepQuietly(requestPacingMs);
+    }
+
+    private void sleepQuietly(long millis) {
+        if (millis <= 0) return;
         try {
-            Thread.sleep(requestPacingMs);
+            Thread.sleep(millis);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    /**
+     * Records a 429 by pushing the shared backoff window forward. Uses the response's
+     * Retry-After header (seconds) when present and parseable, capped at
+     * maxBackoffSeconds; falls back to fallbackBackoffSeconds otherwise. Never SHORTENS
+     * an existing backoff window — if two requests 429 in close succession, the later
+     * (larger) window wins only if it is actually longer.
+     */
+    private void recordRateLimited(WebClientResponseException e, String context) {
+        long seconds = fallbackBackoffSeconds;
+        String retryAfter = e.getHeaders().getFirst("Retry-After");
+        if (retryAfter != null) {
+            try {
+                seconds = Long.parseLong(retryAfter.trim());
+            } catch (NumberFormatException ignored) {
+                // Retry-After can also be an HTTP-date; not handled — fall back to default.
+            }
+        }
+        seconds = Math.min(seconds, maxBackoffSeconds);
+        Instant candidate = Instant.now().plusSeconds(seconds);
+        backoffUntil.updateAndGet(current -> candidate.isAfter(current) ? candidate : current);
+        log.warn("Wikipedia API rate-limited (429) for {} — backing off {}s. This is NOT a genuine "
+                + "'page not found'; results from this and nearby lookups are unreliable.", context, seconds);
     }
 
     /**
@@ -132,6 +195,12 @@ public class WikipediaClient {
                 Optional<WikipediaResult> result = tryFetch(slug);
                 if (result.isPresent()) return result;
             }
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 429) {
+                recordRateLimited(e, "search term=" + searchTerm);
+            } else {
+                log.debug("Wikipedia search API failed for term={} status={}", searchTerm, e.getStatusCode().value());
+            }
         } catch (Exception e) {
             log.debug("Wikipedia search API exception for term={}: {}", searchTerm, e.getMessage());
         }
@@ -167,8 +236,7 @@ public class WikipediaClient {
 
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 429) {
-                log.warn("Wikipedia API rate-limited (429) for candidate={} — this is NOT a genuine "
-                        + "'page not found', results for this and nearby lookups are unreliable", pageTitle);
+                recordRateLimited(e, "candidate=" + pageTitle);
             } else {
                 log.debug("Wikipedia lookup failed for candidate={} status={}", pageTitle, e.getStatusCode().value());
             }
@@ -189,6 +257,12 @@ public class WikipediaClient {
                     .block();
             if (response != null && response.has("parse")) {
                 return response.get("parse").path("wikitext").path("*").asText(null);
+            }
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 429) {
+                recordRateLimited(e, "section=" + sectionIndex + " page=" + pageTitle);
+            } else {
+                log.debug("Failed to fetch section={} for page={}: status={}", sectionIndex, pageTitle, e.getStatusCode().value());
             }
         } catch (Exception e) {
             log.debug("Failed to fetch section={} for page={}: {}", sectionIndex, pageTitle, e.getMessage());

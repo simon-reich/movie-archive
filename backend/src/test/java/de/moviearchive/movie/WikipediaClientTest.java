@@ -11,6 +11,8 @@ import org.springframework.test.context.DynamicPropertySource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -26,6 +28,9 @@ class WikipediaClientTest extends AbstractWireMockTest {
         registry.add("wikipedia.base-url", wireMock::baseUrl);
         registry.add("tmdb.base-url", wireMock::baseUrl);
         registry.add("omdb.base-url", wireMock::baseUrl);
+        // A 1s Retry-After is enough to prove the backoff is honored without slowing the suite.
+        registry.add("wikipedia.rate-limit-fallback-backoff-s", () -> "1");
+        registry.add("wikipedia.rate-limit-max-backoff-s", () -> "5");
     }
 
     @Autowired
@@ -118,5 +123,45 @@ class WikipediaClientTest extends AbstractWireMockTest {
         assertThat(result.summary()).isNotBlank();
         assertThat(result.plot()).isNotBlank();
         assertThat(result.critics()).isNotBlank();
+    }
+
+    /**
+     * Regression test: a 429 with a Retry-After header must actually delay subsequent
+     * requests, not just get logged and immediately retried. First candidate 429s with
+     * Retry-After: 1 (honoring the test override above); every other candidate + the
+     * search-API fallback return a plain "page not found" 200. fetch() still ultimately
+     * throws WikipediaNotFoundException (no candidate resolves), but must not do so
+     * faster than the 1s backoff window — proving the backoff actually gated later
+     * requests instead of being a no-op after logging.
+     */
+    @Test
+    void shouldHonorRetryAfterBackoff_beforeSubsequentRequests() {
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .atPriority(1)
+                .withQueryParam("action", containing("parse"))
+                .withQueryParam("page", containing("Inception_(2010_film)"))
+                .withQueryParam("prop", containing("sections"))
+                .willReturn(aResponse()
+                        .withStatus(429)
+                        .withHeader("Retry-After", "1")
+                        .withBody("{\"error\":\"rate limited\"}")));
+
+        // Every other request (later candidates + search fallback) returns a normal
+        // "page not found" so fetch() exhausts everything and throws, rather than hanging
+        // on an unstubbed request. Lower priority (higher number) so the specific 429
+        // stub above always wins for the request it targets.
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .atPriority(10)
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(MISSING_PAGE_RESPONSE)));
+
+        Instant start = Instant.now();
+        assertThatThrownBy(() -> wikipediaClient.fetch("Inception", "Inception", 2010))
+                .isInstanceOf(WikipediaNotFoundException.class);
+        Duration elapsed = Duration.between(start, Instant.now());
+
+        assertThat(elapsed).isGreaterThanOrEqualTo(Duration.ofMillis(950));
     }
 }

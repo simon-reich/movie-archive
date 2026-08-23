@@ -29,6 +29,21 @@ public class WikipediaClient {
     private static final Pattern BOLD_ITALIC = Pattern.compile("'{2,3}");
     private static final Pattern MULTI_NL    = Pattern.compile("\n{3,}");
 
+    /**
+     * Minimum delay before EVERY outbound Wikipedia API call, not just between movies.
+     * Wikipedia's anonymous-API rate limiter blocks after ~10 requests fired with <300ms
+     * spacing (empirically confirmed: HTTP 429 with Retry-After ~55s), but tolerates a
+     * sustained ~1 req/s rate indefinitely. A single movie lookup can fire up to ~18
+     * requests (10 title candidates + 2 search-fallback terms, each up to 4 requests when
+     * a page is found), all previously fired back-to-back with zero delay between them —
+     * batchReload's pacingDelayMs only throttled between MOVIES, never between the many
+     * requests a single movie's candidate search makes, so a batch of any real size
+     * tripped the 429 wall almost immediately and every subsequent lookup silently
+     * degraded to Optional.empty() (misreported as "no Wikipedia page found").
+     */
+    @Value("${wikipedia.request-pacing-ms:1000}")
+    private long requestPacingMs;
+
     public WikipediaClient(WebClient.Builder builder,
                            @Value("${wikipedia.base-url:https://en.wikipedia.org}") String baseUrl) {
         this.baseUrl = baseUrl;
@@ -36,6 +51,14 @@ public class WikipediaClient {
                 .baseUrl(baseUrl)
                 .defaultHeader("User-Agent", "MovieArchive/0.1")
                 .build();
+    }
+
+    private void paceRequest() {
+        try {
+            Thread.sleep(requestPacingMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -92,6 +115,7 @@ public class WikipediaClient {
 
     private Optional<WikipediaResult> tryFetchViaSearch(String searchTerm, int year) {
         try {
+            paceRequest();
             JsonNode response = webClient.get()
                     .uri("/w/api.php?action=query&list=search&srsearch={q}+film&srlimit=5&format=json",
                             searchTerm + " " + year)
@@ -116,6 +140,7 @@ public class WikipediaClient {
 
     private Optional<WikipediaResult> tryFetch(String pageTitle) {
         try {
+            paceRequest();
             // String concat avoids Spring's URI template encoding of ( and ) to %28/%29
             JsonNode sectionsResponse = webClient.get()
                     .uri("/w/api.php?action=parse&page=" + pageTitle + "&prop=sections&redirects=1&format=json")
@@ -141,7 +166,12 @@ public class WikipediaClient {
             return Optional.of(new WikipediaResult(wikiUrl, summary, plot, critics));
 
         } catch (WebClientResponseException e) {
-            log.debug("Wikipedia lookup failed for candidate={} status={}", pageTitle, e.getStatusCode().value());
+            if (e.getStatusCode().value() == 429) {
+                log.warn("Wikipedia API rate-limited (429) for candidate={} — this is NOT a genuine "
+                        + "'page not found', results for this and nearby lookups are unreliable", pageTitle);
+            } else {
+                log.debug("Wikipedia lookup failed for candidate={} status={}", pageTitle, e.getStatusCode().value());
+            }
             return Optional.empty();
         } catch (Exception e) {
             log.debug("Wikipedia lookup exception for candidate={}: {}", pageTitle, e.getMessage());
@@ -151,6 +181,7 @@ public class WikipediaClient {
 
     private String fetchSection(String pageTitle, String sectionIndex) {
         try {
+            paceRequest();
             JsonNode response = webClient.get()
                     .uri("/w/api.php?action=parse&page=" + pageTitle + "&prop=wikitext&section=" + sectionIndex + "&redirects=1&format=json")
                     .retrieve()

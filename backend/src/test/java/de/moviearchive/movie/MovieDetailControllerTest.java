@@ -538,4 +538,55 @@ class MovieDetailControllerTest extends AbstractOpenSearchTest {
         Movie updated = movieRepository.findById(movie.getId()).orElseThrow();
         assertThat(updated.getWikiLastAttemptedAt()).isNotNull();
     }
+
+    private static final String MISSING_PAGE_RESPONSE =
+            "{\"error\":{\"code\":\"missingtitle\",\"info\":\"The page you specified doesn't exist.\"}}";
+
+    @Test
+    void retryWiki_returnsNoWikiFields_whenWikipediaNotFound() throws Exception {
+        User user = createActiveUser("retry-wiki-notfound@example.com");
+        String token = loginAndGetToken("retry-wiki-notfound@example.com");
+        Movie movie = saveMovieMissingWikiForUser(user, 27211);
+
+        // Every /w/api.php action=parse request returns "page not found" — exhausts all
+        // 6 fallback candidates.
+        wireMock.stubFor(WireMock.get(WireMock.urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", WireMock.containing("parse"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(MISSING_PAGE_RESPONSE)));
+
+        mockMvc.perform(post("/movies/" + movie.getId() + "/retry-wiki")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.wikipediaPlot").doesNotExist())
+                .andExpect(jsonPath("$.wikipediaUrl").doesNotExist());
+
+        Movie updated = movieRepository.findById(movie.getId()).orElseThrow();
+        assertThat(updated.getWikiLastAttemptedAt()).isNotNull();
+    }
+
+    @Test
+    void retryWiki_returns404WhenMovieNotOwnedByUser() throws Exception {
+        User owner = createActiveUser("retry-wiki-owner@example.com");
+        Movie movie = saveMovieMissingWikiForUser(owner, 27212);
+
+        createActiveUser("retry-wiki-other@example.com");
+        String otherToken = loginAndGetToken("retry-wiki-other@example.com");
+
+        mockMvc.perform(post("/movies/" + movie.getId() + "/retry-wiki")
+                        .header("Authorization", otherToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void retryWiki_returns404WhenMovieDoesNotExist() throws Exception {
+        createActiveUser("retry-wiki-notfoundmovie@example.com");
+        String token = loginAndGetToken("retry-wiki-notfoundmovie@example.com");
+
+        mockMvc.perform(post("/movies/" + UUID.randomUUID() + "/retry-wiki")
+                        .header("Authorization", token))
+                .andExpect(status().isNotFound());
+    }
 }

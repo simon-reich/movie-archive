@@ -46,9 +46,11 @@ No blockers were found. The issues below are all quality/robustness gaps: a misl
 
 ## Warnings
 
-### WR-01: `retryWiki()` misreports network/server errors as "still no page found"
+### WR-01: `retryWiki()` misreports network/server errors as "still no page found" — FIXED (commit 3006964)
 
 **File:** `frontend/composables/useMovieDetail.ts:113-127`, consumed at `frontend/pages/movies/[id].vue:20-25,347-362`
+
+**Resolution:** Added a `wikiRetryError` ref, set `true` only when the POST itself throws (left `false` on a completed 200 response, success or genuine not-found). The page now shows "Something went wrong — try again." when `wikiRetryError` is set, and only shows "Still no page found." for a real completed-but-empty response. Covered by new tests in `useMovieDetail.spec.ts` and `movies-id.spec.ts`. This is exactly the bug that caused a live-testing false negative: a stale backend process meant the endpoint 403'd, and the old swallow-all-errors code silently rendered it as "no page found."
 
 **Issue:** `retryWiki()` catches *all* rejections from the POST identically:
 ```ts

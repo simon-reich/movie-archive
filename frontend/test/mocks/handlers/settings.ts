@@ -36,4 +36,14 @@ export const settingsHandlers = [
   http.post('/api/settings/email', () => {
     return new HttpResponse(null, { status: 200 })
   }),
+
+  // GET /api/users/me — returns the caller's own id
+  http.get('/api/users/me', () => {
+    return HttpResponse.json({ id: 'settings-user-id' })
+  }),
+
+  // POST /api/admin/wiki-reload/:userId — 202 Accepted (existing Phase 8 endpoint)
+  http.post('/api/admin/wiki-reload/:userId', () => {
+    return new HttpResponse(null, { status: 202 })
+  }),
 ]

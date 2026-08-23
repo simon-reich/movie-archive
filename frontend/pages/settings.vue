@@ -5,7 +5,7 @@ import InputText from '@/components/InputText.vue'
 import ButtonPrimary from '@/components/ButtonPrimary.vue'
 import FormErrorBanner from '@/components/FormErrorBanner.vue'
 
-const { saveApiKey, deleteApiKey, loadApiKeys, changePassword, changeEmail } = useSettings()
+const { saveApiKey, deleteApiKey, loadApiKeys, changePassword, changeEmail, triggerWikiReload } = useSettings()
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -37,6 +37,10 @@ const confirmPassword = ref('')
 const passwordChanging = ref(false)
 const passwordError = ref<string | null>(null)
 const passwordFieldError = ref<string | null>(null)
+
+// Wikipedia Data section
+const wikiReloadTriggering = ref(false)
+const wikiReloadMessage = ref<string | null>(null)
 
 // Reset inline success state when input value changes (D-06)
 watch(tmdbKey, () => {
@@ -167,6 +171,21 @@ async function handleChangeEmail() {
     emailError.value = e?.data?.message ?? 'Something went wrong. Please try again.'
   } finally {
     emailChanging.value = false
+  }
+}
+
+async function onTriggerWikiReload() {
+  wikiReloadTriggering.value = true
+  wikiReloadMessage.value = null
+  try {
+    const result = await triggerWikiReload()
+    wikiReloadMessage.value = result === 'started'
+      ? 'Reload started — this runs in the background and may take a few minutes.'
+      : 'A reload is already in progress.'
+  } catch {
+    wikiReloadMessage.value = 'Something went wrong. Please try again.'
+  } finally {
+    wikiReloadTriggering.value = false
   }
 }
 
@@ -382,6 +401,17 @@ async function handleChangePassword() {
       <p class="text-sm text-muted-foreground mt-2">
         Coming soon — available after your first films are saved.
       </p>
+    </section>
+
+    <hr class="border-border my-8" >
+
+    <!-- Section 4: Wikipedia Data -->
+    <section id="wikipedia-data">
+      <h1 class="text-xl font-semibold tracking-wide mb-6">Wikipedia Data</h1>
+      <ButtonPrimary type="button" :loading="wikiReloadTriggering" :disabled="wikiReloadTriggering" @click="onTriggerWikiReload">
+        {{ wikiReloadTriggering ? 'Starting...' : 'Reload missing Wikipedia data' }}
+      </ButtonPrimary>
+      <p v-if="wikiReloadMessage" class="text-sm text-foreground mt-2">{{ wikiReloadMessage }}</p>
     </section>
 
   </div>

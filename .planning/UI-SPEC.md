@@ -43,6 +43,8 @@ created: 2026-05-15
 
 All six routes are public (unauthenticated). Every other route redirects to `/login` via server-side middleware.
 
+**Extended in Phase 9** (see `## Phase 9 Additions` section below): `/movies/[id]` (no-Wikipedia-data retry prompt), `/settings` (Wikipedia batch-reload trigger).
+
 ---
 
 ## Page Layout
@@ -391,6 +393,106 @@ No third-party shadcn registries declared for this phase.
 
 ---
 
+## Phase 9 Additions: Manual Wiki Retry
+
+> Extends the shared design contract above. Grounded in code already read this session (`frontend/components/ButtonPrimary.vue`, `frontend/pages/settings.vue`, `frontend/pages/movies/[id].vue`) — no new components, no new colors, no new spacing/typography tokens. Requirements: ENRICH-04, ENRICH-05 + folded todo (batch-reload UI trigger).
+
+### Scope: Pages Touched
+
+| Route | Change |
+|-------|--------|
+| `/movies/[id]` | New `v-else` branch replacing the hidden Wikipedia section when `movie.wikipediaPlot` and `movie.wikipediaCritics` are both null: "no data found" message + Retry button. |
+| `/settings` | New section: a single button that triggers the Phase 8 batch-reload endpoint via a fresh `GET /users/me` lookup, with an inline acknowledgement/conflict message. |
+
+### `/movies/[id]` — No-Wikipedia-Data Retry Prompt
+
+Replaces the currently-hidden Wikipedia section (`v-if="movie.wikipediaPlot || movie.wikipediaCritics"` at `frontend/pages/movies/[id].vue:329`) with a sibling `v-else`, in the exact same full-width slot — never relocated to the hero or elsewhere (locked, CONTEXT.md D-03).
+
+```html
+<div v-else class="max-w-7xl mx-auto px-4 pb-8 space-y-4 border-t border-border pt-8">
+  <p class="text-sm text-muted-foreground">
+    No Wikipedia data found.
+    <span v-if="wikiRetryAttempted"> Still no page found.</span>
+  </p>
+  <button
+    type="button"
+    :disabled="wikiRetrying"
+    class="h-10 px-4 text-sm font-medium bg-primary text-primary-foreground rounded-none hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+    @click="onRetryWiki"
+  >
+    <SpinnerIcon v-if="wikiRetrying" class="w-4 h-4" />
+    {{ wikiRetrying ? 'Retrying...' : 'Retry' }}
+  </button>
+</div>
+```
+
+- Button class matches the existing inline (non-`ButtonPrimary`) secondary action button convention already used on `/settings` (`frontend/pages/settings.vue:315`, the TMDB/OMDB "Save" buttons) — reuse verbatim, do not invent a new button style.
+- `SpinnerIcon` — same component already imported on this page (`frontend/pages/movies/[id].vue:5`) for the page's own loading state (CONTEXT.md D-04).
+- `wikiRetryAttempted` — a local page-level `ref(false)`, set `true` once the first retry call resolves (success or failure). No backend field, no timestamp surfaced (CONTEXT.md D-05, explicitly deferred).
+- On success, `movie.value` is replaced wholesale from the retry response (same `MovieDetail` shape as `fetchDetail()`); the `v-if`/`v-else` branch flips automatically once `wikipediaPlot`/`wikipediaCritics` are populated — no separate "success" UI state to design.
+- No toast — this app has no toast component (CONTEXT.md D-05, reaffirming the auth-phase precedent already documented above in `## Form-level error banner (D-08)`).
+
+**Copywriting:**
+
+| Element | Copy |
+|---------|------|
+| No-data message | `No Wikipedia data found.` |
+| Post-retry still-failed note (appended inline, same `<p>`) | `Still no page found.` |
+| Retry button default | `Retry` |
+| Retry button loading | `Retrying...` |
+
+### `/settings` — Wikipedia Batch-Reload Trigger
+
+New section, following the existing section pattern on this page exactly (`<section id="...">` + `<h1 class="text-xl font-semibold tracking-wide mb-6">`, see `frontend/pages/settings.vue:204`/`297`/`372` for the three existing sections). Place after the existing "Import & Export" section.
+
+```html
+<hr class="border-border my-8" >
+
+<section id="wikipedia-data">
+  <h1 class="text-xl font-semibold tracking-wide mb-6">Wikipedia Data</h1>
+  <ButtonPrimary type="button" :loading="wikiReloadStarting" :disabled="wikiReloadStarting">
+    {{ wikiReloadStarting ? 'Starting...' : 'Reload missing Wikipedia data' }}
+  </ButtonPrimary>
+  <p v-if="wikiReloadMessage" class="text-sm text-foreground mt-2">{{ wikiReloadMessage }}</p>
+</section>
+```
+
+- Reuses the existing `ButtonPrimary` component (`frontend/components/ButtonPrimary.vue`) — same component used for "Update email"/"Change password" above on this same page. No new button component.
+- `wikiReloadStarting` covers only the round-trip of the `GET /users/me` + `POST /admin/wiki-reload/{userId}` calls (a second or two) — NOT the batch itself, which is fire-and-forget (CONTEXT.md: explicitly out of scope to track batch progress).
+- `wikiReloadMessage` is a single inline `ref<string | null>`, styled identically to the existing inline success messages already on this page (`emailChangeSuccess` at line 236–240, `tmdbSaved`/`omdbSaved` at lines 331/365) — no distinct "error" visual treatment for the 503 case; both outcomes are informational, not validation failures.
+
+**Copywriting (exact strings, locked — CONTEXT.md D-07):**
+
+| Element | Copy |
+|---------|------|
+| Section heading | `Wikipedia Data` |
+| Button default | `Reload missing Wikipedia data` |
+| Button loading | `Starting...` |
+| On `202 Accepted` | `Reload started — this runs in the background and may take a few minutes.` |
+| On `503` (already running) | `A reload is already in progress.` |
+
+### Component Reuse (no new components)
+
+| Component | Reused For |
+|-----------|-----------|
+| `SpinnerIcon` | Retry button loading state (`/movies/[id]`) |
+| `ButtonPrimary` | Batch-reload trigger button (`/settings`) |
+| Inline secondary button pattern (raw `<button>` + Tailwind, matching `settings.vue`'s TMDB/OMDB Save buttons) | Retry button (`/movies/[id]`) — not `ButtonPrimary` because it sits inline with body text, not in a full-width form context |
+
+No new colors, spacing tokens, or typography sizes/weights are introduced. No third-party registry blocks. Registry Safety Gate: not applicable (no new shadcn/registry usage this phase).
+
+### Pre-Population Sources (Phase 9)
+
+| Decision | Source |
+|----------|--------|
+| Retry prompt replaces hidden Wikipedia section in-place, no relocation (D-03) | CONTEXT.md |
+| Spinner + disabled button while retry in flight (D-04) | CONTEXT.md |
+| No toast; wholesale `movie.value` replace on success; optional "still not found" note (D-05) | CONTEXT.md |
+| Settings button copy for 202/503 (D-07) | CONTEXT.md |
+| Exact retry-button and settings-button markup/classes | Verified from `frontend/pages/settings.vue`, `frontend/pages/movies/[id].vue`, `frontend/components/ButtonPrimary.vue` (read this session) |
+
+---
+
 ## Revision Log
 
 | Date | Change | Reason |
@@ -400,6 +502,7 @@ No third-party shadcn registries declared for this phase.
 | 2026-05-15 | Updated display Tailwind class from `text-2xl font-bold` to `text-2xl font-semibold` | Follows weight collapse above |
 | 2026-05-15 | Copywriting recommendation (Sign in CTA) — kept as-is | Button labels are short by convention; adding "to MovieArchive" would be verbose in a labeled card context |
 | 2026-05-15 | User design direction: avantgardistic editorial, Option D (warm off-white + terracotta), no rounded corners, no red errors | User selected Option D palette; full color section replaced with hex values; all `rounded-*` replaced with `rounded-none`; error treatment changed to dark terracotta `#7A3520` left-border banner; heading/label tracking classes added; Design System section updated with aesthetic statement |
+| 2026-08-23 | Added `## Phase 9 Additions: Manual Wiki Retry` — extended `/movies/[id]` and `/settings` contracts for ENRICH-04/05 + folded batch-reload-trigger todo | Per user preference (recorded 2026-05, reaffirmed via PROJECT.md §Design System), this project uses one shared `.planning/UI-SPEC.md` instead of per-phase files; Phase 9 introduces new UI surface, so the shared file is extended in place rather than a new `09-UI-SPEC.md` being created |
 
 ---
 

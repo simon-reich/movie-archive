@@ -64,4 +64,15 @@ export const movieDetailHandlers = [
   http.delete('/api/movies/:id', () => {
     return new HttpResponse(null, { status: 204 })
   }),
+
+  // POST /api/movies/:id/retry-wiki — manual Wikipedia retry, always "succeeds" in this mock
+  http.post('/api/movies/:id/retry-wiki', ({ params }) => {
+    return HttpResponse.json({
+      ...MOCK_MOVIE_DETAIL,
+      id: params.id as string,
+      wikipediaPlot: 'Retried plot text.',
+      wikipediaCritics: 'Retried critics text.',
+      wikipediaUrl: 'https://en.wikipedia.org/wiki/Inception',
+    })
+  }),
 ]

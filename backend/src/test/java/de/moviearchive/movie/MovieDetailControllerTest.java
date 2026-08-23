@@ -1,6 +1,8 @@
 package de.moviearchive.movie;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import de.moviearchive.AbstractOpenSearchTest;
 import de.moviearchive.auth.RateLimitService;
 import de.moviearchive.indexing.IndexingService;
@@ -9,6 +11,7 @@ import de.moviearchive.user.UserRepository;
 import de.moviearchive.user.UserStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch.core.GetRequest;
@@ -18,13 +21,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -36,9 +44,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * GET tests (DETAIL-01, DETAIL-02) are enabled here (plan 06-01).
  * PATCH and DELETE tests remain @Disabled — implemented in plan 06-02.
+ *
+ * Phase 9 (ENRICH-04/ENRICH-05) adds POST /movies/{id}/retry-wiki tests. This class needs
+ * BOTH OpenSearch (via AbstractOpenSearchTest) AND WireMock (Wikipedia stubbing) — Java
+ * forbids extending two base test classes, so the WireMockExtension registration is
+ * duplicated locally here, mirroring WikiReloadControllerTest's pattern (Phase 8).
  */
 @AutoConfigureMockMvc
 class MovieDetailControllerTest extends AbstractOpenSearchTest {
+
+    @RegisterExtension
+    protected static WireMockExtension wireMock = WireMockExtension.newInstance()
+            .options(wireMockConfig().dynamicPort())
+            .build();
+
+    @DynamicPropertySource
+    static void overrideWikipediaBaseUrl(DynamicPropertyRegistry registry) {
+        registry.add("wikipedia.base-url", wireMock::baseUrl);
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -125,6 +148,99 @@ class MovieDetailControllerTest extends AbstractOpenSearchTest {
         movie.setWikiPlot("Dom Cobb is a skilled thief, the absolute best in the dangerous art of extraction.");
         movie.setWikiCritics("Critics praised the film's ambitious scope and visual effects.");
         return movieRepository.save(movie);
+    }
+
+    /**
+     * Saves a Movie entity mirroring saveMovieForUser exactly (same tmdbJson shape, title
+     * "Inception", release date 2010-07-16 so it matches the shared WireMock fixture stubs)
+     * but WITHOUT wikiPlot/wikiCritics — wikiUrl/wikiPlot/wikiCritics all remain null,
+     * making the movie eligible for a manual Wikipedia retry.
+     */
+    private Movie saveMovieMissingWikiForUser(User user, int tmdbId) throws Exception {
+        String tmdbJson =
+            "{\"id\":" + tmdbId + "," +
+            "\"title\":\"Inception\"," +
+            "\"original_title\":\"Inception\"," +
+            "\"tagline\":\"Your mind is the scene of the crime.\"," +
+            "\"overview\":\"A thief who steals corporate secrets through dream-sharing.\"," +
+            "\"release_date\":\"2010-07-16\"," +
+            "\"runtime\":148," +
+            "\"vote_average\":8.4," +
+            "\"vote_count\":35000," +
+            "\"poster_path\":\"/poster.jpg\"," +
+            "\"backdrop_path\":\"/backdrop.jpg\"," +
+            "\"genres\":[{\"id\":28,\"name\":\"Action\"},{\"id\":878,\"name\":\"Science Fiction\"}]," +
+            "\"production_countries\":[{\"iso_3166_1\":\"US\",\"name\":\"United States\"}]," +
+            "\"spoken_languages\":[{\"iso_639_1\":\"en\",\"name\":\"English\"}]," +
+            "\"credits\":{" +
+            "  \"cast\":[{\"name\":\"Leonardo DiCaprio\",\"character\":\"Cobb\",\"order\":0,\"profile_path\":\"/leo.jpg\"}]," +
+            "  \"crew\":[{\"name\":\"Christopher Nolan\",\"job\":\"Director\",\"department\":\"Directing\",\"profile_path\":null}," +
+            "           {\"name\":\"Christopher Nolan\",\"job\":\"Screenplay\",\"department\":\"Writing\",\"profile_path\":null}]" +
+            "}," +
+            "\"videos\":{\"results\":[{\"key\":\"YoHD9XEInc0\",\"type\":\"Trailer\",\"site\":\"YouTube\"}]}}";
+
+        Movie movie = new Movie(user, tmdbId);
+        movie.setTitle("Inception");
+        movie.setOriginalTitle("Inception");
+        movie.setImdbId("tt1375666");
+        movie.setReleaseDate(LocalDate.of(2010, 7, 16));
+        movie.setRuntime(148);
+        movie.setStatus(MovieStatus.SUCCESS);
+        movie.setRawTmdbJson(objectMapper.readTree(tmdbJson));
+        return movieRepository.save(movie);
+    }
+
+    private String loadFixture(String path) throws IOException {
+        return new String(
+                getClass().getClassLoader().getResourceAsStream(path).readAllBytes(),
+                StandardCharsets.UTF_8);
+    }
+
+    /** Stubs WireMock to return a found Wikipedia page for the "Inception" (2010) title/year. */
+    private void stubWikipediaFound() throws IOException {
+        String sectionsJson = loadFixture("fixtures/wikipedia/inception-sections.json");
+        String plotSectionJson = loadFixture("fixtures/wikipedia/inception-plot-section.json");
+        String criticsSectionJson = loadFixture("fixtures/wikipedia/inception-critics-section.json");
+        String summaryJson = loadFixture("fixtures/wikipedia/inception-plot.json");
+
+        wireMock.stubFor(WireMock.get(WireMock.urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", WireMock.containing("parse"))
+                .withQueryParam("page", WireMock.containing("Inception_(2010_film)"))
+                .withQueryParam("prop", WireMock.containing("sections"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(sectionsJson)));
+
+        wireMock.stubFor(WireMock.get(WireMock.urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", WireMock.containing("parse"))
+                .withQueryParam("page", WireMock.containing("Inception_(2010_film)"))
+                .withQueryParam("prop", WireMock.containing("wikitext"))
+                .withQueryParam("section", WireMock.containing("0"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(summaryJson)));
+
+        wireMock.stubFor(WireMock.get(WireMock.urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", WireMock.containing("parse"))
+                .withQueryParam("page", WireMock.containing("Inception_(2010_film)"))
+                .withQueryParam("prop", WireMock.containing("wikitext"))
+                .withQueryParam("section", WireMock.containing("1"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(plotSectionJson)));
+
+        wireMock.stubFor(WireMock.get(WireMock.urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", WireMock.containing("parse"))
+                .withQueryParam("page", WireMock.containing("Inception_(2010_film)"))
+                .withQueryParam("prop", WireMock.containing("wikitext"))
+                .withQueryParam("section", WireMock.containing("7"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(criticsSectionJson)));
     }
 
     // -------------------------------------------------------------------------
@@ -400,5 +516,26 @@ class MovieDetailControllerTest extends AbstractOpenSearchTest {
         mockMvc.perform(delete("/movies/" + UUID.randomUUID())
                         .header("Authorization", token))
                 .andExpect(status().isNotFound());
+    }
+
+    // -------------------------------------------------------------------------
+    // ENRICH-04/ENRICH-05: POST /movies/{id}/retry-wiki
+    // -------------------------------------------------------------------------
+
+    @Test
+    void retryWiki_returnsUpdatedDetail_onWikipediaSuccess() throws Exception {
+        User user = createActiveUser("retry-wiki-success@example.com");
+        String token = loginAndGetToken("retry-wiki-success@example.com");
+        Movie movie = saveMovieMissingWikiForUser(user, 27210);
+        stubWikipediaFound();
+
+        mockMvc.perform(post("/movies/" + movie.getId() + "/retry-wiki")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.wikipediaPlot").isNotEmpty())
+                .andExpect(jsonPath("$.wikipediaUrl").isNotEmpty());
+
+        Movie updated = movieRepository.findById(movie.getId()).orElseThrow();
+        assertThat(updated.getWikiLastAttemptedAt()).isNotNull();
     }
 }

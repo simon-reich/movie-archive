@@ -55,6 +55,20 @@ public class MovieDetailController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Manual single-film Wikipedia retry (ENRICH-04). POST because this is a command (an
+     * enrichment attempt with side effects), not an idempotent resource update — deliberately
+     * distinct from the PATCH endpoint above. Runs synchronously on the request thread and
+     * never checks the batch-reload cooldown (D-01); no coordination with the batch-reload
+     * executor is added (D-02, overlap risk explicitly accepted).
+     */
+    @PostMapping("/{id}/retry-wiki")
+    public ResponseEntity<MovieDetailResponse> retryWiki(
+            @PathVariable UUID id, Authentication auth) {
+        UUID userId = resolveUserId(auth);
+        return ResponseEntity.ok(movieDetailService.retryWiki(userId, id));
+    }
+
     private UUID resolveUserId(Authentication auth) {
         String email = auth.getName();
         return userRepository.findByEmail(email)

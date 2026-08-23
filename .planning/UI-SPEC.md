@@ -491,6 +491,16 @@ No new colors, spacing tokens, or typography sizes/weights are introduced. No th
 | Settings button copy for 202/503 (D-07) | CONTEXT.md |
 | Exact retry-button and settings-button markup/classes | Verified from `frontend/pages/settings.vue`, `frontend/pages/movies/[id].vue`, `frontend/components/ButtonPrimary.vue` (read this session) |
 
+### UI Considerations (Phase 9)
+
+- E1 `/movies/[id]` Retry button — loading state: Retry button shows `SpinnerIcon` + `Retrying...` label and is `:disabled="wikiRetrying"` while the retry call is in flight (already specified above).
+- E1 `/movies/[id]` Retry button — error/no-hit state: on a failed retry, the existing `<p>` gets an appended `Still no page found.` note; the Retry button remains enabled for further attempts (already specified above).
+- E1 `/movies/[id]` Retry button — long text: "No Wikipedia data found." / "Still no page found." / "Retry" / "Retrying..." are fixed, short, English-only copy strings — no user-generated or variable-length content flows through this element. ⚠ Dismiss — not applicable.
+- E2 `/settings` batch-reload button — loading state: `ButtonPrimary` shows `Starting...` and is `:disabled="wikiReloadStarting"` while the `GET /users/me` + `POST /admin/wiki-reload/{userId}` round-trip is in flight (already specified above).
+- E2 `/settings` batch-reload button — 503/conflict state: inline message `A reload is already in progress.` (already specified above, `verification: explicit`).
+- E2 `/settings` batch-reload button — unexpected-error state (verification: backstop): the spec covers the `202` and `503` outcomes explicitly but not a generic failure (e.g. network error, unexpected 5xx from `GET /users/me` or the reload trigger). Statement: on any non-202/non-503 response, `wikiReloadMessage` is set to a generic failure string (e.g. `Something went wrong — try again.`) using the same inline `text-foreground` styling as the other two outcomes, so the button never fails silently. Planner/executor to wire this as the catch-all branch of the request handler.
+- E2 `/settings` batch-reload button — long text: `Wikipedia Data` / `Reload missing Wikipedia data` / `Starting...` / the two locked outcome strings are fixed, short, English-only copy — no variable-length content. ⚠ Dismiss — not applicable.
+
 ---
 
 ## Revision Log

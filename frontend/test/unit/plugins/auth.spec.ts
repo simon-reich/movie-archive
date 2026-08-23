@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { attemptSilentRefresh } from '@/plugins/auth.client'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('$fetch', mockFetch)
@@ -45,5 +46,27 @@ describe('auth.client plugin behavior', () => {
     expect(threw).toBe(true) // refresh throws, plugin swallows
     // Cookie is absent so value is null or "" — either is falsy (no valid token)
     expect(store.accessToken).toBeFalsy()
+  })
+
+  describe('attemptSilentRefresh (the actual scheduled-tick handler)', () => {
+    it('calls authStore.refresh() when isAuthenticated is true', async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined)
+      await attemptSilentRefresh({ isAuthenticated: true, refresh })
+      expect(refresh).toHaveBeenCalledTimes(1)
+    })
+
+    it('does nothing when isAuthenticated is false (nothing to renew)', async () => {
+      const refresh = vi.fn().mockResolvedValue(undefined)
+      await attemptSilentRefresh({ isAuthenticated: false, refresh })
+      expect(refresh).not.toHaveBeenCalled()
+    })
+
+    it('swallows a refresh() rejection instead of throwing (expired/revoked refresh token)', async () => {
+      const refresh = vi.fn().mockRejectedValue(new Error('401 Unauthorized'))
+      await expect(
+        attemptSilentRefresh({ isAuthenticated: true, refresh })
+      ).resolves.toBeUndefined()
+      expect(refresh).toHaveBeenCalledTimes(1)
+    })
   })
 })

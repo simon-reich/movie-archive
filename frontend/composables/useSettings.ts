@@ -1,3 +1,5 @@
+import { ref } from 'vue'
+
 export function useSettings() {
   // Read the access token directly from the cookie — works on both SSR and client.
   // useCookie is a Nuxt auto-import; no store reference needed here.
@@ -7,6 +9,40 @@ export function useSettings() {
     return accessTokenCookie.value
       ? { Authorization: `Bearer ${accessTokenCookie.value}` }
       : {}
+  }
+
+  const currentUserId = ref<string | null>(null)
+
+  // Fetches GET /api/users/me once and caches the id — never re-fetched on
+  // subsequent calls within the same composable instance.
+  async function getCurrentUserId(): Promise<string> {
+    if (!currentUserId.value) {
+      const data = await $fetch<{ id: string }>('/api/users/me' as string, {
+        credentials: 'include',
+        headers: authHeaders(),
+      })
+      currentUserId.value = data.id
+    }
+    return currentUserId.value
+  }
+
+  // Triggers the existing Phase 8 batch-reload endpoint for the current user.
+  // Maps 202 to 'started' and 503 to 'already-running'; any other error is
+  // rethrown so the page-level catch-all can show a generic failure message.
+  async function triggerWikiReload(): Promise<'started' | 'already-running'> {
+    const userId = await getCurrentUserId()
+    try {
+      await $fetch(`/api/admin/wiki-reload/${userId}` as string, {
+        method: 'POST',
+        credentials: 'include',
+        headers: authHeaders(),
+      })
+      return 'started'
+    } catch (err: unknown) {
+      const e = err as { response?: { status?: number } }
+      if (e?.response?.status === 503) return 'already-running'
+      throw err
+    }
   }
 
   async function saveApiKey(provider: 'tmdb' | 'omdb', key: string): Promise<void> {
@@ -54,5 +90,13 @@ export function useSettings() {
     })
   }
 
-  return { saveApiKey, deleteApiKey, loadApiKeys, changePassword, changeEmail }
+  return {
+    saveApiKey,
+    deleteApiKey,
+    loadApiKeys,
+    changePassword,
+    changeEmail,
+    getCurrentUserId,
+    triggerWikiReload,
+  }
 }

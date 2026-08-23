@@ -114,3 +114,14 @@ Plans:
 | 9. Manual Wiki Retry | v1.1 | 0/2 | Complete    | 2026-08-23 |
 | 10. Bulk Import Engine | v1.1 | 0/TBD | Not started | - |
 | 11. Bulk Import Feedback UI | v1.1 | 0/TBD | Not started | - |
+
+### Phase 12: Wikidata-based Wikipedia lookup
+
+**Goal:** Wikipedia lookup uses the Wikidata IMDb-ID cross-reference (property P345) first for a direct, unambiguous article resolution, instead of guessing up to 10 URL candidates; falls back to the existing candidate search when no Wikidata link exists.
+**Requirements**: TBD
+**Depends on:** None — independent WikipediaClient improvement, unrelated to the Bulk Import phases
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 12 to break down)

@@ -1,6 +1,7 @@
 package de.moviearchive.movie;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import de.moviearchive.enrichment.WikiReloadService;
 import de.moviearchive.indexing.IndexingService;
 import de.moviearchive.movie.dto.*;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class MovieDetailService {
 
     private final MovieRepository movieRepository;
     private final IndexingService indexingService;
+    private final WikiReloadService wikiReloadService;
 
     public MovieDetailResponse getDetail(UUID userId, UUID movieId) {
         Movie movie = movieRepository.findByIdAndUserId(movieId, userId)
@@ -105,6 +107,21 @@ public class MovieDetailService {
                 // Silent fail — Postgres is source of truth
             }
         }
+    }
+
+    /**
+     * Retries the Wikipedia step for a single movie, on-demand, bypassing the batch-reload
+     * cooldown entirely (manual retry is always callable — ENRICH-04/D-01). Delegates to
+     * the existing WikiReloadService.retryWikipedia(Movie), which is @Transactional, sets
+     * wikiLastAttemptedAt on every attempt (success or failure), and swallows all Wikipedia
+     * failures internally — this method never throws for a Wikipedia miss, only for a
+     * missing/not-owned movie (404, same IDOR pattern as getDetail/updatePersonal/deleteMovie).
+     */
+    public MovieDetailResponse retryWiki(UUID userId, UUID movieId) {
+        Movie movie = movieRepository.findByIdAndUserId(movieId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found"));
+        wikiReloadService.retryWikipedia(movie);
+        return getDetail(userId, movieId);
     }
 
     public void deleteMovie(UUID userId, UUID movieId) {

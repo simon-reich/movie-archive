@@ -99,4 +99,32 @@ describe('useMovieDetail composable', () => {
     )
     expect(mockRouterPush).toHaveBeenCalledWith('/search')
   })
+
+  it('retryWiki sends POST to /api/movies/:id/retry-wiki and replaces movie.value on success', async () => {
+    mockFetch.mockResolvedValueOnce(MOCK_MOVIE) // initial fetchDetail() on init
+    const { movie, retryWiki } = useMovieDetail('test-id')
+    await nextTick()
+    await nextTick()
+
+    const retriedMovie = { ...MOCK_MOVIE, title: 'Inception Retried' }
+    mockFetch.mockResolvedValueOnce(retriedMovie)
+    await retryWiki()
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/movies/test-id/retry-wiki',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
+    expect(movie.value).toEqual(retriedMovie)
+  })
+
+  it('retryWiki does not throw when the request rejects', async () => {
+    mockFetch.mockResolvedValueOnce(MOCK_MOVIE) // initial fetchDetail() on init
+    const { wikiRetrying, retryWiki } = useMovieDetail('test-id')
+    await nextTick()
+    await nextTick()
+
+    mockFetch.mockRejectedValueOnce(new Error('Network error'))
+    await expect(retryWiki()).resolves.toBeUndefined()
+    expect(wikiRetrying.value).toBe(false)
+  })
 })

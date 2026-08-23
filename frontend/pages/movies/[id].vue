@@ -14,7 +14,15 @@ useHead({
 const route = useRoute()
 const id = route.params.id as string
 
-const { movie, isLoading, error, updatePersonal, deleteMovie } = useMovieDetail(id)
+const { movie, isLoading, error, updatePersonal, deleteMovie, wikiRetrying, retryWiki } = useMovieDetail(id)
+
+// ── Wikipedia retry (ENRICH-04/ENRICH-05) ───────────────────────────────────
+const wikiRetryAttempted = ref(false)
+
+async function onRetryWiki() {
+  await retryWiki()
+  wikiRetryAttempted.value = true
+}
 
 // ── Image URLs ─────────────────────────────────────────────────────────────
 const backdropUrl = computed(() =>
@@ -335,6 +343,22 @@ const crewByDepartment = computed(() => {
           <h2 class="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Critical Response</h2>
           <p class="text-sm leading-relaxed">{{ movie.wikipediaCritics }}</p>
         </section>
+      </div>
+      <!-- No Wikipedia data — manual retry prompt (ENRICH-04/ENRICH-05) -->
+      <div v-else class="max-w-7xl mx-auto px-4 pb-8 space-y-4 border-t border-border pt-8">
+        <p class="text-sm text-muted-foreground">
+          No Wikipedia data found.
+          <span v-if="wikiRetryAttempted"> Still no page found.</span>
+        </p>
+        <button
+          type="button"
+          :disabled="wikiRetrying"
+          class="h-10 px-4 text-sm font-medium bg-primary text-primary-foreground rounded-none hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+          @click="onRetryWiki"
+        >
+          <SpinnerIcon v-if="wikiRetrying" class="w-4 h-4" />
+          {{ wikiRetrying ? 'Retrying...' : 'Retry' }}
+        </button>
       </div>
 
       <!-- Full cast & crew — full width at page bottom (D-05) -->

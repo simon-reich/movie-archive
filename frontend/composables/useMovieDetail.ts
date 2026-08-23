@@ -70,6 +70,7 @@ export function useMovieDetail(movieId: string) {
   const movie = ref<MovieDetail | null>(null)
   const isLoading = ref(true)
   const error = ref<string | null>(null)
+  const wikiRetrying = ref(false)
 
   async function fetchDetail(): Promise<void> {
     isLoading.value = true
@@ -109,7 +110,23 @@ export function useMovieDetail(movieId: string) {
     await router.push('/search')
   }
 
+  async function retryWiki(): Promise<void> {
+    wikiRetrying.value = true
+    try {
+      const data = await $fetch<MovieDetail>(`/api/movies/${movieId}/retry-wiki`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: authHeaders(),
+      })
+      movie.value = data
+    } catch {
+      // leave movie.value as-is; the page tracks "attempt happened" separately
+    } finally {
+      wikiRetrying.value = false
+    }
+  }
+
   fetchDetail()
 
-  return { movie, isLoading, error, updatePersonal, deleteMovie }
+  return { movie, isLoading, error, updatePersonal, deleteMovie, wikiRetrying, retryWiki }
 }

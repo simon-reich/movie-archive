@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 
 // ── MOCK useMovieDetail ────────────────────────────────────────────────────
 const mockUpdatePersonal = vi.fn().mockResolvedValue(undefined)
 const mockDeleteMovie = vi.fn().mockResolvedValue(undefined)
+const mockRetryWiki = vi.fn().mockResolvedValue(undefined)
 const mockMovieRef = ref<Record<string, unknown> | null>(null)
 const mockIsLoading = ref(false)
 const mockError = ref<string | null>(null)
+const mockWikiRetrying = ref(false)
 
 vi.mock('@/composables/useMovieDetail', () => ({
   useMovieDetail: () => ({
@@ -16,6 +18,8 @@ vi.mock('@/composables/useMovieDetail', () => ({
     error: mockError,
     updatePersonal: mockUpdatePersonal,
     deleteMovie: mockDeleteMovie,
+    retryWiki: mockRetryWiki,
+    wikiRetrying: mockWikiRetrying,
   }),
 }))
 
@@ -88,6 +92,7 @@ describe('/movies/[id] page', () => {
     mockMovieRef.value = null
     mockIsLoading.value = false
     mockError.value = null
+    mockWikiRetrying.value = false
   })
 
   it('renders film title in hero section', async () => {
@@ -213,5 +218,52 @@ describe('/movies/[id] page', () => {
     const wrapper = await mountPage(movie)
     expect(wrapper.text()).not.toContain('Critical Response')
     expect(wrapper.text()).not.toContain('The film received widespread critical acclaim.')
+  })
+
+  it('shows Retry button when both wikipediaPlot and wikipediaCritics are null', async () => {
+    const movie = { ...MOCK_MOVIE, wikipediaPlot: null, wikipediaCritics: null }
+    const wrapper = await mountPage(movie)
+    expect(wrapper.text()).toContain('No Wikipedia data found.')
+    const retryButton = wrapper.findAll('button').find(b => b.text().includes('Retry'))
+    expect(retryButton).toBeDefined()
+  })
+
+  it('hides Retry button when either wiki field is populated', async () => {
+    const wrapper = await mountPage()
+    const retryButton = wrapper.findAll('button').find(b => b.text().trim() === 'Retry')
+    expect(retryButton).toBeUndefined()
+  })
+
+  it('clicking Retry invokes retryWiki from the composable', async () => {
+    const movie = { ...MOCK_MOVIE, wikipediaPlot: null, wikipediaCritics: null }
+    const wrapper = await mountPage(movie)
+    const retryButton = wrapper.findAll('button').find(b => b.text().includes('Retry'))
+    expect(retryButton).toBeDefined()
+    await retryButton!.trigger('click')
+    expect(mockRetryWiki).toHaveBeenCalled()
+  })
+
+  it('shows "Still no page found." after a failed retry and re-enables the button', async () => {
+    mockRetryWiki.mockResolvedValue(undefined)
+    const movie = { ...MOCK_MOVIE, wikipediaPlot: null, wikipediaCritics: null }
+    const wrapper = await mountPage(movie)
+    const retryButton = wrapper.findAll('button').find(b => b.text().includes('Retry'))
+    expect(retryButton).toBeDefined()
+    await retryButton!.trigger('click')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Still no page found.')
+    const buttonAfter = wrapper.findAll('button').find(b => b.text().includes('Retry'))
+    expect(buttonAfter!.attributes('disabled')).toBeUndefined()
+  })
+
+  it('shows spinner and disables the button while wikiRetrying is true', async () => {
+    mockWikiRetrying.value = true
+    const movie = { ...MOCK_MOVIE, wikipediaPlot: null, wikipediaCritics: null }
+    const wrapper = await mountPage(movie)
+    const retryButton = wrapper.findAll('button').find(b => b.text().includes('Retrying'))
+    expect(retryButton).toBeDefined()
+    expect(retryButton!.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="spinner"]').exists()).toBe(true)
   })
 })

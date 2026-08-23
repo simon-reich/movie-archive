@@ -143,6 +143,17 @@ class WikiReloadServiceIntegrationTest extends AbstractOpenSearchTest {
         return movieRepository.save(movie);
     }
 
+    /**
+     * Regression helper for the "has a Wikipedia page but no content" state: wikiUrl IS
+     * set (the original save-flow lookup resolved a page) but wikiPlot/wikiCritics are
+     * both null (the page had no matching Plot/Critical-response section). Never attempted.
+     */
+    private Movie persistMovieWithUrlButNoContent(User user) throws Exception {
+        Movie movie = persistEligibleMovie(user, null);
+        movie.setWikiUrl("https://en.wikipedia.org/wiki/Some_Existing_Page");
+        return movieRepository.save(movie);
+    }
+
     /** Stubs WireMock to return a found Wikipedia page for the "Inception" title/year. */
     private void stubWikipediaFound() throws IOException {
         String sectionsJson = loadFixture("fixtures/wikipedia/inception-sections.json");
@@ -261,6 +272,36 @@ class WikiReloadServiceIntegrationTest extends AbstractOpenSearchTest {
         // The 29-day movie was skipped entirely — its attempt timestamp is untouched.
         assertThat(withinCooldownReloaded.getWikiLastAttemptedAt()).isEqualTo(withinCooldownOriginalAttempt);
         assertThat(withinCooldownReloaded.getWikiUrl()).isNull();
+    }
+
+    /**
+     * Regression test: a movie with wikiUrl already set (a page was resolved during the
+     * original save) but wikiPlot/wikiCritics both still null (no matching content
+     * section on that page) MUST be picked up by batch-reload. Eligibility was previously
+     * keyed on "wikiUrl IS NULL" alone, which permanently excluded this exact state —
+     * the movie could never be retried by batch-reload no matter how many times it ran,
+     * even though the movie detail page's own v-if="wikipediaPlot || wikipediaCritics"
+     * treats it identically to a fully-missing film.
+     */
+    @Test
+    void shouldRetryMovies_withUrlSetButNoContent() throws Exception {
+        User user = createUser("wiki-url-no-content@example.com");
+        String indexName = "movies-" + user.getId();
+        deleteIndexIfExists(indexName);
+        stubWikipediaFound();
+
+        Movie trapped = persistMovieWithUrlButNoContent(user);
+        assertThat(trapped.getWikiUrl()).isNotNull();
+        assertThat(trapped.getWikiPlot()).isNull();
+        assertThat(trapped.getWikiCritics()).isNull();
+
+        wikiReloadService.batchReload(user.getId());
+
+        pollUntilIndexed(5000, trapped.getId());
+
+        Movie reloaded = movieRepository.findById(trapped.getId()).orElseThrow();
+        assertThat(reloaded.getWikiLastAttemptedAt()).isNotNull();
+        assertThat(reloaded.getWikiPlot()).isNotNull();
     }
 
     /**

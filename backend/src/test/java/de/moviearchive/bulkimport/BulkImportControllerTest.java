@@ -33,6 +33,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -320,25 +321,42 @@ class BulkImportControllerTest extends AbstractWireMockTest {
     }
 
     @Test
-    void shouldReturn202_notCrash_forNonUtf8Bytes() throws Exception {
+    void shouldReturn400_notCrash_forNonUtf8Bytes() throws Exception {
         createActiveUser("nonutf8@example.com");
         User user = userRepository.findByEmail("nonutf8@example.com").orElseThrow();
         saveTmdbKey(user, "valid-tmdb-key");
         String token = loginAndGetToken("nonutf8@example.com");
 
-        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
-
         byte[] nonUtf8Bytes = new byte[]{(byte) 0xFF, (byte) 0xFE};
 
+        // The garbled non-UTF-8 bytes decode (lenient UTF-8 replacement-character
+        // substitution) into a single line that can never split into 3 valid fields, so
+        // this upload now correctly hits the pre-flight "no lines parseable" block instead
+        // of silently starting a no-op async job — TMDB is never reached.
         mockMvc.perform(multipart("/movies/bulk-import")
                         .file(new MockMultipartFile("file", "garbled.txt", "text/plain", nonUtf8Bytes))
                         .header("Authorization", token))
-                .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.status").value("started"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    void shouldReturn400_whenAllLinesFailToParse() throws Exception {
+        createActiveUser("allfail@example.com");
+        User user = userRepository.findByEmail("allfail@example.com").orElseThrow();
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("allfail@example.com");
+
+        byte[] plainTitles = "The Matrix\nInception\nGoodfellas".getBytes(StandardCharsets.UTF_8);
+
+        mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain", plainTitles))
+                        .header("Authorization", token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("No lines could be parsed")));
+
+        assertThat(bulkImportLineRepository.count()).isEqualTo(0);
+        wireMock.verify(0, getRequestedFor(urlPathMatching("/3/search/movie")));
     }
 
     @Test

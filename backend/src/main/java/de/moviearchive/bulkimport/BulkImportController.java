@@ -33,6 +33,7 @@ public class BulkImportController {
 
     private final BulkImportService bulkImportService;
     private final MovieService movieService;
+    private final ImportLineParser importLineParser;
 
     // WR-02: the global bulkImportExecutor is sized to a single running + single queued slot
     // (AsyncConfig.java), so an unbounded upload can tie up the only import slot for hours at
@@ -40,9 +41,11 @@ public class BulkImportController {
     @Value("${bulk-import.max-lines:5000}")
     private int maxLines;
 
-    public BulkImportController(BulkImportService bulkImportService, MovieService movieService) {
+    public BulkImportController(
+            BulkImportService bulkImportService, MovieService movieService, ImportLineParser importLineParser) {
         this.bulkImportService = bulkImportService;
         this.movieService = movieService;
+        this.importLineParser = importLineParser;
     }
 
     @PostMapping(value = "/bulk-import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -65,6 +68,21 @@ public class BulkImportController {
         if (rawLines.size() > maxLines) {
             throw new IllegalArgumentException(
                     "File exceeds " + maxLines + " lines; split into smaller batches.");
+        }
+
+        // G-10-1: reject a wholly-unparseable batch synchronously instead of silently
+        // starting a no-op async job (D-01's strict format spec). Partial-failure batches
+        // (some parseable lines mixed with some invalid ones) are unaffected — they still
+        // fall through to bulkImportService.runImport() and hit the per-line PARSE_ERROR
+        // persistence path (D-03) exactly as before.
+        boolean anyLineParses = rawLines.stream()
+                .map(importLineParser::parse)
+                .anyMatch(parsed -> parsed != null && parsed.valid());
+        if (!anyLineParses) {
+            throw new IllegalArgumentException(
+                    "No lines could be parsed. Expected format: Title;OriginalTitle;Year per line "
+                            + "(Original Title may be left empty), e.g. \"Inception;;2010\". Check your "
+                            + "file and try again.");
         }
 
         log.info("Bulk import requested email={} lines={}", email, rawLines.size());

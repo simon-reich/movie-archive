@@ -105,4 +105,19 @@ describe('/add page', () => {
     const file = new File(['Inception;;2010'], 'films.txt', { type: 'text/plain' })
     await expect(uploadBulkImport(file)).rejects.toMatchObject({ status: 422 })
   })
+
+  it('propagates 400 message when all bulk import lines fail to parse', async () => {
+    mockFetch.mockRejectedValueOnce({ status: 400, data: { message: 'No lines could be parsed. Expected format: Title;OriginalTitle;Year per line (Original Title may be left empty), e.g. "Inception;;2010". Check your file and try again.' } })
+    const { useMovies } = await import('@/composables/useMovies')
+    const { uploadBulkImport } = useMovies()
+    const file = new File(['The Matrix\nInception'], 'films.txt', { type: 'text/plain' })
+    await expect(uploadBulkImport(file)).rejects.toEqual(
+      expect.objectContaining({
+        status: 400,
+        data: expect.objectContaining({
+          message: expect.stringContaining('No lines could be parsed'),
+        }),
+      }),
+    )
+  })
 })

@@ -2,6 +2,7 @@ package de.moviearchive.bulkimport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.moviearchive.AbstractWireMockTest;
+import de.moviearchive.auth.RateLimitService;
 import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.settings.ApiKeyProvider;
 import de.moviearchive.settings.EncryptionService;
@@ -23,6 +24,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +40,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
@@ -67,6 +71,9 @@ class BulkImportControllerTest extends AbstractWireMockTest {
     @Qualifier("bulkImportExecutor")
     private ThreadPoolTaskExecutor bulkImportExecutor;
 
+    @Autowired
+    private RateLimitService rateLimitService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @DynamicPropertySource
@@ -89,6 +96,12 @@ class BulkImportControllerTest extends AbstractWireMockTest {
         movieRepository.deleteAll();
         userApiKeyRepository.deleteAll();
         userRepository.deleteAll();
+        // Same per-IP rate-limit-bucket reset pattern as MovieControllerTest/SearchControllerTest
+        // etc. — all MockMvc requests in this class share one client IP, so /auth/login's
+        // Bucket4j bucket (10/min) accumulates across every test's login() calls unless reset
+        // here. This plan added 2 more login() calls (progress-owner/progress-owner2/
+        // progress-intruder), pushing the class over the limit without this reset.
+        rateLimitService.resetAll();
     }
 
     /**
@@ -225,6 +238,80 @@ class BulkImportControllerTest extends AbstractWireMockTest {
         assertThat(line.getBatch().getId().toString()).isEqualTo(batchId);
         // D-04: poster_path is captured at save time, zero extra TMDB calls.
         assertThat(line.getPosterPath()).isEqualTo("/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg");
+    }
+
+    @Test
+    void shouldReturnEventStream_whenOwnerRequestsProgress() throws Exception {
+        User user = createActiveUser("progress-owner@example.com");
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("progress-owner@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+
+        String responseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Inception;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(responseBody).get("batchId").asText();
+
+        // Let the (1ms-paced in test config) async job drain before opening the SSE connection —
+        // register() must still work correctly whether the batch is in-flight or already
+        // finished, since either way it's a valid owner request.
+        drainBulkImportExecutor(10000);
+
+        // This SSE endpoint intentionally never completes its own SseEmitter server-side for the
+        // synthetic-complete case exercised here (the batch already finished before this GET, so
+        // register() sends an immediate "complete" event but does not call emitter.complete() —
+        // the client is expected to close its own connection after reading that event, per the
+        // frontend's AbortController pattern). MockMvc's asyncDispatch() blocks on a
+        // CountDownLatch until the async context actually completes, which never happens here —
+        // so this test deliberately does NOT call asyncDispatch(), and instead asserts directly
+        // on the un-dispatched MvcResult once the async request has started.
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get(
+                        "/movies/bulk-import/{batchId}/progress", batchId)
+                        .header("Authorization", token))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        assertThat(result.getResponse().getContentType()).startsWith(MediaType.TEXT_EVENT_STREAM_VALUE);
+    }
+
+    @Test
+    void shouldReturn403_whenDifferentUserRequestsProgress() throws Exception {
+        User owner = createActiveUser("progress-owner2@example.com");
+        saveTmdbKey(owner, "valid-tmdb-key");
+        String ownerToken = loginAndGetToken("progress-owner2@example.com");
+
+        createActiveUser("progress-intruder@example.com");
+        String intruderToken = loginAndGetToken("progress-intruder@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+
+        String responseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Inception;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", ownerToken))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(responseBody).get("batchId").asText();
+
+        drainBulkImportExecutor(10000);
+
+        mockMvc.perform(MockMvcRequestBuilders.get(
+                        "/movies/bulk-import/{batchId}/progress", batchId)
+                        .header("Authorization", intruderToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Access denied."));
     }
 
     @Test

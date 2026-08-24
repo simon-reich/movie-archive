@@ -78,4 +78,23 @@ describe('useMovies composable', () => {
     const ids = await getSavedTmdbIds()
     expect(ids).toEqual([])
   })
+
+  it('uploadBulkImport sends POST multipart to /api/movies/bulk-import and returns status', async () => {
+    mockFetch.mockResolvedValueOnce({ status: 'started' })
+    const { uploadBulkImport } = useMovies()
+    const file = new File(['Inception;;2010'], 'films.txt', { type: 'text/plain' })
+    const result = await uploadBulkImport(file)
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/movies/bulk-import',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
+    expect(result.status).toBe('started')
+  })
+
+  it('uploadBulkImport throws on 422 when no TMDB key configured', async () => {
+    mockFetch.mockRejectedValueOnce({ status: 422, data: { message: 'No TMDB key configured. Add your key in Settings.' } })
+    const { uploadBulkImport } = useMovies()
+    const file = new File(['Inception;;2010'], 'films.txt', { type: 'text/plain' })
+    await expect(uploadBulkImport(file)).rejects.toMatchObject({ status: 422 })
+  })
 })

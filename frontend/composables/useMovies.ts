@@ -61,5 +61,16 @@ export function useMovies() {
     return data.tmdbIds
   }
 
-  return { searchTmdb, saveMovie, getStatus, getSavedTmdbIds }
+  async function uploadBulkImport(file: File): Promise<{ status: string }> {
+    const formData = new FormData()
+    formData.append('file', file)
+    return await $fetch<{ status: string }>('/api/movies/bulk-import', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: authHeaders(),
+    })
+  }
+
+  return { searchTmdb, saveMovie, getStatus, getSavedTmdbIds, uploadBulkImport }
 }

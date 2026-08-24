@@ -98,6 +98,15 @@ describe('/add page', () => {
     expect(result.status).toBe('started')
   })
 
+  it('a successful bulk import upload resolves a batchId the Add Film page can link to', async () => {
+    mockFetch.mockResolvedValueOnce({ status: 'started', batchId: 'batch-abc-123' })
+    const { useMovies } = await import('@/composables/useMovies')
+    const { uploadBulkImport } = useMovies()
+    const file = new File(['Inception;;2010'], 'films.txt', { type: 'text/plain' })
+    const result = await uploadBulkImport(file)
+    expect(result.batchId).toBe('batch-abc-123')
+  })
+
   it('shows 422 error when no TMDB key configured for bulk import', async () => {
     mockFetch.mockRejectedValueOnce({ status: 422, data: { message: 'No TMDB key configured. Add your key in Settings.' } })
     const { useMovies } = await import('@/composables/useMovies')

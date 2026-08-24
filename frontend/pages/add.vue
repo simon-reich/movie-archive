@@ -17,6 +17,7 @@ const selectedFile = ref<File | null>(null)
 const bulkImporting = ref(false)
 const bulkImportError = ref<string | null>(null)
 const bulkImportMessage = ref<string | null>(null)
+const lastBulkImportBatchId = ref<string | null>(null)
 
 const pollingIntervals = new Map<string, ReturnType<typeof setInterval>>()
 const savedTmdbIds = ref<Set<number>>(new Set())
@@ -117,9 +118,11 @@ async function handleBulkImport() {
   bulkImporting.value = true
   bulkImportError.value = null
   bulkImportMessage.value = null
+  lastBulkImportBatchId.value = null
   try {
-    await uploadBulkImport(selectedFile.value)
+    const response = await uploadBulkImport(selectedFile.value)
     bulkImportMessage.value = 'Import started — this runs in the background.'
+    lastBulkImportBatchId.value = response.batchId
     selectedFile.value = null
   } catch (e: unknown) {
     const err = e as { status?: number; data?: { message?: string } }
@@ -232,6 +235,11 @@ async function handleBulkImport() {
       </form>
       <FormErrorBanner v-if="bulkImportError" :message="bulkImportError" />
       <p v-if="bulkImportMessage" class="text-sm text-foreground mt-2">{{ bulkImportMessage }}</p>
+      <NuxtLink
+        v-if="lastBulkImportBatchId"
+        :to="`/imports/${lastBulkImportBatchId}`"
+        class="text-sm text-primary hover:underline mt-1 inline-block"
+      >Track progress →</NuxtLink>
     </section>
   </main>
 </template>

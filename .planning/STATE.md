@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
-current_phase: 12
-current_phase_name: Wikidata-based Wikipedia lookup
+current_phase: 11
+current_phase_name: Bulk Import Feedback UI
 status: planning
-stopped_at: Phase 10 complete, ready to plan Phase 12
-last_updated: "2026-08-24T14:34:13.168Z"
+stopped_at: Phase 10 complete, ready to plan Phase 11
+last_updated: "2026-08-24T14:40:00.000Z"
 last_activity: 2026-08-24
-last_activity_desc: Phase 10 complete, transitioned to Phase 12
+last_activity_desc: Phase 10 complete, transitioned to Phase 11 (corrected from erroneous auto-skip to Phase 12)
 state_head: ca1e28319da8fb4526ff7a8a32e0f4aad57cede2
 progress:
   total_phases: 5
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-24)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 12 — Wikidata-based Wikipedia lookup
+**Current focus:** Phase 11 — Bulk Import Feedback UI
 
 ## Current Position
 
-Phase: 12 — Wikidata-based Wikipedia lookup
+Phase: 11 — Bulk Import Feedback UI
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-08-24 — Phase 10 complete, transitioned to Phase 12
+Last activity: 2026-08-24 — Phase 10 complete, transitioned to Phase 11
 
 Progress: [██████░░░░] 60%
 
@@ -98,5 +98,5 @@ None.
 
 **Resume file:** None
 
-Last session: 2026-08-24T14:35:00Z
-Stopped at: Phase 10 complete, ready to plan Phase 12
+Last session: 2026-08-24T14:40:00Z
+Stopped at: Phase 10 complete, ready to plan Phase 11

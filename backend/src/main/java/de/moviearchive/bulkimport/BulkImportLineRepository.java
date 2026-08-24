@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -53,4 +54,19 @@ public interface BulkImportLineRepository extends JpaRepository<BulkImportLine, 
     Optional<BulkImportLine> findByUserIdAndNormalizedTitleAndYearIsNull(
             @Param("userId") UUID userId,
             @Param("normalizedTitle") String normalizedTitle);
+
+    /**
+     * D-03: batch-detail page — every line belonging to a batch, ordered for stable
+     * display. Derived query resolves the nested `batch.id` property.
+     */
+    List<BulkImportLine> findByBatchIdOrderByTitle(UUID batchId);
+
+    /**
+     * D-03: per-status counts for a batch's status-distribution summary. Plain
+     * `Object[]` rows (element 0 = BulkImportLineStatus, element 1 = Long) — this
+     * codebase has no existing interface-projection convention, so none is introduced
+     * here; the controller converts rows to a Map<String, Long>.
+     */
+    @Query("SELECT b.status, COUNT(b) FROM BulkImportLine b WHERE b.batch.id = :batchId GROUP BY b.status")
+    List<Object[]> countByBatchIdGroupByStatus(@Param("batchId") UUID batchId);
 }

@@ -206,17 +206,25 @@ class BulkImportControllerTest extends AbstractWireMockTest {
                 "file", "films.txt", "text/plain",
                 "Inception;;2010".getBytes(StandardCharsets.UTF_8));
 
-        mockMvc.perform(multipart("/movies/bulk-import")
+        String responseBody = mockMvc.perform(multipart("/movies/bulk-import")
                         .file(file)
                         .header("Authorization", token))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.status").value("started"));
+                .andExpect(jsonPath("$.status").value("started"))
+                .andExpect(jsonPath("$.batchId").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(responseBody).get("batchId").asText();
 
         BulkImportLine line = pollForLine(5000);
         assertThat(line).isNotNull();
         assertThat(line.getStatus()).isEqualTo(BulkImportLineStatus.SAVED);
         assertThat(line.getTmdbId()).isEqualTo(27205);
         assertThat(movieRepository.count()).isEqualTo(1);
+        // D-02: the persisted line is tagged with the batch returned in the 202 response.
+        assertThat(line.getBatch()).isNotNull();
+        assertThat(line.getBatch().getId().toString()).isEqualTo(batchId);
+        // D-04: poster_path is captured at save time, zero extra TMDB calls.
+        assertThat(line.getPosterPath()).isEqualTo("/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg");
     }
 
     @Test

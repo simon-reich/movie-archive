@@ -114,6 +114,8 @@ class BulkImportServiceTest {
         verify(bulkImportLineRepository).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(BulkImportLineStatus.SAVED);
         assertThat(captor.getValue().getTmdbId()).isEqualTo(27205);
+        // D-04: poster_path is captured from the already-fetched TMDB match, zero extra calls.
+        assertThat(captor.getValue().getPosterPath()).isEqualTo("/poster.jpg");
     }
 
     @Test

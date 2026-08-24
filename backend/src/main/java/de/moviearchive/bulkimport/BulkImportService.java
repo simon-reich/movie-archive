@@ -132,7 +132,7 @@ public class BulkImportService {
         BulkImportBatch batch = bulkImportBatchRepository.getReferenceById(batchId);
 
         if (!parsed.valid()) {
-            upsertLine(user, parsed, BulkImportLineStatus.PARSE_ERROR, null, batch);
+            upsertLine(user, parsed, BulkImportLineStatus.PARSE_ERROR, null, null, batch);
             return Optional.empty();
         }
 
@@ -157,7 +157,7 @@ public class BulkImportService {
             // still surfacing the outcome in the per-line audit trail instead of silently
             // dropping the line.
             log.warn("Bulk import: TMDB search failed for title={}: {}", parsed.title(), e.getMessage());
-            upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, batch);
+            upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, null, batch);
             return Optional.empty();
         }
         List<TmdbSearchResultItem> yearMatches = results.stream()
@@ -165,12 +165,12 @@ public class BulkImportService {
                 .toList();
 
         if (yearMatches.isEmpty()) {
-            upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, batch);
+            upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, null, batch);
             return Optional.empty();
         }
 
         if (yearMatches.size() == 1) {
-            return saveAndUpsert(user, email, parsed, yearMatches.get(0).tmdbId(), batch);
+            return saveAndUpsert(user, email, parsed, yearMatches.get(0), batch);
         }
 
         // D-06: still ambiguous after year filter — try original-title narrowing.
@@ -180,12 +180,12 @@ public class BulkImportService {
                             && r.originalTitle().equalsIgnoreCase(parsed.originalTitle()))
                     .toList();
             if (narrowed.size() == 1) {
-                return saveAndUpsert(user, email, parsed, narrowed.get(0).tmdbId(), batch);
+                return saveAndUpsert(user, email, parsed, narrowed.get(0), batch);
             }
         }
 
         // D-04: multiple candidates, no unambiguous narrowing — never auto-guess.
-        upsertLine(user, parsed, BulkImportLineStatus.AMBIGUOUS, null, batch);
+        upsertLine(user, parsed, BulkImportLineStatus.AMBIGUOUS, null, null, batch);
         return Optional.empty();
     }
 
@@ -196,9 +196,11 @@ public class BulkImportService {
      * invoke enrichmentService.enrich() once this method's enclosing transaction has committed.
      */
     private Optional<UUID> saveAndUpsert(
-            User user, String email, ParsedLine parsed, int tmdbId, BulkImportBatch batch) {
-        MovieInitiateResult result = movieService.initiate(email, tmdbId);
-        upsertLine(user, parsed, BulkImportLineStatus.SAVED, tmdbId, batch);
+            User user, String email, ParsedLine parsed, TmdbSearchResultItem match, BulkImportBatch batch) {
+        MovieInitiateResult result = movieService.initiate(email, match.tmdbId());
+        // D-04: match already carries posterPath() from the search results fetched earlier in
+        // processLine() — no extra TMDB call needed to capture it here.
+        upsertLine(user, parsed, BulkImportLineStatus.SAVED, match.tmdbId(), match.posterPath(), batch);
         return result.isNew() ? Optional.of(result.id()) : Optional.empty();
     }
 
@@ -206,8 +208,8 @@ public class BulkImportService {
      * Finds the existing row for this line (across any prior status) or creates a new one,
      * then updates it in place — never inserts a duplicate row per re-upload (D-13).
      */
-    private void upsertLine(
-            User user, ParsedLine parsed, BulkImportLineStatus status, Integer tmdbId, BulkImportBatch batch) {
+    private void upsertLine(User user, ParsedLine parsed, BulkImportLineStatus status, Integer tmdbId,
+            String posterPath, BulkImportBatch batch) {
         BulkImportLine row = findExistingRow(user.getId(), parsed)
                 .orElseGet(() -> new BulkImportLine(user, parsed.rawLine()));
         row.setTitle(cap(parsed.title()));
@@ -215,6 +217,7 @@ public class BulkImportService {
         row.setYear(parsed.year());
         row.setStatus(status);
         row.setTmdbId(tmdbId);
+        row.setPosterPath(posterPath);
         row.setBatch(batch);
         row.setUpdatedAt(Instant.now());
         bulkImportLineRepository.save(row);

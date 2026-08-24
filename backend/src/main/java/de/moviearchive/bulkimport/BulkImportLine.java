@@ -40,6 +40,9 @@ public class BulkImportLine {
     @Column(name = "tmdb_id")
     private Integer tmdbId;
 
+    @Column(name = "poster_path")
+    private String posterPath;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private BulkImportLineStatus status;

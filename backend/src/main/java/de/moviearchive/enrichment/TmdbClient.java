@@ -36,6 +36,7 @@ public class TmdbClient {
             for (JsonNode item : response.get("results")) {
                 int tmdbId = item.get("id").asInt();
                 String title = item.path("title").asText(null);
+                String originalTitle = item.path("original_title").asText(null);
                 String releaseDate = item.path("release_date").asText("");
                 Integer year = null;
                 if (releaseDate.length() >= 4) {
@@ -46,7 +47,7 @@ public class TmdbClient {
                     }
                 }
                 String posterPath = item.path("poster_path").asText(null);
-                results.add(new TmdbSearchResultItem(tmdbId, title, year, posterPath));
+                results.add(new TmdbSearchResultItem(tmdbId, title, originalTitle, year, posterPath));
             }
         }
         log.debug("TMDB search returned {} results for query={}", results.size(), query);

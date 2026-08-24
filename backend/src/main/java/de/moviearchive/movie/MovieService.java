@@ -105,11 +105,23 @@ public class MovieService {
      */
     @Transactional(readOnly = true)
     public List<TmdbSearchResultItem> search(String email, String query) {
+        String tmdbKey = resolveTmdbKey(email);
+        return tmdbClient.search(query, tmdbKey);
+    }
+
+    /**
+     * Resolves the user's stored TMDB key, decrypted. Extracted from search() so
+     * BulkImportController can reuse the identical fail-fast 422 check synchronously,
+     * before dispatching to the async bulk-import job.
+     * Throws NoTmdbKeyException if no key is configured.
+     */
+    @Transactional(readOnly = true)
+    public String resolveTmdbKey(String email) {
         var keys = settingsService.getApiKeys(email);
         String tmdbKey = (String) keys.get("tmdb");
         if (tmdbKey == null) {
             throw new NoTmdbKeyException("No TMDB key configured. Add your key in Settings.");
         }
-        return tmdbClient.search(query, tmdbKey);
+        return tmdbKey;
     }
 }

@@ -1,0 +1,21 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "id": 1001,
+      "title": "Robin Hood",
+      "original_title": "Robin Hood",
+      "release_date": "2010-05-14",
+      "poster_path": "/robinhood1.jpg"
+    },
+    {
+      "id": 1002,
+      "title": "Robin Hood",
+      "original_title": "Robin des Bois",
+      "release_date": "2010-05-14",
+      "poster_path": "/robinhood2.jpg"
+    }
+  ],
+  "total_results": 2,
+  "total_pages": 1
+}

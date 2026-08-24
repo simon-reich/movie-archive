@@ -82,12 +82,13 @@ Plans:
   4. A line with multiple year-matching candidates is marked ambiguous instead of being auto-guessed.
   5. Re-uploading the same file skips lines already saved in a previous run — no duplicate TMDB calls and no duplicate saves for those lines.
 
-**Plans**: 2/2 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 
 - [x] 10-01-PLAN.md — Bulk import engine: multipart upload, parse/match/save, dedup-skip-on-reupload (IMPORT-01/02/03/04/07)
 - [x] 10-02-PLAN.md — Add Film page: bulk import upload trigger (IMPORT-01)
+- [ ] 10-03-PLAN.md — Gap closure: format hint + pre-flight all-lines-unparseable 400 detection (G-10-1, IMPORT-01)
 
 **UI hint**: yes
 

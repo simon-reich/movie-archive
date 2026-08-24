@@ -122,9 +122,11 @@ async function handleBulkImport() {
     bulkImportMessage.value = 'Import started — this runs in the background.'
     selectedFile.value = null
   } catch (e: unknown) {
-    const err = e as { status?: number }
+    const err = e as { status?: number; data?: { message?: string } }
     if (err?.status === 422) {
       bulkImportError.value = 'No TMDB key configured. Add your key in Settings.'
+    } else if (err?.status === 400 && err.data?.message) {
+      bulkImportError.value = err.data.message
     } else {
       bulkImportError.value = 'Import failed. Please try again.'
     }
@@ -211,6 +213,7 @@ async function handleBulkImport() {
 
     <section id="bulk-import">
       <h1 class="text-xl font-semibold tracking-wide mb-6">Bulk Import</h1>
+      <p class="text-sm text-muted-foreground mb-3">One film per line: Title;OriginalTitle;Year — leave Original Title empty if unknown, e.g. "Inception;;2010".</p>
       <form class="flex items-center gap-3" @submit.prevent="handleBulkImport">
         <input
           id="bulk-import-file"

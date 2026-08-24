@@ -39,6 +39,7 @@ public class BulkImportService {
     private final EnrichmentService enrichmentService;
     private final ImportLineParser importLineParser;
     private final BulkImportBatchRepository bulkImportBatchRepository;
+    private final BulkImportProgressService progressService;
     private final BulkImportService self;
 
     @Value("${bulk-import.pacing-delay-ms:1000}")
@@ -51,6 +52,7 @@ public class BulkImportService {
                              EnrichmentService enrichmentService,
                              ImportLineParser importLineParser,
                              BulkImportBatchRepository bulkImportBatchRepository,
+                             BulkImportProgressService progressService,
                              @Lazy BulkImportService self) {
         this.bulkImportLineRepository = bulkImportLineRepository;
         this.userRepository = userRepository;
@@ -59,6 +61,7 @@ public class BulkImportService {
         this.enrichmentService = enrichmentService;
         this.importLineParser = importLineParser;
         this.bulkImportBatchRepository = bulkImportBatchRepository;
+        this.progressService = progressService;
         this.self = self;
     }
 
@@ -92,6 +95,7 @@ public class BulkImportService {
             } catch (Exception e) {
                 log.warn("Bulk import: unexpected error for line index={}: {}", i, e.getMessage());
             }
+            progressService.publish(batchId, i + 1, rawLines.size());
             if (i < rawLines.size() - 1) {
                 try {
                     Thread.sleep(pacingDelayMs);
@@ -102,6 +106,7 @@ public class BulkImportService {
                 }
             }
         }
+        progressService.complete(batchId);
         log.info("Bulk import complete email={} processed={}", email, rawLines.size());
     }
 

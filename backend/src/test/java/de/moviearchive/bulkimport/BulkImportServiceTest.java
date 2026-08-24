@@ -49,6 +49,9 @@ class BulkImportServiceTest {
     @Mock
     private BulkImportBatchRepository bulkImportBatchRepository;
 
+    @Mock
+    private BulkImportProgressService progressService;
+
     private final ImportLineParser importLineParser = new ImportLineParser();
 
     private BulkImportService bulkImportService;
@@ -61,7 +64,7 @@ class BulkImportServiceTest {
     void setUp() {
         bulkImportService = new BulkImportService(
                 bulkImportLineRepository, userRepository, tmdbClient, movieService,
-                enrichmentService, importLineParser, bulkImportBatchRepository, null);
+                enrichmentService, importLineParser, bulkImportBatchRepository, progressService, null);
 
         user = new User(EMAIL, "hash");
 

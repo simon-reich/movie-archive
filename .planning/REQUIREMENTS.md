@@ -17,13 +17,13 @@ Requirements for the v1.1 milestone. Each maps to roadmap phases.
 
 ### Bulk Import
 
-- [ ] **IMPORT-01**: User kann im Bereich "Add Film" eine Textdatei (Titel + optionaler Originaltitel in Klammern + Jahr, eine Zeile pro Film) hochladen
-- [ ] **IMPORT-02**: System parsed jede Zeile, sucht via TMDB (bestehende `/movies/search`-Logik) nach Titel, filtert nach Jahr
-- [ ] **IMPORT-03**: Eindeutiger Treffer wird automatisch gespeichert (bestehende `/movies/save`-Logik inkl. Dedup-Idempotenz)
-- [ ] **IMPORT-04**: Mehrdeutige Treffer (mehrere Kandidaten mit passendem Jahr) werden nicht automatisch geraten, sondern zur manuellen Auswahl markiert
+- [x] **IMPORT-01**: User kann im Bereich "Add Film" eine Textdatei (Titel + optionaler Originaltitel in Klammern + Jahr, eine Zeile pro Film) hochladen
+- [x] **IMPORT-02**: System parsed jede Zeile, sucht via TMDB (bestehende `/movies/search`-Logik) nach Titel, filtert nach Jahr
+- [x] **IMPORT-03**: Eindeutiger Treffer wird automatisch gespeichert (bestehende `/movies/save`-Logik inkl. Dedup-Idempotenz)
+- [x] **IMPORT-04**: Mehrdeutige Treffer (mehrere Kandidaten mit passendem Jahr) werden nicht automatisch geraten, sondern zur manuellen Auswahl markiert
 - [ ] **IMPORT-05**: User sieht während des laufenden Imports einen Live-Fortschritt (verarbeitet / gesamt)
 - [ ] **IMPORT-06**: Nach Abschluss zeigt eine Ergebnisübersicht pro Zeile: Titel, Poster (falls gefunden), Status (gespeichert / mehrdeutig / nicht gefunden / Parse-Fehler)
-- [ ] **IMPORT-07**: Erneutes Hochladen derselben Liste überspringt bereits gespeicherte Filme (keine Duplikate, keine erneuten TMDB-Calls für bereits erledigte Zeilen)
+- [x] **IMPORT-07**: Erneutes Hochladen derselben Liste überspringt bereits gespeicherte Filme (keine Duplikate, keine erneuten TMDB-Calls für bereits erledigte Zeilen)
 
 ## Future Requirements
 
@@ -55,13 +55,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENRICH-03 | Phase 8 | Complete |
 | ENRICH-04 | Phase 9 | Complete |
 | ENRICH-05 | Phase 9 | Complete |
-| IMPORT-01 | Phase 10 | Pending |
-| IMPORT-02 | Phase 10 | Pending |
-| IMPORT-03 | Phase 10 | Pending |
-| IMPORT-04 | Phase 10 | Pending |
+| IMPORT-01 | Phase 10 | Complete |
+| IMPORT-02 | Phase 10 | Complete |
+| IMPORT-03 | Phase 10 | Complete |
+| IMPORT-04 | Phase 10 | Complete |
 | IMPORT-05 | Phase 11 | Pending |
 | IMPORT-06 | Phase 11 | Pending |
-| IMPORT-07 | Phase 10 | Pending |
+| IMPORT-07 | Phase 10 | Complete |
 
 **Coverage:**
 

@@ -3,6 +3,7 @@ package de.moviearchive.bulkimport;
 import de.moviearchive.movie.MovieService;
 import de.moviearchive.movie.NoTmdbKeyException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +34,12 @@ public class BulkImportController {
     private final BulkImportService bulkImportService;
     private final MovieService movieService;
 
+    // WR-02: the global bulkImportExecutor is sized to a single running + single queued slot
+    // (AsyncConfig.java), so an unbounded upload can tie up the only import slot for hours at
+    // the default pacing delay. Fail fast with 400 before dispatching the async job.
+    @Value("${bulk-import.max-lines:5000}")
+    private int maxLines;
+
     public BulkImportController(BulkImportService bulkImportService, MovieService movieService) {
         this.bulkImportService = bulkImportService;
         this.movieService = movieService;
@@ -54,6 +61,11 @@ public class BulkImportController {
         // JDK's new String(bytes, UTF_8) never throws (lenient replacement-character decoding),
         // so non-UTF-8-decodable content simply fails to split into 3 valid fields downstream.
         List<String> rawLines = new String(file.getBytes(), StandardCharsets.UTF_8).lines().toList();
+
+        if (rawLines.size() > maxLines) {
+            throw new IllegalArgumentException(
+                    "File exceeds " + maxLines + " lines; split into smaller batches.");
+        }
 
         log.info("Bulk import requested email={} lines={}", email, rawLines.size());
         bulkImportService.runImport(email, tmdbKey, rawLines);

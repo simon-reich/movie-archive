@@ -2,39 +2,39 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
-current_phase: 10
-current_phase_name: Bulk Import Engine
-status: executing
-stopped_at: Phase 10 gap closure executed, re-run /gsd-verify-work 10 to confirm
-last_updated: "2026-08-24T14:35:00.000Z"
+current_phase: 12
+current_phase_name: Wikidata-based Wikipedia lookup
+status: planning
+stopped_at: Phase 10 complete, ready to plan Phase 12
+last_updated: "2026-08-24T14:34:13.168Z"
 last_activity: 2026-08-24
-last_activity_desc: Phase 10 gap closure plan (10-03) executed and merged — G-10-1 resolved
-state_head: 3c52122c6a0ce3cc6576ea7463f6e50e7848b707
+last_activity_desc: Phase 10 complete, transitioned to Phase 12
+state_head: ca1e28319da8fb4526ff7a8a32e0f4aad57cede2
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 40
+  completed_phases: 3
+  total_plans: 7
+  completed_plans: 7
+  percent: 60
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-22)
+See: .planning/PROJECT.md (updated 2026-08-24)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 10 — Bulk Import Engine
+**Current focus:** Phase 12 — Wikidata-based Wikipedia lookup
 
 ## Current Position
 
-Phase: 10 (Bulk Import Engine) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
-Last activity: 2026-08-23 — Phase 10 execution started
+Phase: 12 — Wikidata-based Wikipedia lookup
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-24 — Phase 10 complete, transitioned to Phase 12
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -55,10 +55,11 @@ Progress: [████░░░░░░] 40%
 | 5. Search | 4 | COMPLETE |
 | 6. Movie Detail & Personal Fields | 6 | COMPLETE |
 | 7. E2E Tests, Mobile, Polish, README | 3 | COMPLETE — 2026-05-21 |
-| 8. Wiki Enrichment Tracking & Batch Reload | TBD | Not started |
-| 9. Manual Wiki Retry | TBD | Not started |
-| 10. Bulk Import Engine | TBD | Not started |
+| 8. Wiki Enrichment Tracking & Batch Reload | 2 | COMPLETE — 2026-08-23 |
+| 9. Manual Wiki Retry | 2 | COMPLETE — 2026-08-23 |
+| 10. Bulk Import Engine | 3 | COMPLETE — 2026-08-24 |
 | 11. Bulk Import Feedback UI | TBD | Not started |
+| 12. Wikidata-based Wikipedia lookup | TBD | Not started |
 
 ## Accumulated Context
 
@@ -72,6 +73,7 @@ Key decisions relevant to v1.1:
 - [v1.1 roadmap]: Mehrdeutige Bulk-Import-Treffer werden nie automatisch geraten — immer manuelle Prüfung (Out of Scope: Best-Match-Raten)
 - [v1.1 roadmap]: Phase 8 (data model + batch backend) trennt sich von Phase 9 (manual per-film retry, full stack) — jede Requirement-Gruppe bleibt vollständig in einer Phase
 - [v1.1 roadmap]: Phase 10 (Bulk-Import-Engine: Upload/Parse/Match/Save/Dedup) trennt sich von Phase 11 (Live-Progress + Ergebnisübersicht) — Engine zuerst, Feedback-UI konsumiert sie danach
+- [Phase 10 UAT]: Bulk-Import-Format bleibt strikt `Title;OriginalTitle;Year` (Original Title optional leer) — UI zeigt jetzt einen Format-Hinweis direkt im Bulk-Import-Bereich und ein komplett unparsbarer Upload wird synchron mit 400 + spezifischer Meldung abgelehnt statt still als "Import started" zu erscheinen (G-10-1, 10-03-PLAN.md)
 
 ### Pending Todos
 
@@ -94,7 +96,7 @@ None.
 
 ## Session Continuity
 
-**Resume file:** .planning/phases/10-bulk-import-engine/10-CONTEXT.md
+**Resume file:** None
 
-Last session: 2026-08-23T18:03:45.200Z
-Stopped at: Phase 10 context gathered
+Last session: 2026-08-24T14:35:00Z
+Stopped at: Phase 10 complete, ready to plan Phase 12

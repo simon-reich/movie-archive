@@ -60,13 +60,13 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 - ✓ QLTY-01: Responsive + vollständig nutzbar auf Mobilgeräten — Phase 7
 - ✓ QLTY-02: Playwright E2E Happy Paths auf Desktop + Mobile Chrome — Phase 7
 - ✓ QLTY-03: GitHub Actions E2E CI + README Setup-Dokumentation — Phase 7
+- ✓ ENRICH-01: `wiki_last_attempted_at` Zeitstempel pro Film — Phase 8
+- ✓ ENRICH-02: Batch-Reload-Endpoint mit Cooldown-Filter, gepaced — Phase 8
+- ✓ ENRICH-03: Manueller Retry-Button auf Detailseite für Filme ohne Wiki-Daten — Phase 9
+- ✓ IMPORT-01: Bulk-Import (Title;OriginalTitle;Year-Zeilen) als In-App-Feature, Datei-Upload im Bereich "Add Film"; Parse/Match/Save/Dedup + Format-Hinweis und Pre-Flight-Fehlermeldung bei komplett unparsbaren Uploads — Phase 10
 
 ### Active
 
-- [ ] ENRICH-01: `wiki_last_attempted_at` Zeitstempel pro Film; unterscheidet "nie versucht", "kürzlich erfolglos" (Cooldown), "lange nicht mehr versucht"
-- [ ] ENRICH-02: Batch-Reload-Endpoint lädt Wiki-Daten für alle Filme mit offenem Status nach (Cooldown-Filter, gepaced)
-- [ ] ENRICH-03: Manueller Retry-Button auf Detailseite für Filme ohne Wiki-Daten
-- [ ] IMPORT-01: Bulk-Import (Titel+Jahr-Liste) als In-App-Feature, Datei-Upload im Bereich "Add Film"
 - [ ] IMPORT-02: Live-Fortschrittsanzeige während des Imports
 - [ ] IMPORT-03: Ergebnisübersicht nach Import — Titel, Poster, Status (gespeichert/mehrdeutig/nicht gefunden) pro Zeile
 
@@ -128,7 +128,8 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 | Refresh.WaitFor auf index() | Document sofort suchbar — behebt E2E Mobile Chrome Race Condition | ✓ Good — Phase 7 |
 | Tailwind viewport breakpoints für Star Rating | Container queries scheiterten an flex shrink-to-fit sizing | ✓ Good — Phase 7 |
 | useHead html background für overscroll | Browser nutzen \<html\> background für top-overscroll gutter | ✓ Good — Phase 7 |
-| Cooldown-Zeitstempel statt permanentem "not found"-Flag für Wiki-Lookup | Wikipedia-Seiten entstehen über Zeit neu; permanenter Skip würde das dauerhaft verpassen | — Pending — v1.1 |
+| Cooldown-Zeitstempel statt permanentem "not found"-Flag für Wiki-Lookup | Wikipedia-Seiten entstehen über Zeit neu; permanenter Skip würde das dauerhaft verpassen | ✓ Good — Phase 8 |
+| Bulk-Import strikt `Title;OriginalTitle;Year` (Original Title optional leer) | Einfacher, testbarer Parser ohne echtes CSV-Quoting; UAT deckte auf, dass das Format ohne UI-Hinweis nicht selbsterklärend war | ⚠ Teilweise — Phase 10: Format-Hinweis + Pre-Flight-400 bei komplett unparsbaren Uploads nachgezogen; echtes CSV-Parsing bleibt v2-Kandidat (SET-06) |
 
 ## Design System
 
@@ -152,4 +153,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-22 after starting v1.1 milestone*
+*Last updated: 2026-08-24 after Phase 10*

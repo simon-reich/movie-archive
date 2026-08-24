@@ -37,4 +37,23 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    /**
+     * Dedicated executor for BulkImportService.runImport (D-11). Sized core=1/max=1/
+     * queue=1, mirroring wikiReloadExecutor above, per CONTEXT.md's explicit discretion
+     * note to follow that sizing pattern unless there's a reason to differ — a single
+     * global bounded slot per app instance is intentional. A third overlapping trigger
+     * is rejected (TaskRejectedException) once the single run-slot and single queue-slot
+     * are both occupied.
+     */
+    @Bean(name = "bulkImportExecutor")
+    public Executor bulkImportExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        executor.setQueueCapacity(1);
+        executor.setThreadNamePrefix("bulk-import-");
+        executor.initialize();
+        return executor;
+    }
 }

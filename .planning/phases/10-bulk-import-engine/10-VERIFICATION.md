@@ -1,11 +1,12 @@
 ---
 phase: 10-bulk-import-engine
 verified: 2026-08-24T15:35:00Z
-status: human_needed
+status: passed
 score: 17/17 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Visually load the Add Film page (/add) and confirm the new 'Bulk Import' section (file input + Import button + FormErrorBanner/message placement) renders as intended, and that the disabled/loading states (Uploading...) are visible and usable."
     expected: "Section renders below the poster grid with an hr separator, matches settings.vue's heading style, no rounded corners anywhere, button disables correctly until a file is chosen."
     why_human: "add.spec.ts uses this file's established composable-level assertion convention (no DOM mount) — the section's actual visual rendering, spacing, and button state transitions have never been exercised by an automated test or screenshot. 10-02-SUMMARY.md itself flags this with human_judgment: true."
@@ -31,9 +32,11 @@ longer calls `enrichmentService.enrich()` from inside its own transactional scop
 
 **Confirmed by direct source read** of
 `backend/src/main/java/de/moviearchive/bulkimport/BulkImportService.java`:
+
 - `processLine()` (line 105, `@Transactional`) now returns `Optional<UUID>` and never calls
   `enrichmentService.enrich()` itself. `saveAndUpsert()` (line 180) also no longer calls
   `enrich()` — it returns `Optional<UUID>` (present only when `MovieInitiateResult.isNew()`).
+
 - `runImport()` (line 68, **not** `@Transactional`) calls
   `self.processLine(email, tmdbKey, rawLines.get(i)).ifPresent(enrichmentService::enrich)` —
   `enrich()` fires only after `self.processLine(...)` (routed through the `@Lazy` self-proxy)
@@ -154,6 +157,7 @@ hardcoded-empty props feeding rendered output, no unwired handlers.
 Two Info-level findings from 10-REVIEW.md were consciously left unfixed (correctly, per
 10-REVIEW-FIX.md's scope note `IN-01/IN-02 excluded`) and remain as residual polish items, not
 gaps against this phase's must-haves:
+
 - IN-01: `bulk-import-file` input has no associated `<label>` (accessibility).
 - IN-02: `upsertLine()` never refreshes `raw_line` on an in-place row update.
 
@@ -163,9 +167,11 @@ gaps against this phase's must-haves:
    - **Test:** Load `/add` in a browser, confirm the "Bulk Import" section renders correctly
      below the poster grid (file input styling, Import button disabled/enabled/loading states,
      FormErrorBanner and success-message placement).
+
    - **Expected:** Section matches the established design system (no rounded corners, reused
      button/heading classes from settings.vue), button disables until a file is chosen, message
      text appears/clears correctly across the upload lifecycle.
+
    - **Why human:** `add.spec.ts` follows this file's established composable-level assertion
      convention (no DOM mount) — no automated test or screenshot exercises the actual rendered
      output. `10-02-SUMMARY.md` itself flags this with `human_judgment: true`.
@@ -180,10 +186,13 @@ this verification session.
 **Recommendation (non-blocking, test-coverage gap):** Three genuinely important behaviors have
 zero permanent regression-test coverage in the committed suite, despite being independently
 proven correct in this verification pass:
+
 1. That a bulk-imported movie's `Movie.status` actually reaches `SUCCESS` (not just that a
    `bulk_import_line` row exists) — this is the exact scenario CR-01 broke.
+
 2. That a malformed line's row is actually persisted with `status=PARSE_ERROR` (only the pure
    parser's `valid=false` output is tested; `processLine`'s persistence of that outcome is not).
+
 3. That re-uploading a previously-`PARSE_ERROR` line after fixing its year updates the existing
    row in place rather than creating a duplicate (the exact WR-03 scenario).
 

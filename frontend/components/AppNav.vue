@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, Settings, LogOut, Menu, X, PlusCircle } from 'lucide-vue-next'
+import { Search, Settings, LogOut, Menu, X, PlusCircle, History } from 'lucide-vue-next'
 
 const props = defineProps<{ overlay?: boolean }>()
 
@@ -40,6 +40,10 @@ const drawerOpen = ref(false)
         <NuxtLink to="/search" :class="['text-sm font-medium flex items-center gap-1', textClass]">
           <Search class="w-4 h-4" />
           Search
+        </NuxtLink>
+        <NuxtLink to="/imports" :class="['text-sm font-medium flex items-center gap-1', textClass]">
+          <History class="w-4 h-4" />
+          Imports
         </NuxtLink>
         <NuxtLink to="/settings" :class="textClass" title="Settings">
           <Settings class="w-4 h-4" />
@@ -114,6 +118,16 @@ const drawerOpen = ref(false)
       >
         <Search class="w-4 h-4" />
         Search
+      </NuxtLink>
+
+      <NuxtLink
+        to="/imports"
+        class="text-sm font-medium tracking-widest uppercase text-foreground hover:text-primary flex items-center gap-2"
+        active-class="text-primary"
+        @click="drawerOpen = false"
+      >
+        <History class="w-4 h-4" />
+        Imports
       </NuxtLink>
 
       <NuxtLink

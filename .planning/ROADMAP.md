@@ -29,7 +29,7 @@
 
 - [x] **Phase 8: Wiki Enrichment Tracking & Batch Reload** - Track Wikipedia attempt timestamps per film and batch-reload films missing wiki data with cooldown filtering and paced requests (completed 2026-08-23)
 - [x] **Phase 9: Manual Wiki Retry** - Per-film retry button on the detail page for films without Wikipedia data, with immediate result feedback (completed 2026-08-23)
-- [ ] **Phase 10: Bulk Import Engine** - Upload a title+year list in Add Film; auto-match and save unique TMDB hits, flag ambiguous ones, skip already-imported lines on re-upload
+- [x] **Phase 10: Bulk Import Engine** - Upload a title+year list in Add Film; auto-match and save unique TMDB hits, flag ambiguous ones, skip already-imported lines on re-upload (completed 2026-08-24)
 - [ ] **Phase 11: Bulk Import Feedback UI** - Live progress and a per-line result overview (title, poster, status) for bulk imports
 
 ## Phase Details
@@ -102,7 +102,16 @@ Plans:
   1. While an import is running, the user sees a live progress indicator (films processed / total films).
   2. After the import completes, the user sees a results list showing, per line: title, poster (if found), and status (saved / ambiguous / not found / parse error).
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+
+- [ ] 11-01-PLAN.md — Backend: batch persistence + poster capture (D-02/D-04, tracer)
+- [ ] 11-02-PLAN.md — Backend: live progress SSE endpoint (D-01)
+- [ ] 11-03-PLAN.md — Backend: batch list + detail GET endpoints (D-03/D-05/D-06)
+- [ ] 11-04-PLAN.md — Frontend: progress + results page, reachable from Add Film
+- [ ] 11-05-PLAN.md — Frontend: batch list page + nav entry
+
 **UI hint**: yes
 
 ## Progress
@@ -119,8 +128,8 @@ Plans:
 | 7. Polish & Quality | v1.0 | 3/3 | ✅ Complete | 2026-05-21 |
 | 8. Wiki Enrichment Tracking & Batch Reload | v1.1 | 0/TBD | Complete    | 2026-08-23 |
 | 9. Manual Wiki Retry | v1.1 | 0/2 | Complete    | 2026-08-23 |
-| 10. Bulk Import Engine | v1.1 | 0/2 | In Progress|  |
-| 11. Bulk Import Feedback UI | v1.1 | 0/TBD | Not started | - |
+| 10. Bulk Import Engine | v1.1 | 0/2 | Complete    | 2026-08-24 |
+| 11. Bulk Import Feedback UI | v1.1 | 0/5 | Not started | - |
 
 ### Phase 12: Wikidata-based Wikipedia lookup
 

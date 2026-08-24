@@ -202,8 +202,16 @@ public class BulkImportService {
 
     private Optional<BulkImportLine> findExistingRow(UUID userId, ParsedLine parsed) {
         if (parsed.year() != null) {
-            return bulkImportLineRepository.findByUserIdAndNormalizedTitleAndYear(
-                    userId, normalize(parsed.title()), parsed.year());
+            Optional<BulkImportLine> byTitleAndYear = bulkImportLineRepository
+                    .findByUserIdAndNormalizedTitleAndYear(userId, normalize(parsed.title()), parsed.year());
+            if (byTitleAndYear.isPresent()) {
+                return byTitleAndYear;
+            }
+            // WR-03: this line now parses, but it may previously have been a PARSE_ERROR row
+            // (always persisted with year=null) sharing the same title — probe for it so the
+            // re-upload updates that row in place instead of orphaning it as a duplicate.
+            return bulkImportLineRepository.findByUserIdAndNormalizedTitleAndYearIsNull(
+                    userId, normalize(parsed.title()));
         }
         return bulkImportLineRepository.findByUserIdAndRawLineAndYearIsNull(userId, parsed.rawLine());
     }

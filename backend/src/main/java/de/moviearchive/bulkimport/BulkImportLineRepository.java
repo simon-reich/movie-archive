@@ -39,4 +39,18 @@ public interface BulkImportLineRepository extends JpaRepository<BulkImportLine, 
      * these rows are identified by their normalized raw line text instead.
      */
     Optional<BulkImportLine> findByUserIdAndRawLineAndYearIsNull(UUID userId, String rawLine);
+
+    /**
+     * WR-03: probes for a stale PARSE_ERROR row (year always null, per
+     * {@link ImportLineParser#parse}) sharing the same normalized title as a line that now
+     * parses successfully — e.g. "Title;;abcd" (PARSE_ERROR, year=null) fixed and re-uploaded
+     * as "Title;;2010". Without this probe, {@code findByUserIdAndNormalizedTitleAndYear}
+     * (year non-null) never matches the year=null row, so the re-upload orphans the original
+     * row and inserts a duplicate instead of updating in place.
+     */
+    @Query("SELECT b FROM BulkImportLine b WHERE b.user.id = :userId "
+            + "AND lower(b.title) = :normalizedTitle AND b.year IS NULL")
+    Optional<BulkImportLine> findByUserIdAndNormalizedTitleAndYearIsNull(
+            @Param("userId") UUID userId,
+            @Param("normalizedTitle") String normalizedTitle);
 }

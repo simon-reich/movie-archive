@@ -154,6 +154,10 @@ None — no external service configuration required.
 - `bulk_import_batch.total_lines` and `bulk_import_line.batch_id`/`poster_path` are real persisted columns — Plan 11-03's batch list/detail GET endpoints have real data to query, no stub/mock needed.
 - No blockers.
 
+## Self-Check: PASSED
+
+All created files verified present on disk; all task/summary commits verified in git log.
+
 ---
 *Phase: 11-bulk-import-feedback-ui*
 *Completed: 2026-08-24*

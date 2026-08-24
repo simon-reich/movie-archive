@@ -129,7 +129,19 @@ public class BulkImportService {
             return Optional.empty();
         }
 
-        List<TmdbSearchResultItem> results = tmdbClient.search(parsed.title(), tmdbKey);
+        List<TmdbSearchResultItem> results;
+        try {
+            results = tmdbClient.search(parsed.title(), tmdbKey);
+        } catch (Exception e) {
+            // WR-01: persist a queryable row for every line the user submits, even when the
+            // TMDB search itself fails (e.g. @Retryable exhausts its 3 attempts). Reusing
+            // NOT_FOUND avoids widening the DB CHECK constraint for a dedicated status while
+            // still surfacing the outcome in the per-line audit trail instead of silently
+            // dropping the line.
+            log.warn("Bulk import: TMDB search failed for title={}: {}", parsed.title(), e.getMessage());
+            upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null);
+            return Optional.empty();
+        }
         List<TmdbSearchResultItem> yearMatches = results.stream()
                 .filter(r -> r.year() != null && r.year().equals(parsed.year()))
                 .toList();

@@ -69,7 +69,11 @@ public class BulkImportService {
         log.info("Bulk import starting email={} lines={}", email, rawLines.size());
         for (int i = 0; i < rawLines.size(); i++) {
             try {
-                self.processLine(email, tmdbKey, rawLines.get(i));
+                // CR-01: processLine()'s @Transactional method returns before we get here, so
+                // its transaction has already committed — safe to fire the @Async enrich() call
+                // now. Calling enrich() from inside processLine() (while its own transaction is
+                // still open) raced the enrichment thread against the not-yet-committed INSERT.
+                self.processLine(email, tmdbKey, rawLines.get(i)).ifPresent(enrichmentService::enrich);
             } catch (Exception e) {
                 log.warn("Bulk import: unexpected error for line index={}: {}", i, e.getMessage());
             }
@@ -89,13 +93,21 @@ public class BulkImportService {
     /**
      * Processes a single raw line: parse -> dedup-check -> TMDB search -> match -> upsert.
      * @Transactional — routed through the self-proxy from runImport().
+     *
+     * CR-01: returns the id of any newly-created movie so the caller (runImport(), which is
+     * NOT @Transactional) can fire enrichmentService.enrich() only after this method's
+     * transaction has committed. Calling enrich() (which is @Async and starts running almost
+     * immediately on a separate thread/connection) from inside this still-open transaction
+     * raced the enrichment thread against the not-yet-committed Movie INSERT under READ
+     * COMMITTED isolation, causing "Movie not found for enrichment" and leaving the row stuck
+     * at status=PENDING forever.
      */
     @Transactional
-    public void processLine(String email, String tmdbKey, String rawLine) {
+    public Optional<UUID> processLine(String email, String tmdbKey, String rawLine) {
         ParsedLine parsed = importLineParser.parse(rawLine);
         if (parsed == null) {
             // D-02: blank line — skip silently, nothing persisted.
-            return;
+            return Optional.empty();
         }
 
         User user = userRepository.findByEmail(email)
@@ -103,7 +115,7 @@ public class BulkImportService {
 
         if (!parsed.valid()) {
             upsertLine(user, parsed, BulkImportLineStatus.PARSE_ERROR, null);
-            return;
+            return Optional.empty();
         }
 
         String normalizedTitle = normalize(parsed.title());
@@ -114,7 +126,7 @@ public class BulkImportService {
                         user.getId(), normalizedTitle, parsed.year(), BulkImportLineStatus.SAVED);
         if (existingSaved.isPresent()) {
             log.info("Bulk import: skipping already-saved line title={} year={}", parsed.title(), parsed.year());
-            return;
+            return Optional.empty();
         }
 
         List<TmdbSearchResultItem> results = tmdbClient.search(parsed.title(), tmdbKey);
@@ -124,12 +136,11 @@ public class BulkImportService {
 
         if (yearMatches.isEmpty()) {
             upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null);
-            return;
+            return Optional.empty();
         }
 
         if (yearMatches.size() == 1) {
-            saveAndUpsert(user, email, parsed, yearMatches.get(0).tmdbId());
-            return;
+            return saveAndUpsert(user, email, parsed, yearMatches.get(0).tmdbId());
         }
 
         // D-06: still ambiguous after year filter — try original-title narrowing.
@@ -139,25 +150,25 @@ public class BulkImportService {
                             && r.originalTitle().equalsIgnoreCase(parsed.originalTitle()))
                     .toList();
             if (narrowed.size() == 1) {
-                saveAndUpsert(user, email, parsed, narrowed.get(0).tmdbId());
-                return;
+                return saveAndUpsert(user, email, parsed, narrowed.get(0).tmdbId());
             }
         }
 
         // D-04: multiple candidates, no unambiguous narrowing — never auto-guess.
         upsertLine(user, parsed, BulkImportLineStatus.AMBIGUOUS, null);
+        return Optional.empty();
     }
 
     /**
-     * Saves a matched line through the existing idempotent save+enrich pipeline — exactly
-     * MovieController.saveMovie()'s sequence (D-12): initiate() then enrich() only if new.
+     * Saves a matched line through the existing idempotent save pipeline — exactly
+     * MovieController.saveMovie()'s sequence (D-12): initiate(), then upsertLine(). Enrichment
+     * is NOT fired here (CR-01) — the id of a newly-created movie is returned so the caller can
+     * invoke enrichmentService.enrich() once this method's enclosing transaction has committed.
      */
-    private void saveAndUpsert(User user, String email, ParsedLine parsed, int tmdbId) {
+    private Optional<UUID> saveAndUpsert(User user, String email, ParsedLine parsed, int tmdbId) {
         MovieInitiateResult result = movieService.initiate(email, tmdbId);
-        if (result.isNew()) {
-            enrichmentService.enrich(result.id());
-        }
         upsertLine(user, parsed, BulkImportLineStatus.SAVED, tmdbId);
+        return result.isNew() ? Optional.of(result.id()) : Optional.empty();
     }
 
     /**

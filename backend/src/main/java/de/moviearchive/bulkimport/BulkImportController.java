@@ -1,5 +1,8 @@
 package de.moviearchive.bulkimport;
 
+import de.moviearchive.bulkimport.dto.BulkImportBatchDetail;
+import de.moviearchive.bulkimport.dto.BulkImportBatchSummary;
+import de.moviearchive.bulkimport.dto.BulkImportLineResult;
 import de.moviearchive.movie.MovieService;
 import de.moviearchive.movie.NoTmdbKeyException;
 import de.moviearchive.user.User;
@@ -24,6 +27,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -48,6 +52,7 @@ public class BulkImportController {
     private final ImportLineParser importLineParser;
     private final UserRepository userRepository;
     private final BulkImportBatchRepository bulkImportBatchRepository;
+    private final BulkImportLineRepository bulkImportLineRepository;
     private final BulkImportProgressService progressService;
 
     // WR-02: the global bulkImportExecutor is sized to a single running + single queued slot
@@ -59,12 +64,13 @@ public class BulkImportController {
     public BulkImportController(
             BulkImportService bulkImportService, MovieService movieService, ImportLineParser importLineParser,
             UserRepository userRepository, BulkImportBatchRepository bulkImportBatchRepository,
-            BulkImportProgressService progressService) {
+            BulkImportLineRepository bulkImportLineRepository, BulkImportProgressService progressService) {
         this.bulkImportService = bulkImportService;
         this.movieService = movieService;
         this.importLineParser = importLineParser;
         this.userRepository = userRepository;
         this.bulkImportBatchRepository = bulkImportBatchRepository;
+        this.bulkImportLineRepository = bulkImportLineRepository;
         this.progressService = progressService;
     }
 
@@ -128,6 +134,54 @@ public class BulkImportController {
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
         progressService.register(batchId, emitter, batch.getTotalLines());
         return emitter;
+    }
+
+    /**
+     * GET /movies/bulk-import/batches — D-03 batch-list page. No path variable: scoped
+     * exclusively by the JWT-resolved user id, never a client-supplied filter (T-11-07).
+     */
+    @GetMapping("/bulk-import/batches")
+    public ResponseEntity<List<BulkImportBatchSummary>> getBatches(Authentication auth) {
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        List<BulkImportBatchSummary> summaries = bulkImportBatchRepository
+                .findByUserIdOrderByCreatedAtDesc(user.getId())
+                .stream()
+                .map(batch -> new BulkImportBatchSummary(
+                        batch.getId(), batch.getCreatedAt(), batch.getTotalLines(), statusCounts(batch.getId())))
+                .toList();
+        return ResponseEntity.ok(summaries);
+    }
+
+    /**
+     * Converts countByBatchIdGroupByStatus()'s plain Object[] rows (element 0 =
+     * BulkImportLineStatus, element 1 = Long) into a Map<String, Long> keyed by status name.
+     */
+    private Map<String, Long> statusCounts(UUID batchId) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (Object[] row : bulkImportLineRepository.countByBatchIdGroupByStatus(batchId)) {
+            counts.put(((BulkImportLineStatus) row[0]).name(), (Long) row[1]);
+        }
+        return counts;
+    }
+
+    /**
+     * GET /movies/bulk-import/batches/{batchId} — D-03/D-05 batch-detail results view.
+     * Ownership-checked via loadOwnedBatch() (T-11-06) — 403 on a batchId owned by another
+     * user, 404 on an unknown batchId.
+     */
+    @GetMapping("/bulk-import/batches/{batchId}")
+    public ResponseEntity<BulkImportBatchDetail> getBatchDetail(@PathVariable UUID batchId, Authentication auth) {
+        BulkImportBatch batch = loadOwnedBatch(auth, batchId);
+        List<BulkImportLineResult> lines = bulkImportLineRepository.findByBatchIdOrderByTitle(batchId)
+                .stream()
+                .map(line -> new BulkImportLineResult(
+                        line.getTitle(), line.getOriginalTitle(), line.getYear(),
+                        line.getStatus().name(), line.getPosterPath()))
+                .toList();
+        return ResponseEntity.ok(
+                new BulkImportBatchDetail(batch.getId(), batch.getCreatedAt(), batch.getTotalLines(), lines));
     }
 
     /**

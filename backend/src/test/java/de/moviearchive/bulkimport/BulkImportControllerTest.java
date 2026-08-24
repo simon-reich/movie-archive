@@ -1,5 +1,6 @@
 package de.moviearchive.bulkimport;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.moviearchive.AbstractWireMockTest;
 import de.moviearchive.auth.RateLimitService;
@@ -30,8 +31,10 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
@@ -312,6 +315,186 @@ class BulkImportControllerTest extends AbstractWireMockTest {
                         .header("Authorization", intruderToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("Access denied."));
+    }
+
+    @Test
+    void shouldListBatches_newestFirst_withStatusCounts() throws Exception {
+        createActiveUser("batchlist@example.com");
+        User user = userRepository.findByEmail("batchlist@example.com").orElseThrow();
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("batchlist@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .withQueryParam("query", equalTo("Inception"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .withQueryParam("query", equalTo("Robin Hood"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/robin-hood-ambiguous-search.json"))));
+
+        // First batch: one SAVED line.
+        String firstResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Inception;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String firstBatchId = objectMapper.readTree(firstResponseBody).get("batchId").asText();
+        drainBulkImportExecutor(10000);
+
+        // Second batch: one AMBIGUOUS line (no Original Title to disambiguate).
+        String secondResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Robin Hood;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String secondBatchId = objectMapper.readTree(secondResponseBody).get("batchId").asText();
+        drainBulkImportExecutor(10000);
+
+        String listResponseBody = mockMvc.perform(MockMvcRequestBuilders.get("/movies/bulk-import/batches")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode batches = objectMapper.readTree(listResponseBody);
+
+        assertThat(batches.isArray()).isTrue();
+        assertThat(batches.size()).isEqualTo(2);
+        // Newest-first: the second (Robin Hood/AMBIGUOUS) batch appears before the first.
+        assertThat(batches.get(0).get("batchId").asText()).isEqualTo(secondBatchId);
+        assertThat(batches.get(1).get("batchId").asText()).isEqualTo(firstBatchId);
+
+        JsonNode secondSummary = batches.get(0);
+        assertThat(secondSummary.get("totalLines").asInt()).isEqualTo(1);
+        assertThat(secondSummary.get("statusCounts").get("AMBIGUOUS").asLong()).isEqualTo(1L);
+
+        JsonNode firstSummary = batches.get(1);
+        assertThat(firstSummary.get("totalLines").asInt()).isEqualTo(1);
+        assertThat(firstSummary.get("statusCounts").get("SAVED").asLong()).isEqualTo(1L);
+
+        // statusCounts values sum to the batch's persisted line count for both batches.
+        long secondSum = 0;
+        var secondFields = secondSummary.get("statusCounts").fields();
+        while (secondFields.hasNext()) {
+            secondSum += secondFields.next().getValue().asLong();
+        }
+        assertThat(secondSum).isEqualTo(1L);
+
+        long firstSum = 0;
+        var firstFields = firstSummary.get("statusCounts").fields();
+        while (firstFields.hasNext()) {
+            firstSum += firstFields.next().getValue().asLong();
+        }
+        assertThat(firstSum).isEqualTo(1L);
+    }
+
+    @Test
+    void shouldGetBatchDetail_forOwner_withLinesAndPosterPath() throws Exception {
+        createActiveUser("batchdetail@example.com");
+        User user = userRepository.findByEmail("batchdetail@example.com").orElseThrow();
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("batchdetail@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .withQueryParam("query", equalTo("Inception"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .withQueryParam("query", equalTo("Robin Hood"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/robin-hood-ambiguous-search.json"))));
+
+        byte[] content = "Inception;;2010\nRobin Hood;;2010".getBytes(StandardCharsets.UTF_8);
+        String uploadResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain", content))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(uploadResponseBody).get("batchId").asText();
+        drainBulkImportExecutor(10000);
+
+        String detailResponseBody = mockMvc.perform(MockMvcRequestBuilders.get(
+                        "/movies/bulk-import/batches/{batchId}", batchId)
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode detail = objectMapper.readTree(detailResponseBody);
+
+        assertThat(detail.get("batchId").asText()).isEqualTo(batchId);
+        assertThat(detail.get("totalLines").asInt()).isEqualTo(2);
+        JsonNode lines = detail.get("lines");
+        assertThat(lines.isArray()).isTrue();
+        assertThat(lines.size()).isEqualTo(2);
+
+        JsonNode inceptionLine = null;
+        JsonNode robinHoodLine = null;
+        for (JsonNode line : lines) {
+            if ("Inception".equals(line.get("title").asText())) {
+                inceptionLine = line;
+            } else if ("Robin Hood".equals(line.get("title").asText())) {
+                robinHoodLine = line;
+            }
+        }
+        assertThat(inceptionLine).isNotNull();
+        assertThat(inceptionLine.get("status").asText()).isEqualTo("SAVED");
+        assertThat(inceptionLine.get("posterPath").asText()).isEqualTo("/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg");
+
+        assertThat(robinHoodLine).isNotNull();
+        assertThat(robinHoodLine.get("status").asText()).isEqualTo("AMBIGUOUS");
+        // Rows with no TMDB match render without a fabricated poster — null, not a broken URL.
+        assertThat(robinHoodLine.get("posterPath").isNull()).isTrue();
+    }
+
+    @Test
+    void shouldReturn403_whenDifferentUserRequestsBatchDetail() throws Exception {
+        User owner = createActiveUser("batchdetail-owner@example.com");
+        saveTmdbKey(owner, "valid-tmdb-key");
+        String ownerToken = loginAndGetToken("batchdetail-owner@example.com");
+
+        createActiveUser("batchdetail-intruder@example.com");
+        String intruderToken = loginAndGetToken("batchdetail-intruder@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+
+        String responseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Inception;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", ownerToken))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(responseBody).get("batchId").asText();
+
+        drainBulkImportExecutor(10000);
+
+        mockMvc.perform(MockMvcRequestBuilders.get(
+                        "/movies/bulk-import/batches/{batchId}", batchId)
+                        .header("Authorization", intruderToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Access denied."));
+    }
+
+    @Test
+    void shouldReturn404_whenBatchDetailNotFound() throws Exception {
+        createActiveUser("batchdetail-404@example.com");
+        String token = loginAndGetToken("batchdetail-404@example.com");
+
+        mockMvc.perform(MockMvcRequestBuilders.get(
+                        "/movies/bulk-import/batches/{batchId}", UUID.randomUUID())
+                        .header("Authorization", token))
+                .andExpect(status().isNotFound());
     }
 
     @Test

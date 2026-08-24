@@ -38,6 +38,7 @@ public class BulkImportService {
     private final MovieService movieService;
     private final EnrichmentService enrichmentService;
     private final ImportLineParser importLineParser;
+    private final BulkImportBatchRepository bulkImportBatchRepository;
     private final BulkImportService self;
 
     @Value("${bulk-import.pacing-delay-ms:1000}")
@@ -49,6 +50,7 @@ public class BulkImportService {
                              MovieService movieService,
                              EnrichmentService enrichmentService,
                              ImportLineParser importLineParser,
+                             BulkImportBatchRepository bulkImportBatchRepository,
                              @Lazy BulkImportService self) {
         this.bulkImportLineRepository = bulkImportLineRepository;
         this.userRepository = userRepository;
@@ -56,7 +58,20 @@ public class BulkImportService {
         this.movieService = movieService;
         this.enrichmentService = enrichmentService;
         this.importLineParser = importLineParser;
+        this.bulkImportBatchRepository = bulkImportBatchRepository;
         this.self = self;
+    }
+
+    /**
+     * Creates and persists a durable batch record synchronously — the caller (the controller,
+     * before dispatching the async job) already knows the total submitted line count. D-02:
+     * this is the foundation every later plan in this phase reads from (SSE progress totals,
+     * batch list/detail endpoints).
+     */
+    public BulkImportBatch createBatch(String email, int totalLines) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        return bulkImportBatchRepository.save(new BulkImportBatch(user, totalLines));
     }
 
     /**
@@ -65,15 +80,15 @@ public class BulkImportService {
      * the batch), pacing Thread.sleep(pacingDelayMs) between lines (never after the last).
      */
     @Async("bulkImportExecutor")
-    public void runImport(String email, String tmdbKey, List<String> rawLines) {
-        log.info("Bulk import starting email={} lines={}", email, rawLines.size());
+    public void runImport(String email, String tmdbKey, List<String> rawLines, UUID batchId) {
+        log.info("Bulk import starting email={} lines={} batchId={}", email, rawLines.size(), batchId);
         for (int i = 0; i < rawLines.size(); i++) {
             try {
                 // CR-01: processLine()'s @Transactional method returns before we get here, so
                 // its transaction has already committed — safe to fire the @Async enrich() call
                 // now. Calling enrich() from inside processLine() (while its own transaction is
                 // still open) raced the enrichment thread against the not-yet-committed INSERT.
-                self.processLine(email, tmdbKey, rawLines.get(i)).ifPresent(enrichmentService::enrich);
+                self.processLine(email, tmdbKey, rawLines.get(i), batchId).ifPresent(enrichmentService::enrich);
             } catch (Exception e) {
                 log.warn("Bulk import: unexpected error for line index={}: {}", i, e.getMessage());
             }
@@ -103,7 +118,7 @@ public class BulkImportService {
      * at status=PENDING forever.
      */
     @Transactional
-    public Optional<UUID> processLine(String email, String tmdbKey, String rawLine) {
+    public Optional<UUID> processLine(String email, String tmdbKey, String rawLine, UUID batchId) {
         ParsedLine parsed = importLineParser.parse(rawLine);
         if (parsed == null) {
             // D-02: blank line — skip silently, nothing persisted.
@@ -112,9 +127,12 @@ public class BulkImportService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        // Lazy JPA reference — no extra query, resolved once per line and threaded into every
+        // upsertLine()/saveAndUpsert() call below.
+        BulkImportBatch batch = bulkImportBatchRepository.getReferenceById(batchId);
 
         if (!parsed.valid()) {
-            upsertLine(user, parsed, BulkImportLineStatus.PARSE_ERROR, null);
+            upsertLine(user, parsed, BulkImportLineStatus.PARSE_ERROR, null, batch);
             return Optional.empty();
         }
 
@@ -139,7 +157,7 @@ public class BulkImportService {
             // still surfacing the outcome in the per-line audit trail instead of silently
             // dropping the line.
             log.warn("Bulk import: TMDB search failed for title={}: {}", parsed.title(), e.getMessage());
-            upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null);
+            upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, batch);
             return Optional.empty();
         }
         List<TmdbSearchResultItem> yearMatches = results.stream()
@@ -147,12 +165,12 @@ public class BulkImportService {
                 .toList();
 
         if (yearMatches.isEmpty()) {
-            upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null);
+            upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, batch);
             return Optional.empty();
         }
 
         if (yearMatches.size() == 1) {
-            return saveAndUpsert(user, email, parsed, yearMatches.get(0).tmdbId());
+            return saveAndUpsert(user, email, parsed, yearMatches.get(0).tmdbId(), batch);
         }
 
         // D-06: still ambiguous after year filter — try original-title narrowing.
@@ -162,12 +180,12 @@ public class BulkImportService {
                             && r.originalTitle().equalsIgnoreCase(parsed.originalTitle()))
                     .toList();
             if (narrowed.size() == 1) {
-                return saveAndUpsert(user, email, parsed, narrowed.get(0).tmdbId());
+                return saveAndUpsert(user, email, parsed, narrowed.get(0).tmdbId(), batch);
             }
         }
 
         // D-04: multiple candidates, no unambiguous narrowing — never auto-guess.
-        upsertLine(user, parsed, BulkImportLineStatus.AMBIGUOUS, null);
+        upsertLine(user, parsed, BulkImportLineStatus.AMBIGUOUS, null, batch);
         return Optional.empty();
     }
 
@@ -177,9 +195,10 @@ public class BulkImportService {
      * is NOT fired here (CR-01) — the id of a newly-created movie is returned so the caller can
      * invoke enrichmentService.enrich() once this method's enclosing transaction has committed.
      */
-    private Optional<UUID> saveAndUpsert(User user, String email, ParsedLine parsed, int tmdbId) {
+    private Optional<UUID> saveAndUpsert(
+            User user, String email, ParsedLine parsed, int tmdbId, BulkImportBatch batch) {
         MovieInitiateResult result = movieService.initiate(email, tmdbId);
-        upsertLine(user, parsed, BulkImportLineStatus.SAVED, tmdbId);
+        upsertLine(user, parsed, BulkImportLineStatus.SAVED, tmdbId, batch);
         return result.isNew() ? Optional.of(result.id()) : Optional.empty();
     }
 
@@ -187,7 +206,8 @@ public class BulkImportService {
      * Finds the existing row for this line (across any prior status) or creates a new one,
      * then updates it in place — never inserts a duplicate row per re-upload (D-13).
      */
-    private void upsertLine(User user, ParsedLine parsed, BulkImportLineStatus status, Integer tmdbId) {
+    private void upsertLine(
+            User user, ParsedLine parsed, BulkImportLineStatus status, Integer tmdbId, BulkImportBatch batch) {
         BulkImportLine row = findExistingRow(user.getId(), parsed)
                 .orElseGet(() -> new BulkImportLine(user, parsed.rawLine()));
         row.setTitle(cap(parsed.title()));
@@ -195,6 +215,7 @@ public class BulkImportService {
         row.setYear(parsed.year());
         row.setStatus(status);
         row.setTmdbId(tmdbId);
+        row.setBatch(batch);
         row.setUpdatedAt(Instant.now());
         bulkImportLineRepository.save(row);
         log.info("Bulk import: upserted line title={} year={} status={}", parsed.title(), parsed.year(), status);

@@ -85,9 +85,10 @@ public class BulkImportController {
                             + "file and try again.");
         }
 
-        log.info("Bulk import requested email={} lines={}", email, rawLines.size());
-        bulkImportService.runImport(email, tmdbKey, rawLines);
-        return ResponseEntity.accepted().body(Map.of("status", "started"));
+        BulkImportBatch batch = bulkImportService.createBatch(email, rawLines.size());
+        log.info("Bulk import requested email={} lines={} batchId={}", email, rawLines.size(), batch.getId());
+        bulkImportService.runImport(email, tmdbKey, rawLines, batch.getId());
+        return ResponseEntity.accepted().body(Map.of("status", "started", "batchId", batch.getId().toString()));
     }
 
     // --- Exception handlers ---

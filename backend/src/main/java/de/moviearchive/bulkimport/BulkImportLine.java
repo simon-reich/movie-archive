@@ -24,6 +24,10 @@ public class BulkImportLine {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id")
+    private BulkImportBatch batch;
+
     @Column(name = "title")
     private String title;
 

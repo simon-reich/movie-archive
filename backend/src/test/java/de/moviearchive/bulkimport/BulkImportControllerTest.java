@@ -58,6 +58,9 @@ class BulkImportControllerTest extends AbstractWireMockTest {
     private BulkImportLineRepository bulkImportLineRepository;
 
     @Autowired
+    private BulkImportBatchRepository bulkImportBatchRepository;
+
+    @Autowired
     private EncryptionService encryptionService;
 
     @Autowired
@@ -79,7 +82,10 @@ class BulkImportControllerTest extends AbstractWireMockTest {
         // this singleton executor is still writing to bulk_import_line/movies/users
         // before we delete rows here (avoids a racy FK-constraint violation).
         drainBulkImportExecutor(10000);
+        // bulk_import_line.batch_id FK -> bulk_import_batch, and bulk_import_batch.user_id FK
+        // -> users — both must be cleared before users are deleted (new in this plan, D-02).
         bulkImportLineRepository.deleteAll();
+        bulkImportBatchRepository.deleteAll();
         movieRepository.deleteAll();
         userApiKeyRepository.deleteAll();
         userRepository.deleteAll();

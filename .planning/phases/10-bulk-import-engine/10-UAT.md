@@ -31,7 +31,9 @@ blocked: 0
 
 - gap_id: G-10-1
   truth: "Section renders below the poster grid with an hr separator, matches settings.vue's heading style (no rounded corners anywhere). Button disables until a file is chosen and shows \"Uploading...\" while in flight. FormErrorBanner (on error) and inline success message (on 202) appear/clear correctly."
-  status: failed
+  status: resolved
+  resolved_by: 10-03-PLAN.md
+  resolved_at: 2026-08-24
   reason: "User reported: uploaded a file with ~10 movies, UI shows 'Import started. This runs in the background.' but none of the movies were actually added."
   severity: major
   test: 1

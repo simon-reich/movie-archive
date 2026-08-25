@@ -77,6 +77,7 @@ Key decisions relevant to v1.1:
 
 ### Pending Todos
 
+- 2026-08-25-enhance-bulk-import-batch-detail-page-view-toggle-movie-link — Enhance bulk import batch detail page: view toggle, movie links, inline ambiguous resolve [minor]
 - 2026-08-24-support-real-csv-parsing-for-bulk-import — Support real CSV parsing for bulk import (and matching CSV export) [minor]
 - 2026-08-23-show-progress-indicator-for-wikipedia-batch-reload — Show progress indicator for Wikipedia batch-reload [minor]
 

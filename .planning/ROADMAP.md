@@ -30,7 +30,7 @@
 - [x] **Phase 8: Wiki Enrichment Tracking & Batch Reload** - Track Wikipedia attempt timestamps per film and batch-reload films missing wiki data with cooldown filtering and paced requests (completed 2026-08-23)
 - [x] **Phase 9: Manual Wiki Retry** - Per-film retry button on the detail page for films without Wikipedia data, with immediate result feedback (completed 2026-08-23)
 - [x] **Phase 10: Bulk Import Engine** - Upload a title+year list in Add Film; auto-match and save unique TMDB hits, flag ambiguous ones, skip already-imported lines on re-upload (completed 2026-08-24)
-- [ ] **Phase 11: Bulk Import Feedback UI** - Live progress and a per-line result overview (title, poster, status) for bulk imports
+- [x] **Phase 11: Bulk Import Feedback UI** - Live progress and a per-line result overview (title, poster, status) for bulk imports (completed 2026-08-25)
 
 ## Phase Details
 
@@ -129,7 +129,7 @@ Plans:
 | 8. Wiki Enrichment Tracking & Batch Reload | v1.1 | 0/TBD | Complete    | 2026-08-23 |
 | 9. Manual Wiki Retry | v1.1 | 0/2 | Complete    | 2026-08-23 |
 | 10. Bulk Import Engine | v1.1 | 0/2 | Complete    | 2026-08-24 |
-| 11. Bulk Import Feedback UI | v1.1 | 0/5 | Not started | - |
+| 11. Bulk Import Feedback UI | v1.1 | 0/5 | Complete    | 2026-08-25 |
 
 ### Phase 12: Wikidata-based Wikipedia lookup
 

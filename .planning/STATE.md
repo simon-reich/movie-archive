@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
-current_phase: 11
-current_phase_name: Bulk Import Feedback UI
-status: human_needed
-stopped_at: Phase 11 all 5 plans executed and verified; manual browser walkthrough pending
-last_updated: "2026-08-25T00:00:00.000Z"
+current_phase: 12
+current_phase_name: Wikidata-based Wikipedia lookup
+status: planning
+stopped_at: Phase 11 complete, ready to plan Phase 12
+last_updated: "2026-08-25T06:13:35.442Z"
 last_activity: 2026-08-25
-last_activity_desc: Phase 11 execution complete (5/5 plans); VERIFICATION.md human_needed — pending manual browser walkthrough
-state_head: 9f1d0a5759a2f0a5c44b662cfc7bb18e090609c0
+last_activity_desc: Phase 11 complete, transitioned to Phase 12
+state_head: e7d44c58c61e8326ef78cbe3015ec1801575f825
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 12
   completed_plans: 12
-  percent: 100
+  percent: 80
 ---
 
 # Project State
@@ -25,16 +25,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-24)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 11 — Bulk Import Feedback UI
+**Current focus:** Phase 12 — Wikidata-based Wikipedia lookup
 
 ## Current Position
 
-Phase: 11 (Bulk Import Feedback UI) — HUMAN VERIFICATION NEEDED
-Plan: 5 of 5 (all executed)
-Status: All plans complete; VERIFICATION.md status=human_needed — pending manual browser walkthrough (11-05-PLAN.md Task 2 human-check: upload → live progress → results → revisit via /imports nav)
-Last activity: 2026-08-25 — Phase 11 execution + verification complete
+Phase: 12 — Wikidata-based Wikipedia lookup
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-25 — Phase 11 complete, transitioned to Phase 12
 
-Progress: [██████████] 100% (plans) — phase sign-off pending human UAT
+Progress: [████████░░] 80% (phases) — Phase 11 complete, human UAT passed
 
 ## Performance Metrics
 
@@ -58,7 +58,7 @@ Progress: [██████████] 100% (plans) — phase sign-off pendi
 | 8. Wiki Enrichment Tracking & Batch Reload | 2 | COMPLETE — 2026-08-23 |
 | 9. Manual Wiki Retry | 2 | COMPLETE — 2026-08-23 |
 | 10. Bulk Import Engine | 3 | COMPLETE — 2026-08-24 |
-| 11. Bulk Import Feedback UI | TBD | Not started |
+| 11. Bulk Import Feedback UI | 5 | COMPLETE — 2026-08-25 |
 | 12. Wikidata-based Wikipedia lookup | TBD | Not started |
 
 ## Accumulated Context
@@ -96,7 +96,7 @@ None.
 
 ## Session Continuity
 
-**Resume file:** .planning/phases/11-bulk-import-feedback-ui/11-CONTEXT.md
+**Resume file:** None
 
-Last session: 2026-08-24T15:10:41.855Z
-Stopped at: Phase 11 context gathered
+Last session: 2026-08-25
+Stopped at: Phase 11 complete (UAT passed, 17/17), ready to plan Phase 12

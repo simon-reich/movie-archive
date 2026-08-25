@@ -106,11 +106,11 @@ Plans:
 
 Plans:
 
-- [ ] 11-01-PLAN.md — Backend: batch persistence + poster capture (D-02/D-04, tracer)
-- [ ] 11-02-PLAN.md — Backend: live progress SSE endpoint (D-01)
-- [ ] 11-03-PLAN.md — Backend: batch list + detail GET endpoints (D-03/D-05/D-06)
-- [ ] 11-04-PLAN.md — Frontend: progress + results page, reachable from Add Film
-- [ ] 11-05-PLAN.md — Frontend: batch list page + nav entry
+- [x] 11-01-PLAN.md — Backend: batch persistence + poster capture (D-02/D-04, tracer)
+- [x] 11-02-PLAN.md — Backend: live progress SSE endpoint (D-01)
+- [x] 11-03-PLAN.md — Backend: batch list + detail GET endpoints (D-03/D-05/D-06)
+- [x] 11-04-PLAN.md — Frontend: progress + results page, reachable from Add Film
+- [x] 11-05-PLAN.md — Frontend: batch list page + nav entry (manual browser walkthrough still pending human sign-off)
 
 **UI hint**: yes
 

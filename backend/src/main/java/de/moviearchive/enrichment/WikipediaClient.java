@@ -53,6 +53,16 @@ public class WikipediaClient {
     private long requestPacingMs;
 
     /**
+     * Minimum delay before EVERY outbound Wikidata API call inside {@link #tryFetchViaWikidata},
+     * kept separate from and longer than {@link #requestPacingMs}: a live production batch-reload
+     * run tripped wikidata.org's anonymous rate limiter after only ~3 movies (2 Wikidata calls
+     * each) at the shared 1000ms pace — wikidata.org's limiter is stricter than en.wikipedia.org's
+     * (12-RESEARCH.md: a burst of just 2 requests tripped it in live testing).
+     */
+    @Value("${wikidata.request-pacing-ms:3000}")
+    private long wikidataRequestPacingMs;
+
+    /**
      * Fallback backoff (seconds) when a 429 arrives with no parseable Retry-After header.
      * Observed live Retry-After values were ~55-56s; this is a conservative default for
      * the rare case the header is missing or malformed.
@@ -99,13 +109,24 @@ public class WikipediaClient {
     }
 
     private void paceRequest() {
+        paceRequest(requestPacingMs);
+    }
+
+    /**
+     * Same shared backoffUntil-wait as the no-arg {@link #paceRequest()}, parameterized on the
+     * fixed per-request sleep applied after any backoff wait. Used by {@link
+     * #tryFetchViaWikidata} with {@link #wikidataRequestPacingMs} so Wikidata calls pace
+     * themselves independently from (and slower than) the en.wikipedia.org calls, which keep
+     * using the no-arg overload unchanged.
+     */
+    private void paceRequest(long delayMs) {
         Instant waitUntil = backoffUntil.get();
         Duration remaining = Duration.between(Instant.now(), waitUntil);
         if (!remaining.isNegative() && !remaining.isZero()) {
             log.warn("Wikipedia rate-limit backoff in effect — waiting {}s before next request", remaining.toSeconds());
             sleepQuietly(remaining.toMillis());
         }
-        sleepQuietly(requestPacingMs);
+        sleepQuietly(delayMs);
     }
 
     private void sleepQuietly(long millis) {
@@ -221,7 +242,7 @@ public class WikipediaClient {
             return Optional.empty();
         }
         try {
-            paceRequest();
+            paceRequest(wikidataRequestPacingMs);
             JsonNode searchResponse = wikidataWebClient.get()
                     .uri("/w/api.php?action=query&list=search&srsearch=haswbstatement:P345={id}&format=json",
                             imdbId)
@@ -234,7 +255,7 @@ public class WikipediaClient {
             String qid = hits.get(0).path("title").asText(null);
             if (qid == null || qid.isBlank()) return Optional.empty();
 
-            paceRequest();
+            paceRequest(wikidataRequestPacingMs);
             JsonNode sitelink = wikidataWebClient.get()
                     .uri("/w/rest.php/wikibase/v1/entities/items/{qid}/sitelinks/enwiki", qid)
                     .retrieve()

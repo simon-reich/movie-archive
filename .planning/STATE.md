@@ -5,10 +5,10 @@ milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 12
 status: completed
 stopped_at: Phase 12 complete — all phases complete
-last_updated: "2026-08-26T16:41:53.270Z"
+last_updated: "2026-08-26T17:12:10.431Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 12 complete
-state_head: 4f139c001f92f985ccc44d049a0141539adb1b60
+state_head: d7cb20a9fe6fdabc193a7027f951822d1c42a7fc
 progress:
   total_phases: 5
   completed_phases: 5
@@ -90,6 +90,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 260519-fcg | Fix all ESLint errors and warnings from CI lint output across the frontend | 2026-05-19 | b944dc0 | [260519-fcg-fix-all-eslint-errors-and-warnings-from-](./quick/260519-fcg-fix-all-eslint-errors-and-warnings-from-/) |
 | 2 | 260826-pwp: Set wiki.retry.cooldown-days default to 0 temporarily (dev testing) | 2026-08-26 | 4f139c0 | — |
+| 3 | 260826-qfm: Give Wikidata calls their own longer request pacing (3000ms default) | 2026-08-26 | d7cb20a | — |
 
 ### Roadmap Evolution
 

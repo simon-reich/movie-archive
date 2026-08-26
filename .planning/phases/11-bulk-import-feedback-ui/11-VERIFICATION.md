@@ -1,11 +1,12 @@
 ---
 phase: 11-bulk-import-feedback-ui
 verified: 2026-08-25T05:42:05Z
-status: human_needed
+status: passed
 score: 8/8 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Full browser walkthrough: upload a bulk-import file on /add, click 'Track progress →', watch /imports/{batchId} update live from 'Connecting...' through processed/total counts to the results grid, then visit /imports via the nav bar and reopen the same batch to confirm the persisted report re-renders from stored data."
     expected: "Live progress updates without polling/refresh; results grid shows title/poster-or-fallback/status per line; batch reappears in /imports history with correct date/line-count/status-summary; 'Imports' link is visible in both desktop nav and mobile drawer."
     why_human: "SSE streaming behavior, real-time DOM updates, and visual nav placement cannot be verified via static analysis or unit tests with mocked composables — this is the explicitly-deferred <human-check> from 11-05-PLAN.md Task 2, skipped per orchestrator instruction (autonomous executor cannot drive a browser)."

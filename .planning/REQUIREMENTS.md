@@ -21,8 +21,8 @@ Requirements for the v1.1 milestone. Each maps to roadmap phases.
 - [x] **IMPORT-02**: System parsed jede Zeile, sucht via TMDB (bestehende `/movies/search`-Logik) nach Titel, filtert nach Jahr
 - [x] **IMPORT-03**: Eindeutiger Treffer wird automatisch gespeichert (bestehende `/movies/save`-Logik inkl. Dedup-Idempotenz)
 - [x] **IMPORT-04**: Mehrdeutige Treffer (mehrere Kandidaten mit passendem Jahr) werden nicht automatisch geraten, sondern zur manuellen Auswahl markiert
-- [ ] **IMPORT-05**: User sieht während des laufenden Imports einen Live-Fortschritt (verarbeitet / gesamt)
-- [ ] **IMPORT-06**: Nach Abschluss zeigt eine Ergebnisübersicht pro Zeile: Titel, Poster (falls gefunden), Status (gespeichert / mehrdeutig / nicht gefunden / Parse-Fehler)
+- [x] **IMPORT-05**: User sieht während des laufenden Imports einen Live-Fortschritt (verarbeitet / gesamt)
+- [x] **IMPORT-06**: Nach Abschluss zeigt eine Ergebnisübersicht pro Zeile: Titel, Poster (falls gefunden), Status (gespeichert / mehrdeutig / nicht gefunden / Parse-Fehler)
 - [x] **IMPORT-07**: Erneutes Hochladen derselben Liste überspringt bereits gespeicherte Filme (keine Duplikate, keine erneuten TMDB-Calls für bereits erledigte Zeilen)
 
 ## Future Requirements
@@ -59,8 +59,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | IMPORT-02 | Phase 10 | Complete |
 | IMPORT-03 | Phase 10 | Complete |
 | IMPORT-04 | Phase 10 | Complete |
-| IMPORT-05 | Phase 11 | Pending |
-| IMPORT-06 | Phase 11 | Pending |
+| IMPORT-05 | Phase 11 | Complete |
+| IMPORT-06 | Phase 11 | Complete |
 | IMPORT-07 | Phase 10 | Complete |
 
 **Coverage:**

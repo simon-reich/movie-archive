@@ -36,3 +36,7 @@ dev.sh
 
 # TEMPORARY (D-05, Phase 12) — dev-visibility log, safe to remove
 backend/wiki-resolution.log
+
+# Bulk-import run state (local, regenerated per run)
+scripts/import-movies.state.json
+scripts/import-movies.overrides.json

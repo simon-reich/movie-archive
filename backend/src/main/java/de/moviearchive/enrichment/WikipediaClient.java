@@ -7,6 +7,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -59,6 +63,13 @@ public class WikipediaClient {
     /** Upper bound on how long a single 429 is allowed to stall the batch. */
     @Value("${wikipedia.rate-limit-max-backoff-s:120}")
     private long maxBackoffSeconds;
+
+    /**
+     * TEMPORARY (D-05, Phase 12) — dev-visibility only, safe to delete this property + its
+     * call sites later. Path to the plain-text per-attempt resolution log (see logResolution).
+     */
+    @Value("${wiki.resolution-log.path:./wiki-resolution.log}")
+    private String resolutionLogPath;
 
     /**
      * Shared across all requests from this client (a singleton bean): once ANY request
@@ -147,13 +158,16 @@ public class WikipediaClient {
         Optional<WikipediaResult> viaWikidata = tryFetchViaWikidata(imdbId);
         if (viaWikidata.isPresent()) {
             log.debug("Wikipedia page found via Wikidata for imdbId={}", imdbId);
+            logResolution(originalTitle, year, "found via Wikidata");
             return viaWikidata.get();
         }
         List<String> candidates = buildCandidates(originalTitle, title, year);
-        for (String candidate : candidates) {
+        for (int i = 0; i < candidates.size(); i++) {
+            String candidate = candidates.get(i);
             Optional<WikipediaResult> result = tryFetch(candidate);
             if (result.isPresent()) {
                 log.debug("Wikipedia page found for candidate={}", candidate);
+                logResolution(originalTitle, year, "fallback candidate #" + (i + 1) + " (" + candidate + ")");
                 return result.get();
             }
         }
@@ -162,11 +176,31 @@ public class WikipediaClient {
             Optional<WikipediaResult> result = tryFetchViaSearch(searchTerm, year);
             if (result.isPresent()) {
                 log.debug("Wikipedia page found via search for term={}", searchTerm);
+                logResolution(originalTitle, year, "fallback search hit (" + searchTerm + ")");
                 return result.get();
             }
         }
+        logResolution(originalTitle, year, "not found");
         throw new WikipediaNotFoundException(
                 "No Wikipedia page found for titles: " + originalTitle + " / " + title);
+    }
+
+    /**
+     * TEMPORARY (D-05, Phase 12) — dev-visibility only, safe to delete this method + its
+     * call sites later. Appends one plain-text, human-readable line per Wikipedia
+     * enrichment attempt to a separate log file (distinct from SLF4J output), so the
+     * resolution path (Wikidata vs. fallback cascade vs. not found) is visible on demand.
+     * A write failure must never affect fetch()'s return value or propagate.
+     */
+    private void logResolution(String title, int year, String line) {
+        try {
+            Files.writeString(
+                    Path.of(resolutionLogPath),
+                    "%s (%d): %s%n".formatted(title, year, line),
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e) {
+            log.debug("Failed to write wiki-resolution.log: {}", e.getMessage());
+        }
     }
 
     /**

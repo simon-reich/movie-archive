@@ -33,3 +33,6 @@ docs/
 
 # Local dev scripts
 dev.sh
+
+# TEMPORARY (D-05, Phase 12) — dev-visibility log, safe to remove
+backend/wiki-resolution.log

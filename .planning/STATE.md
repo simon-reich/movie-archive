@@ -5,11 +5,11 @@ milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 12
 current_phase_name: Wikidata-based Wikipedia lookup
 status: planning
-stopped_at: Phase 11 complete, ready to plan Phase 12
-last_updated: "2026-08-25T06:13:35.442Z"
+stopped_at: Phase 12 context gathered
+last_updated: "2026-08-26T14:52:10.365Z"
 last_activity: 2026-08-25
 last_activity_desc: Phase 11 complete, transitioned to Phase 12
-state_head: e7d44c58c61e8326ef78cbe3015ec1801575f825
+state_head: e260396d322ba9872925d9a7e72253cd0b281c7d
 progress:
   total_phases: 5
   completed_phases: 4
@@ -97,7 +97,7 @@ None.
 
 ## Session Continuity
 
-**Resume file:** None
+**Resume file:** .planning/phases/12-wikidata-based-wikipedia-lookup/12-CONTEXT.md
 
-Last session: 2026-08-25
-Stopped at: Phase 11 complete (UAT passed, 17/17), ready to plan Phase 12
+Last session: 2026-08-26T14:52:09.965Z
+Stopped at: Phase 12 context gathered

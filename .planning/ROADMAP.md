@@ -136,8 +136,8 @@ Plans:
 **Goal:** Wikipedia lookup uses the Wikidata IMDb-ID cross-reference (property P345) first for a direct, unambiguous article resolution, instead of guessing up to 10 URL candidates; falls back to the existing candidate search when no Wikidata link exists.
 **Requirements**: D-01, D-02, D-03, D-04, D-05 (no formal REQUIREMENTS.md IDs assigned — decisions from 12-CONTEXT.md serve as the requirement contract)
 **Depends on:** None — independent WikipediaClient improvement, unrelated to the Bulk Import phases
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 
-- [ ] 12-01-PLAN.md — Wikidata-first lookup (search + sitelinks, all callers, fallback edge cases) + temporary dev-visibility resolution log (D-01..D-05)
+- [x] 12-01-PLAN.md — Wikidata-first lookup (search + sitelinks, all callers, fallback edge cases) + temporary dev-visibility resolution log (D-01..D-05)

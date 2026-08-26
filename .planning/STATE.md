@@ -95,6 +95,7 @@ None.
 ### Roadmap Evolution
 
 - Phase 12 edited: edited fields: goal, depends_on
+- Phase 13 added: Wikidata SPARQL Batch Lookup
 
 ## Session Continuity
 

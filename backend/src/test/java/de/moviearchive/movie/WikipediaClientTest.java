@@ -248,4 +248,95 @@ class WikipediaClientTest extends AbstractWireMockTest {
 
         assertThat(elapsed).isGreaterThanOrEqualTo(Duration.ofMillis(950));
     }
+
+    /**
+     * D-01 fall-through: Wikidata search returns zero hits (totalhits: 0) -> fetch() falls
+     * through cleanly into the (unchanged) candidate cascade and eventually throws
+     * WikipediaNotFoundException when the cascade also exhausts.
+     */
+    @Test
+    void shouldFallThroughToCascade_whenWikidataSearchHasNoHits() throws IOException {
+        String searchNotFoundJson = loadFixture("fixtures/wikidata/search-not-found.json");
+
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("srsearch", containing("haswbstatement:P345"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(searchNotFoundJson)));
+
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", containing("parse"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(MISSING_PAGE_RESPONSE)));
+
+        assertThatThrownBy(() -> wikipediaClient.fetch("Inception", "Inception", 2010, "tt9999999"))
+                .isInstanceOf(WikipediaNotFoundException.class);
+    }
+
+    /**
+     * D-01 fall-through: Wikidata search finds an item, but the sitelinks REST call returns
+     * HTTP 404 (item has no enwiki sitelink) -> fetch() falls through cleanly into the
+     * candidate cascade, same end state as the no-hits case above.
+     */
+    @Test
+    void shouldFallThroughToCascade_whenWikidataItemHasNoEnwikiSitelink() throws IOException {
+        String searchFoundJson = loadFixture("fixtures/wikidata/search-found.json");
+
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("srsearch", containing("haswbstatement:P345"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(searchFoundJson)));
+
+        wireMock.stubFor(get(urlPathMatching("/w/rest.php/wikibase/v1/entities/items/.*/sitelinks/enwiki"))
+                .willReturn(aResponse().withStatus(404)));
+
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", containing("parse"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(MISSING_PAGE_RESPONSE)));
+
+        assertThatThrownBy(() -> wikipediaClient.fetch("Inception", "Inception", 2010, "tt1375666"))
+                .isInstanceOf(WikipediaNotFoundException.class);
+    }
+
+    /**
+     * Regression test: a 429 on the Wikidata search call must engage the SAME shared
+     * backoff window recordRateLimited() already writes to for en.wikipedia.org 429s — not
+     * a separate/unpaced path. Mirrors shouldHonorRetryAfterBackoff_beforeSubsequentRequests
+     * exactly, just targeting the Wikidata search stub.
+     */
+    @Test
+    void shouldHonorRetryAfterBackoff_onWikidataCall() {
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .atPriority(1)
+                .withQueryParam("srsearch", containing("haswbstatement:P345"))
+                .willReturn(aResponse()
+                        .withStatus(429)
+                        .withHeader("Retry-After", "1")
+                        .withBody("{\"error\":\"rate limited\"}")));
+
+        // Every other request (remaining Wikidata calls + Wikipedia parse calls) returns a
+        // normal "page not found" so fetch() exhausts everything and throws, rather than
+        // hanging on an unstubbed request.
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .atPriority(10)
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(MISSING_PAGE_RESPONSE)));
+
+        Instant start = Instant.now();
+        assertThatThrownBy(() -> wikipediaClient.fetch("Inception", "Inception", 2010, "tt1375666"))
+                .isInstanceOf(WikipediaNotFoundException.class);
+        Duration elapsed = Duration.between(start, Instant.now());
+
+        assertThat(elapsed).isGreaterThanOrEqualTo(Duration.ofMillis(950));
+    }
 }

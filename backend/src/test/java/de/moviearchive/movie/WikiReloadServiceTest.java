@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -75,7 +76,7 @@ class WikiReloadServiceTest {
         Movie movie = newMovie();
         WikipediaResult result = new WikipediaResult(
                 "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
-        when(wikipediaClient.fetch(anyString(), anyString(), anyInt())).thenReturn(result);
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class))).thenReturn(result);
 
         wikiReloadService.retryWikipedia(movie);
 
@@ -90,7 +91,7 @@ class WikiReloadServiceTest {
     @Test
     void shouldSetTimestampOnly_whenWikipediaNotFound() throws Exception {
         Movie movie = newMovie();
-        when(wikipediaClient.fetch(anyString(), anyString(), anyInt()))
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class)))
                 .thenThrow(new WikipediaNotFoundException("not found"));
 
         wikiReloadService.retryWikipedia(movie);
@@ -112,12 +113,12 @@ class WikiReloadServiceTest {
 
         WikipediaResult result = new WikipediaResult(
                 "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
-        when(wikipediaClient.fetch(anyString(), anyString(), anyInt()))
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class)))
                 .thenThrow(new RuntimeException("boom"))
                 .thenReturn(result);
 
         wikiReloadService.batchReload(userId);
 
-        verify(wikipediaClient, times(2)).fetch(anyString(), anyString(), anyInt());
+        verify(wikipediaClient, times(2)).fetch(anyString(), anyString(), anyInt(), nullable(String.class));
     }
 }

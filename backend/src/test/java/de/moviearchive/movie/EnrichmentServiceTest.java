@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
@@ -83,7 +84,7 @@ class EnrichmentServiceTest {
         // shouldSetWikiLastAttemptedAt_onWikipediaSuccess() overrides this stub entirely
         // (doReturn) before ever invoking it, which would otherwise trip Mockito's strict
         // unnecessary-stubbing check.
-        lenient().when(wikipediaClient.fetch(anyString(), anyString(), anyInt()))
+        lenient().when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class)))
                 .thenThrow(new WikipediaNotFoundException("not found"));
 
         // Default OpenSearch: simulate connection failure (D-01 silent fail — no real OS in unit tests).
@@ -168,7 +169,7 @@ class EnrichmentServiceTest {
         // wikipediaClient.fetch(...) as part of when(...) would trigger that throw first.
         WikipediaResult wiki = new WikipediaResult(
                 "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
-        doReturn(wiki).when(wikipediaClient).fetch(anyString(), anyString(), anyInt());
+        doReturn(wiki).when(wikipediaClient).fetch(anyString(), anyString(), anyInt(), nullable(String.class));
 
         enrichmentService.enrich(movieId);
 

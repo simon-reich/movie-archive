@@ -21,6 +21,7 @@ public class WikipediaClient {
 
     private final WebClient webClient;
     private final String baseUrl;
+    private final WebClient wikidataWebClient;
 
     // Patterns for wikitext cleanup — compiled once at class load
     private static final Pattern REF_BLOCK   = Pattern.compile("<ref[^>]*>.*?</ref>", Pattern.DOTALL);
@@ -73,10 +74,15 @@ public class WikipediaClient {
     private final AtomicReference<Instant> backoffUntil = new AtomicReference<>(Instant.EPOCH);
 
     public WikipediaClient(WebClient.Builder builder,
-                           @Value("${wikipedia.base-url:https://en.wikipedia.org}") String baseUrl) {
+                           @Value("${wikipedia.base-url:https://en.wikipedia.org}") String baseUrl,
+                           @Value("${wikidata.base-url:https://www.wikidata.org}") String wikidataBaseUrl) {
         this.baseUrl = baseUrl;
         this.webClient = builder
                 .baseUrl(baseUrl)
+                .defaultHeader("User-Agent", "MovieArchive/0.1")
+                .build();
+        this.wikidataWebClient = builder
+                .baseUrl(wikidataBaseUrl)
                 .defaultHeader("User-Agent", "MovieArchive/0.1")
                 .build();
     }
@@ -137,7 +143,12 @@ public class WikipediaClient {
      * 9. Wikipedia search API for {OriginalTitle} + film
      * 10. Wikipedia search API for {Title} + film
      */
-    public WikipediaResult fetch(String originalTitle, String title, int year) {
+    public WikipediaResult fetch(String originalTitle, String title, int year, String imdbId) {
+        Optional<WikipediaResult> viaWikidata = tryFetchViaWikidata(imdbId);
+        if (viaWikidata.isPresent()) {
+            log.debug("Wikipedia page found via Wikidata for imdbId={}", imdbId);
+            return viaWikidata.get();
+        }
         List<String> candidates = buildCandidates(originalTitle, title, year);
         for (String candidate : candidates) {
             Optional<WikipediaResult> result = tryFetch(candidate);
@@ -156,6 +167,61 @@ public class WikipediaClient {
         }
         throw new WikipediaNotFoundException(
                 "No Wikipedia page found for titles: " + originalTitle + " / " + title);
+    }
+
+    /**
+     * Direct Wikidata IMDb-ID (P345) cross-reference — tried first in fetch(), before the
+     * title-guessing candidate cascade. Two paced calls against wikidata.org: a
+     * haswbstatement search resolving imdbId -> Wikidata QID, then a REST sitelinks lookup
+     * resolving QID -> enwiki article title, which is handed off to the existing tryFetch()
+     * for section extraction. Every failure path (null/blank imdbId, zero search hits, no
+     * enwiki sitelink, network error) returns Optional.empty() and lets fetch() fall
+     * through unchanged into the candidate cascade — this method never throws
+     * WikipediaNotFoundException directly.
+     *
+     * Note: haswbstatement string-property matching is case-sensitive; movie.getImdbId()
+     * is always TMDB's canonical lowercase "tt\d+" form, so this is not a practical risk.
+     */
+    private Optional<WikipediaResult> tryFetchViaWikidata(String imdbId) {
+        if (imdbId == null || imdbId.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            paceRequest();
+            JsonNode searchResponse = wikidataWebClient.get()
+                    .uri("/w/api.php?action=query&list=search&srsearch=haswbstatement:P345={id}&format=json",
+                            imdbId)
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
+            if (searchResponse == null) return Optional.empty();
+            JsonNode hits = searchResponse.path("query").path("search");
+            if (!hits.isArray() || hits.isEmpty()) return Optional.empty();
+            String qid = hits.get(0).path("title").asText(null);
+            if (qid == null || qid.isBlank()) return Optional.empty();
+
+            paceRequest();
+            JsonNode sitelink = wikidataWebClient.get()
+                    .uri("/w/rest.php/wikibase/v1/entities/items/{qid}/sitelinks/enwiki", qid)
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
+            if (sitelink == null) return Optional.empty();
+            String resolvedTitle = sitelink.path("title").asText(null);
+            if (resolvedTitle == null || resolvedTitle.isBlank()) return Optional.empty();
+
+            return tryFetch(resolvedTitle.replace(' ', '_'));
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 429) {
+                recordRateLimited(e, "wikidata imdbId=" + imdbId);
+            } else {
+                log.debug("Wikidata lookup failed for imdbId={} status={}", imdbId, e.getStatusCode().value());
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            log.debug("Wikidata lookup exception for imdbId={}: {}", imdbId, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     List<String> buildCandidates(String originalTitle, String title, int year) {

@@ -76,7 +76,7 @@ public class WikiReloadService {
             int year = movie.getReleaseDate() != null ? movie.getReleaseDate().getYear() : 0;
             String origTitle = movie.getOriginalTitle() != null ? movie.getOriginalTitle() : movie.getTitle();
             String movieTitle = movie.getTitle() != null ? movie.getTitle() : "";
-            WikipediaResult wiki = wikipediaClient.fetch(origTitle, movieTitle, year);
+            WikipediaResult wiki = wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId());
             movie.setWikiUrl(wiki.url());
             movie.setWikiSummary(wiki.summary());
             movie.setWikiPlot(wiki.plot());

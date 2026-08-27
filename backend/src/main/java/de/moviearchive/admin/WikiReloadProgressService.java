@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -41,10 +43,16 @@ public class WikiReloadProgressService {
     private final Map<UUID, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
     private final Map<UUID, ProgressState> lastKnown = new ConcurrentHashMap<>();
     private final Map<UUID, AtomicBoolean> stopFlags = new ConcurrentHashMap<>();
+    private final Map<UUID, Deque<Long>> durationWindowsMs = new ConcurrentHashMap<>();
+
+    /** Fixed-size rolling window of the last N per-movie call durations feeding the D-07/D-14-03
+     * ETA computation — balances responsiveness (adapts quickly once 429 backoff kicks in)
+     * against a single-outlier-movie skewing the estimate (RESEARCH.md Open Question 2). */
+    private static final int ETA_WINDOW_SIZE = 5;
 
     /** SSE JSON payload shape — Jackson serializes records natively, no extra annotation needed. */
     public record ProgressState(int processed, int total, boolean complete,
-                                 String lastMovieTitle, String lastMovieStatus) {
+                                 String lastMovieTitle, String lastMovieStatus, long etaSeconds) {
     }
 
     /**
@@ -64,19 +72,36 @@ public class WikiReloadProgressService {
         if (state != null) {
             sendEvent(emitter, userId, state.complete() ? "complete" : "progress", state);
         } else {
-            ProgressState synthesized = new ProgressState(0, 0, true, null, null);
+            ProgressState synthesized = new ProgressState(0, 0, true, null, null, 0L);
             sendEvent(emitter, userId, "complete", synthesized);
         }
     }
 
     /**
      * Stores the given progress as userId's last-known state and sends a "progress" event to
-     * every currently registered emitter for userId.
+     * every currently registered emitter for userId. {@code durationMs} is the just-completed
+     * movie's wall-clock call duration (including any time spent inside an active 429 backoff,
+     * since that wait happens synchronously inside the same call — D-07/D-14-03) — pushed onto
+     * userId's rolling window (capped at {@link #ETA_WINDOW_SIZE}), whose average feeds the
+     * etaSeconds computation: remaining-count times the average duration. Returns the
+     * constructed ProgressState (callers may ignore it) so tests can assert etaSeconds directly
+     * without mocking an SseEmitter.
      */
-    public void publish(UUID userId, int processed, int total, String lastMovieTitle, String lastMovieStatus) {
-        ProgressState state = new ProgressState(processed, total, false, lastMovieTitle, lastMovieStatus);
+    public ProgressState publish(UUID userId, int processed, int total, String lastMovieTitle,
+                                  String lastMovieStatus, long durationMs) {
+        Deque<Long> window = durationWindowsMs.computeIfAbsent(userId, id -> new ArrayDeque<>());
+        window.addLast(durationMs);
+        while (window.size() > ETA_WINDOW_SIZE) {
+            window.removeFirst();
+        }
+        double average = window.stream().mapToLong(Long::longValue).average().orElse(0.0);
+        long etaSeconds = Math.round(average * (total - processed) / 1000.0);
+
+        ProgressState state = new ProgressState(
+                processed, total, false, lastMovieTitle, lastMovieStatus, etaSeconds);
         lastKnown.put(userId, state);
         broadcast(userId, "progress", state);
+        return state;
     }
 
     /**
@@ -92,7 +117,8 @@ public class WikiReloadProgressService {
         ProgressState state = new ProgressState(
                 total, total, true,
                 prior != null ? prior.lastMovieTitle() : null,
-                prior != null ? prior.lastMovieStatus() : null);
+                prior != null ? prior.lastMovieStatus() : null,
+                0L);
         lastKnown.put(userId, state);
 
         List<SseEmitter> userEmitters = emitters.get(userId);
@@ -106,6 +132,7 @@ public class WikiReloadProgressService {
         emitters.remove(userId);
         lastKnown.remove(userId);
         stopFlags.remove(userId);
+        durationWindowsMs.remove(userId);
     }
 
     /**

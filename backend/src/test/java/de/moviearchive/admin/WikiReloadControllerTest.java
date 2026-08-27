@@ -286,6 +286,41 @@ class WikiReloadControllerTest extends AbstractOpenSearchTest {
     }
 
     /**
+     * T-14-01: GET /admin/wiki-reload/{userId}/progress must return 403 when the JWT subject
+     * does not match the path userId (IDOR protection).
+     */
+    @Test
+    void shouldReturn403_whenUserMismatch_onProgressEndpoint() throws Exception {
+        User userA = createActiveUser("wiki-progress-a@example.com");
+        createActiveUser("wiki-progress-b@example.com");
+
+        String tokenB = loginAndGetToken("wiki-progress-b@example.com");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/admin/wiki-reload/" + userA.getId() + "/progress")
+                        .header("Authorization", tokenB))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Access denied."));
+    }
+
+    /**
+     * T-14-01: POST /admin/wiki-reload/{userId}/stop must return 403 when the JWT subject
+     * does not match the path userId (IDOR protection).
+     */
+    @Test
+    void shouldReturn403_whenUserMismatch_onStopEndpoint() throws Exception {
+        User userA = createActiveUser("wiki-stop-a@example.com");
+        createActiveUser("wiki-stop-b@example.com");
+
+        String tokenB = loginAndGetToken("wiki-stop-b@example.com");
+
+        mockMvc.perform(post("/admin/wiki-reload/" + userA.getId() + "/stop")
+                        .header("Authorization", tokenB))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Access denied."));
+    }
+
+    /**
      * ENRICH-01/ENRICH-02: A movie missing wiki data gets its Wikipedia data fetched,
      * wikiLastAttemptedAt set, and is re-indexed into OpenSearch (indexedAt set) — D-02.
      */
@@ -376,6 +411,47 @@ class WikiReloadControllerTest extends AbstractOpenSearchTest {
                 .andExpect(jsonPath("$.message").isNotEmpty());
 
         pollAllIndexed(10000, m1.getId(), m2.getId());
+        Thread.sleep(500);
+    }
+
+    /**
+     * D-14-04: a Stop request issued immediately after Start halts the batch before it reaches
+     * every eligible movie — proves the loop actually observes the stop flag at its
+     * loop-boundary check, not just that the endpoint exists. The class-level 2000ms pacing
+     * override keeps the run in-flight long enough for the immediate stop POST to land inside
+     * the window deterministically.
+     */
+    @Test
+    void shouldHaltBatch_whenStopRequestedMidRun() throws Exception {
+        User user = createActiveUser("wiki-stop-mid-run@example.com");
+        String token = loginAndGetToken("wiki-stop-mid-run@example.com");
+        String indexName = "movies-" + user.getId();
+        deleteIndexIfExists(indexName);
+        stubWikipediaFound();
+
+        Movie m1 = persistMovie(user, "Inception", null);
+        Movie m2 = persistMovie(user, "Inception", null);
+        Movie m3 = persistMovie(user, "Inception", null);
+
+        mockMvc.perform(post("/admin/wiki-reload/" + user.getId())
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(post("/admin/wiki-reload/" + user.getId() + "/stop")
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted());
+
+        // Give the (now-stopping) run up to 8s to settle — well under the 3-movie, 2s-paced
+        // worst case (~4-6s) if the stop flag were NOT observed.
+        pollAllIndexed(8000, m1.getId());
+
+        long indexedCount = java.util.stream.Stream.of(m1, m2, m3)
+                .map(m -> movieRepository.findById(m.getId()).orElseThrow())
+                .filter(m -> m.getIndexedAt() != null)
+                .count();
+        assertThat(indexedCount).isLessThan(3);
+
+        // Drain any still-in-flight task before the next test's @BeforeEach cleanDb() runs.
         Thread.sleep(500);
     }
 }

@@ -58,7 +58,7 @@ class WikiReloadProgressServiceTest {
         SseEmitter emitter = mock(SseEmitter.class);
         UUID userId = UUID.randomUUID();
 
-        progressService.publish(userId, 2, 10, "Inception", "SUCCESS");
+        progressService.publish(userId, 2, 10, "Inception", "SUCCESS", 500L);
         progressService.register(userId, emitter);
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> captor =
@@ -79,12 +79,13 @@ class WikiReloadProgressServiceTest {
         UUID userId = UUID.randomUUID();
 
         // Publish before any emitter is registered: stores lastKnown state, broadcasts to
-        // nobody yet (no send() call).
-        progressService.publish(userId, 1, 10, "Inception", "SUCCESS");
+        // nobody yet (no send() call). Both publishes use the same 1000ms duration so the
+        // rolling-average etaSeconds is easy to hand-verify: avg=1000ms * remaining.
+        progressService.publish(userId, 1, 10, "Inception", "SUCCESS", 1000L);
         // register() replays the state from the publish above (1st send).
         progressService.register(userId, emitter);
         // 2nd send — a live progress broadcast to the now-registered emitter.
-        progressService.publish(userId, 2, 10, "Whiplash", "NOT_FOUND");
+        progressService.publish(userId, 2, 10, "Whiplash", "NOT_FOUND", 1000L);
         // 3rd send — the terminal complete event.
         progressService.complete(userId);
 
@@ -95,11 +96,11 @@ class WikiReloadProgressServiceTest {
 
         var states = captor.getAllValues().stream().map(this::capturedState).toList();
         assertThat(states.get(0)).isEqualTo(
-                new WikiReloadProgressService.ProgressState(1, 10, false, "Inception", "SUCCESS"));
+                new WikiReloadProgressService.ProgressState(1, 10, false, "Inception", "SUCCESS", 9L));
         assertThat(states.get(1)).isEqualTo(
-                new WikiReloadProgressService.ProgressState(2, 10, false, "Whiplash", "NOT_FOUND"));
+                new WikiReloadProgressService.ProgressState(2, 10, false, "Whiplash", "NOT_FOUND", 8L));
         assertThat(states.get(2)).isEqualTo(
-                new WikiReloadProgressService.ProgressState(10, 10, true, "Whiplash", "NOT_FOUND"));
+                new WikiReloadProgressService.ProgressState(10, 10, true, "Whiplash", "NOT_FOUND", 0L));
     }
 
     @Test
@@ -107,9 +108,9 @@ class WikiReloadProgressServiceTest {
         SseEmitter firstEmitter = mock(SseEmitter.class);
         UUID userId = UUID.randomUUID();
 
-        progressService.publish(userId, 1, 10, "Inception", "SUCCESS");
+        progressService.publish(userId, 1, 10, "Inception", "SUCCESS", 1000L);
         progressService.register(userId, firstEmitter);
-        progressService.publish(userId, 2, 10, "Whiplash", "NOT_FOUND");
+        progressService.publish(userId, 2, 10, "Whiplash", "NOT_FOUND", 1000L);
         progressService.complete(userId);
 
         // A fresh emitter registering after complete() must NOT see a replay of the real
@@ -156,5 +157,40 @@ class WikiReloadProgressServiceTest {
         progressService.resetRun(userId);
 
         assertThat(progressService.isStopRequested(userId)).isFalse();
+    }
+
+    @Test
+    void publish_computesEtaSeconds_asRollingAverageTimesRemaining() {
+        UUID userId = UUID.randomUUID();
+
+        // A 5-movie run: durations 1000ms, 2000ms, 3000ms for the first 3 movies processed.
+        progressService.publish(userId, 1, 5, "Movie A", "SUCCESS", 1000L);
+        progressService.publish(userId, 2, 5, "Movie B", "SUCCESS", 2000L);
+        WikiReloadProgressService.ProgressState third =
+                progressService.publish(userId, 3, 5, "Movie C", "SUCCESS", 3000L);
+
+        // average(1000, 2000, 3000) = 2000ms; remaining = 5 - 3 = 2 -> etaSeconds = round(2000*2/1000) = 4
+        assertThat(third.etaSeconds()).isEqualTo(4L);
+    }
+
+    @Test
+    void publish_windowCapsAtFiveEntries() {
+        UUID userId = UUID.randomUUID();
+
+        // First 5 publishes use a 1000ms duration; the 6th uses a very different 6000ms
+        // duration. If the window correctly caps at 5 entries, the oldest 1000ms entry is
+        // evicted and the rolling average shifts to reflect only the most recent 5 durations
+        // (1000, 1000, 1000, 1000, 6000) -> avg=2000ms, NOT the naive all-6-average (~1833ms).
+        progressService.publish(userId, 1, 100, "Movie 1", "SUCCESS", 1000L);
+        progressService.publish(userId, 2, 100, "Movie 2", "SUCCESS", 1000L);
+        progressService.publish(userId, 3, 100, "Movie 3", "SUCCESS", 1000L);
+        progressService.publish(userId, 4, 100, "Movie 4", "SUCCESS", 1000L);
+        progressService.publish(userId, 5, 100, "Movie 5", "SUCCESS", 1000L);
+        WikiReloadProgressService.ProgressState sixth =
+                progressService.publish(userId, 6, 100, "Movie 6", "SUCCESS", 6000L);
+
+        // windowed avg(1000,1000,1000,1000,6000) = 2000ms; remaining = 100-6 = 94
+        // -> etaSeconds = round(2000*94/1000) = 188 (not 172, which the naive 6-value average would give)
+        assertThat(sixth.etaSeconds()).isEqualTo(188L);
     }
 }

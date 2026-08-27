@@ -182,6 +182,7 @@ public class WikiReloadService {
             }
             Movie movie = eligible.get(i);
             String status;
+            long startMs = System.currentTimeMillis();
             try {
                 WikiRetryOutcome outcome = self.retryWikipedia(movie, resolvedTitles);
                 status = outcome.name();
@@ -190,8 +191,9 @@ public class WikiReloadService {
                         movie.getId(), e.getMessage());
                 status = WikiRetryOutcome.FAILED.name();
             }
+            long durationMs = System.currentTimeMillis() - startMs;
             processedCount++;
-            progressService.publish(userId, processedCount, eligible.size(), movie.getTitle(), status);
+            progressService.publish(userId, processedCount, eligible.size(), movie.getTitle(), status, durationMs);
 
             if (i < eligible.size() - 1) {
                 // A Stop click during the pacing window shouldn't wait out the full delay.

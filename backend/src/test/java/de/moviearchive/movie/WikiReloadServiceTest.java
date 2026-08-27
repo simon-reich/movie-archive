@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.longThat;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -48,6 +49,9 @@ class WikiReloadServiceTest {
     @Mock
     private IndexingService indexingService;
 
+    @Mock
+    private WikiReloadProgressService progressService;
+
     private WikiReloadService wikiReloadService;
 
     private User user;
@@ -55,7 +59,7 @@ class WikiReloadServiceTest {
     @BeforeEach
     void setUp() {
         wikiReloadService = new WikiReloadService(
-                movieRepository, wikipediaClient, indexingService, new WikiReloadProgressService(), null);
+                movieRepository, wikipediaClient, indexingService, progressService, null);
         // No Spring context in this unit test, so there's no real @Lazy proxy to inject for
         // the "self" self-invocation fix (WR-01) — wire the instance to itself so
         // batchReload()'s self.retryWikipedia(...) call resolves the same way the AOP proxy
@@ -161,5 +165,24 @@ class WikiReloadServiceTest {
                 ids.containsAll(List.of("tt1000001", "tt1000002")) && ids.size() == 2));
         verify(wikipediaClient, times(2))
                 .fetch(anyString(), anyString(), anyInt(), nullable(String.class), any());
+    }
+
+    @Test
+    void shouldPublishProgressWithNonNegativeDuration_forSuccessfullyProcessedMovie() throws Exception {
+        UUID userId = UUID.randomUUID();
+        Movie movie = newMovie();
+        when(movieRepository.findEligibleForWikiReload(eq(userId), any(Instant.class)))
+                .thenReturn(List.of(movie));
+
+        WikipediaResult result = new WikipediaResult(
+                "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class), any()))
+                .thenReturn(result);
+
+        wikiReloadService.batchReload(userId);
+
+        verify(progressService).publish(
+                eq(userId), eq(1), eq(1), eq(movie.getTitle()), eq("SUCCESS"),
+                longThat(d -> d >= 0));
     }
 }

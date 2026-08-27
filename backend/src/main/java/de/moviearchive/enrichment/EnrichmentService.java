@@ -50,6 +50,23 @@ public class EnrichmentService {
     @Async("enrichmentExecutor")
     @Transactional
     public void enrich(UUID movieId) {
+        doEnrich(movieId, null);
+    }
+
+    /**
+     * Same as {@link #enrich(UUID)}, but accepts a batch caller's pre-resolved
+     * IMDb-id-to-enwiki-title map (Phase 13 D-03) — used by {@code BulkImportService}'s
+     * two-pass restructuring so the Wikipedia step below skips a per-movie SPARQL call
+     * entirely, threading the SAME map into {@link WikipediaClient#fetch(String, String, int,
+     * String, Map)} for every matched line in a run.
+     */
+    @Async("enrichmentExecutor")
+    @Transactional
+    public void enrich(UUID movieId, Map<String, String> preResolvedWikiTitles) {
+        doEnrich(movieId, preResolvedWikiTitles);
+    }
+
+    private void doEnrich(UUID movieId, Map<String, String> preResolvedWikiTitles) {
         try {
             // JOIN FETCH user to avoid LazyInitializationException on async thread
             Movie movie = movieRepository.findByIdWithUser(movieId)
@@ -100,7 +117,9 @@ public class EnrichmentService {
                 int year = movie.getReleaseDate() != null ? movie.getReleaseDate().getYear() : 0;
                 String origTitle = movie.getOriginalTitle() != null ? movie.getOriginalTitle() : movie.getTitle();
                 String movieTitle = movie.getTitle() != null ? movie.getTitle() : "";
-                WikipediaResult wiki = wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId());
+                WikipediaResult wiki = preResolvedWikiTitles != null
+                        ? wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId(), preResolvedWikiTitles)
+                        : wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId());
                 movie.setWikiUrl(wiki.url());
                 movie.setWikiSummary(wiki.summary());
                 movie.setWikiPlot(wiki.plot());

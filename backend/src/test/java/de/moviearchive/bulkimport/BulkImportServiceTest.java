@@ -2,6 +2,8 @@ package de.moviearchive.bulkimport;
 
 import de.moviearchive.enrichment.EnrichmentService;
 import de.moviearchive.enrichment.TmdbClient;
+import de.moviearchive.enrichment.WikipediaClient;
+import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.movie.MovieService;
 import de.moviearchive.movie.dto.MovieInitiateResult;
 import de.moviearchive.movie.dto.TmdbSearchResultItem;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +50,12 @@ class BulkImportServiceTest {
     private EnrichmentService enrichmentService;
 
     @Mock
+    private MovieRepository movieRepository;
+
+    @Mock
+    private WikipediaClient wikipediaClient;
+
+    @Mock
     private BulkImportBatchRepository bulkImportBatchRepository;
 
     @Mock
@@ -64,7 +73,13 @@ class BulkImportServiceTest {
     void setUp() {
         bulkImportService = new BulkImportService(
                 bulkImportLineRepository, userRepository, tmdbClient, movieService,
-                enrichmentService, importLineParser, bulkImportBatchRepository, progressService, null);
+                enrichmentService, movieRepository, wikipediaClient, importLineParser,
+                bulkImportBatchRepository, progressService, null);
+        // No Spring context in this unit test, so there's no real @Lazy proxy to inject for the
+        // "self" self-invocation fix (CR-01) — wire the instance to itself so runImport()'s
+        // self.processLine(...)/self.resolveAndPersistImdbId(...) calls resolve the same way
+        // the AOP proxy would in production (mirrors WikiReloadServiceTest's convention).
+        ReflectionTestUtils.setField(bulkImportService, "self", bulkImportService);
 
         user = new User(EMAIL, "hash");
 

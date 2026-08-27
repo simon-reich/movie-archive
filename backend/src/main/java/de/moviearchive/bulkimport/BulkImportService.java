@@ -1,8 +1,12 @@
 package de.moviearchive.bulkimport;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import de.moviearchive.bulkimport.ImportLineParser.ParsedLine;
+import de.moviearchive.bulkimport.dto.MatchedLine;
 import de.moviearchive.enrichment.EnrichmentService;
 import de.moviearchive.enrichment.TmdbClient;
+import de.moviearchive.enrichment.WikipediaClient;
+import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.movie.MovieService;
 import de.moviearchive.movie.dto.MovieInitiateResult;
 import de.moviearchive.movie.dto.TmdbSearchResultItem;
@@ -17,7 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,6 +44,8 @@ public class BulkImportService {
     private final TmdbClient tmdbClient;
     private final MovieService movieService;
     private final EnrichmentService enrichmentService;
+    private final MovieRepository movieRepository;
+    private final WikipediaClient wikipediaClient;
     private final ImportLineParser importLineParser;
     private final BulkImportBatchRepository bulkImportBatchRepository;
     private final BulkImportProgressService progressService;
@@ -50,6 +59,8 @@ public class BulkImportService {
                              TmdbClient tmdbClient,
                              MovieService movieService,
                              EnrichmentService enrichmentService,
+                             MovieRepository movieRepository,
+                             WikipediaClient wikipediaClient,
                              ImportLineParser importLineParser,
                              BulkImportBatchRepository bulkImportBatchRepository,
                              BulkImportProgressService progressService,
@@ -59,6 +70,8 @@ public class BulkImportService {
         this.tmdbClient = tmdbClient;
         this.movieService = movieService;
         this.enrichmentService = enrichmentService;
+        this.movieRepository = movieRepository;
+        this.wikipediaClient = wikipediaClient;
         this.importLineParser = importLineParser;
         this.bulkImportBatchRepository = bulkImportBatchRepository;
         this.progressService = progressService;
@@ -85,13 +98,27 @@ public class BulkImportService {
     @Async("bulkImportExecutor")
     public void runImport(String email, String tmdbKey, List<String> rawLines, UUID batchId) {
         log.info("Bulk import starting email={} lines={} batchId={}", email, rawLines.size(), batchId);
+
+        // Pass 1: match + save every line, resolving each newly-matched line's TMDB detail
+        // (and therefore imdbId) up front — before any Wikipedia lookup fires. Unlike
+        // batch-reload (where movie.imdbId is already persisted from a prior save),
+        // bulk-import's imdbId is otherwise only discovered inside enrichmentService.enrich()'s
+        // own TMDB detail call, one movie at a time (D-03).
+        List<UUID> matchedMovieIds = new ArrayList<>();
+        Map<UUID, String> imdbIdByMovieId = new HashMap<>();
         for (int i = 0; i < rawLines.size(); i++) {
             try {
                 // CR-01: processLine()'s @Transactional method returns before we get here, so
-                // its transaction has already committed — safe to fire the @Async enrich() call
-                // now. Calling enrich() from inside processLine() (while its own transaction is
-                // still open) raced the enrichment thread against the not-yet-committed INSERT.
-                self.processLine(email, tmdbKey, rawLines.get(i), batchId).ifPresent(enrichmentService::enrich);
+                // its transaction has already committed — safe to fire the TMDB detail call
+                // now. Calling it from inside processLine() (while its own transaction is still
+                // open) raced against the not-yet-committed INSERT.
+                self.processLine(email, tmdbKey, rawLines.get(i), batchId).ifPresent(matched -> {
+                    matchedMovieIds.add(matched.movieId());
+                    String imdbId = self.resolveAndPersistImdbId(matched.movieId(), matched.tmdbId(), tmdbKey);
+                    if (imdbId != null) {
+                        imdbIdByMovieId.put(matched.movieId(), imdbId);
+                    }
+                });
             } catch (Exception e) {
                 log.warn("Bulk import: unexpected error for line index={}: {}", i, e.getMessage());
             }
@@ -106,8 +133,53 @@ public class BulkImportService {
                 }
             }
         }
+
+        // Pass 1.5: one batched SPARQL call for every imdbId collected in this run (D-03) —
+        // NOT one call per line, which would only swap the endpoint without reducing request
+        // count.
+        List<String> imdbIds = List.copyOf(imdbIdByMovieId.values());
+        Map<String, String> resolvedTitles = wikipediaClient.resolveViaWikidataSparql(imdbIds);
+
+        // Pass 2: enrich every matched line, threading the SAME resolved map into each call so
+        // the Wikipedia step skips a per-movie SPARQL call entirely.
+        for (UUID movieId : matchedMovieIds) {
+            enrichmentService.enrich(movieId, resolvedTitles);
+        }
+
         progressService.complete(batchId);
         log.info("Bulk import complete email={} processed={}", email, rawLines.size());
+    }
+
+    /**
+     * Fetches TMDB detail for a newly-matched line and persists its imdbId onto the Movie row
+     * immediately, so Pass 1.5's batched SPARQL call has every matched line's imdbId available
+     * up front (D-03, Pitfall 2: bulk-import's imdbId is otherwise only discovered later, one
+     * movie at a time, inside EnrichmentService.enrich()'s own TMDB detail call). Persisting it
+     * here makes enrich()'s own later detail call redundant-but-harmless. Never throws —
+     * matches this codebase's established swallow-and-degrade convention for external-API call
+     * sites; returns null on any failure.
+     */
+    @Transactional
+    public String resolveAndPersistImdbId(UUID movieId, int tmdbId, String tmdbKey) {
+        try {
+            JsonNode tmdbDetail = tmdbClient.fetchDetail(tmdbId, tmdbKey);
+            String extractedImdbId = tmdbDetail.path("external_ids").path("imdb_id").asText(null);
+            if (extractedImdbId != null && extractedImdbId.isBlank()) {
+                extractedImdbId = null;
+            }
+            final String imdbId = extractedImdbId;
+            if (imdbId != null) {
+                movieRepository.findById(movieId).ifPresent(movie -> {
+                    movie.setImdbId(imdbId);
+                    movieRepository.save(movie);
+                });
+            }
+            return imdbId;
+        } catch (Exception e) {
+            log.warn("Bulk import: TMDB detail fetch failed for movieId={} tmdbId={}: {}",
+                    movieId, tmdbId, e.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -123,7 +195,7 @@ public class BulkImportService {
      * at status=PENDING forever.
      */
     @Transactional
-    public Optional<UUID> processLine(String email, String tmdbKey, String rawLine, UUID batchId) {
+    public Optional<MatchedLine> processLine(String email, String tmdbKey, String rawLine, UUID batchId) {
         ParsedLine parsed = importLineParser.parse(rawLine);
         if (parsed == null) {
             // D-02: blank line — skip silently, nothing persisted.
@@ -200,13 +272,13 @@ public class BulkImportService {
      * is NOT fired here (CR-01) — the id of a newly-created movie is returned so the caller can
      * invoke enrichmentService.enrich() once this method's enclosing transaction has committed.
      */
-    private Optional<UUID> saveAndUpsert(
+    private Optional<MatchedLine> saveAndUpsert(
             User user, String email, ParsedLine parsed, TmdbSearchResultItem match, BulkImportBatch batch) {
         MovieInitiateResult result = movieService.initiate(email, match.tmdbId());
         // D-04: match already carries posterPath() from the search results fetched earlier in
         // processLine() — no extra TMDB call needed to capture it here.
         upsertLine(user, parsed, BulkImportLineStatus.SAVED, match.tmdbId(), match.posterPath(), batch);
-        return result.isNew() ? Optional.of(result.id()) : Optional.empty();
+        return result.isNew() ? Optional.of(new MatchedLine(result.id(), match.tmdbId())) : Optional.empty();
     }
 
     /**

@@ -53,6 +53,11 @@ class WikiReloadServiceIntegrationTest extends AbstractOpenSearchTest {
     @DynamicPropertySource
     static void overrideWikipediaBaseUrl(DynamicPropertyRegistry registry) {
         registry.add("wikipedia.base-url", wireMock::baseUrl);
+        // Defensive: today's movies in this test class never have imdbId set, so
+        // resolveViaWikidataSparql()'s empty-list guard means zero network calls fire
+        // regardless — but registering this override keeps this class safe against reaching
+        // the real query.wikidata.org endpoint if a future test adds a movie with imdbId set.
+        registry.add("wikidata.sparql-base-url", wireMock::baseUrl);
     }
 
     // 2500ms, not the 500ms originally sketched — this Testcontainers environment's real

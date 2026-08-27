@@ -113,12 +113,13 @@ class WikiReloadServiceTest {
 
         WikipediaResult result = new WikipediaResult(
                 "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
-        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class)))
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class), any()))
                 .thenThrow(new RuntimeException("boom"))
                 .thenReturn(result);
 
         wikiReloadService.batchReload(userId);
 
-        verify(wikipediaClient, times(2)).fetch(anyString(), anyString(), anyInt(), nullable(String.class));
+        verify(wikipediaClient, times(2))
+                .fetch(anyString(), anyString(), anyInt(), nullable(String.class), any());
     }
 }

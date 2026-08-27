@@ -135,7 +135,7 @@ None - no external service configuration required. This plan only restructures i
 
 ## Self-Check: PASSED
 
-Both modified-file sets verified present on disk (`WikiReloadService.java`, `WikiReloadServiceTest.java`, `WikiReloadServiceIntegrationTest.java`). Both commits (`3936836`, `487c9ef`) verified present in `git log --oneline --all`.
+All modified files verified present on disk (`WikiReloadService.java`, `WikiReloadServiceTest.java`, `WikiReloadServiceIntegrationTest.java`, `13-02-SUMMARY.md`). All three commits (`3936836`, `487c9ef`, `d4c14b1`) verified present in `git log --oneline --all`.
 
 ---
 *Phase: 13-wikidata-sparql-batch-lookup*

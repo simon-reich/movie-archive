@@ -135,7 +135,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     const wrapper = await mountPage()
 
     await capturedOnProgress?.({
-      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS',
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
     })
     await nextTick()
 
@@ -149,7 +149,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     expect(wrapper.find('[data-testid="wiki-stop-button"]').exists()).toBe(false)
 
     await capturedOnProgress?.({
-      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS',
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
     })
     await nextTick()
 
@@ -161,7 +161,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     const wrapper = await mountPage()
 
     await capturedOnProgress?.({
-      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS',
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
     })
     await nextTick()
 
@@ -169,5 +169,39 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     await nextTick()
 
     expect(mockStopWikiReload).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders the minutes-remaining ETA label when etaSeconds is 240', async () => {
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 2, total: 10, complete: false, lastMovieTitle: 'Interstellar', lastMovieStatus: 'SUCCESS', etaSeconds: 240,
+    })
+    await nextTick()
+
+    expect(wrapper.text()).toContain('~4 min remaining')
+  })
+
+  it('renders the seconds-remaining ETA label when etaSeconds is 45', async () => {
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 2, total: 10, complete: false, lastMovieTitle: 'Interstellar', lastMovieStatus: 'SUCCESS', etaSeconds: 45,
+    })
+    await nextTick()
+
+    expect(wrapper.text()).toContain('~45s remaining')
+  })
+
+  it('renders neither ETA label variant when etaSeconds is 0', async () => {
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 2, total: 10, complete: false, lastMovieTitle: 'Interstellar', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
+    })
+    await nextTick()
+
+    expect(wrapper.text()).not.toContain('min remaining')
+    expect(wrapper.text()).not.toContain('s remaining')
   })
 })

@@ -56,6 +56,15 @@ const wikiProgressPercent = computed(() => {
   return Math.round((wikiProgress.value.processed / wikiProgress.value.total) * 100)
 })
 
+// D-07/D-14-03: formats the backend's rolling-average etaSeconds — empty string renders
+// nothing (gated by v-if below) when there's no active run or the run just started.
+const wikiEtaLabel = computed(() => {
+  const etaSeconds = wikiProgress.value?.etaSeconds
+  if (!etaSeconds) return ''
+  if (etaSeconds >= 60) return `~${Math.ceil(etaSeconds / 60)} min remaining`
+  return `~${etaSeconds}s remaining`
+})
+
 // Reset inline success state when input value changes (D-06)
 watch(tmdbKey, () => {
   tmdbSaved.value = false
@@ -471,6 +480,7 @@ async function handleChangePassword() {
 
       <div v-if="wikiProgress && !wikiProgress.complete" data-testid="wiki-reload-progress" class="mt-4 space-y-2">
         <p class="text-sm text-foreground">{{ wikiProgress.processed }} / {{ wikiProgress.total }} processed</p>
+        <p v-if="wikiEtaLabel" class="text-sm text-muted-foreground">{{ wikiEtaLabel }}</p>
         <div class="w-full h-2 bg-card border border-border">
           <div class="h-full bg-primary" :style="{ width: `${wikiProgressPercent}%` }" />
         </div>

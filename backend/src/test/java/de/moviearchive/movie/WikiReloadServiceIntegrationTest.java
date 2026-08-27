@@ -28,6 +28,7 @@ import java.util.UUID;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -363,5 +364,44 @@ class WikiReloadServiceIntegrationTest extends AbstractOpenSearchTest {
         Instant end = Instant.now();
 
         assertThat(Duration.between(start, end).toMillis()).isLessThan(2500);
+    }
+
+    /**
+     * D-02's concrete, observable proof: a 2-movie batch causes exactly one SPARQL request,
+     * not two — the prefetch step runs once before the per-movie loop, not once per movie.
+     * Both movies' imdbIds miss the SPARQL batch (batch-empty.json fixture, zero bindings),
+     * so both fall through to the unchanged candidate cascade — proving the fallback still
+     * works correctly after a SPARQL miss.
+     */
+    @Test
+    void shouldMakeOneSparqlCall_forWholeBatch_notOnePerMovie() throws Exception {
+        User user = createUser("wiki-sparql-batch@example.com");
+        String indexName = "movies-" + user.getId();
+        deleteIndexIfExists(indexName);
+        stubWikipediaFound();
+
+        Movie movie1 = persistEligibleMovie(user, null);
+        Movie movie2 = persistEligibleMovie(user, null);
+        movie1.setImdbId("tt1000001");
+        movie2.setImdbId("tt1000002");
+        movieRepository.save(movie1);
+        movieRepository.save(movie2);
+
+        String batchEmptyJson = loadFixture("fixtures/wikidata-sparql/batch-empty.json");
+        wireMock.stubFor(get(urlPathEqualTo("/sparql"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/sparql-results+json")
+                        .withBody(batchEmptyJson)));
+
+        wikiReloadService.batchReload(user.getId());
+
+        pollUntilIndexed(5000, movie1.getId(), movie2.getId());
+
+        wireMock.verify(1, getRequestedFor(urlPathEqualTo("/sparql")));
+
+        Movie movie1Reloaded = movieRepository.findById(movie1.getId()).orElseThrow();
+        Movie movie2Reloaded = movieRepository.findById(movie2.getId()).orElseThrow();
+        assertThat(movie1Reloaded.getWikiUrl()).isNotNull();
+        assertThat(movie2Reloaded.getWikiUrl()).isNotNull();
     }
 }

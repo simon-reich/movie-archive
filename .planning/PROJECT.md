@@ -64,11 +64,14 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 - ✓ ENRICH-02: Batch-Reload-Endpoint mit Cooldown-Filter, gepaced — Phase 8
 - ✓ ENRICH-03: Manueller Retry-Button auf Detailseite für Filme ohne Wiki-Daten — Phase 9
 - ✓ IMPORT-01: Bulk-Import (Title;OriginalTitle;Year-Zeilen) als In-App-Feature, Datei-Upload im Bereich "Add Film"; Parse/Match/Save/Dedup + Format-Hinweis und Pre-Flight-Fehlermeldung bei komplett unparsbaren Uploads — Phase 10
+- ✓ IMPORT-02: Live-Fortschrittsanzeige während des Imports — Phase 11
+- ✓ IMPORT-03: Ergebnisübersicht nach Import — Titel, Poster, Status (gespeichert/mehrdeutig/nicht gefunden) pro Zeile — Phase 11
+- ✓ Wikidata-first Wikipedia-Lookup (P345 IMDb-ID Cross-Reference statt URL-Kandidaten-Raten) — Phase 12
+- ✓ Batched SPARQL-Wikidata-Auflösung (bis zu 50 IMDb-IDs pro Request) ersetzt die per-movie REST-Suche, die Wikidata's anonymen Rate-Limiter nach 2-3 Filmen traf; `WikiReloadService.batchReload()` und `BulkImportService` prefetchen jetzt einmal pro Lauf statt einmal pro Film — behebt das ~630-Film Rate-Limit-Incident aus dem v1.1-Trigger — Phase 13
 
 ### Active
 
-- [ ] IMPORT-02: Live-Fortschrittsanzeige während des Imports
-- [ ] IMPORT-03: Ergebnisübersicht nach Import — Titel, Poster, Status (gespeichert/mehrdeutig/nicht gefunden) pro Zeile
+(keine offenen v1.1-Requirements — alle Phasen abgeschlossen)
 
 ### v2 candidates (deferred, not in v1.1)
 
@@ -100,6 +103,8 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 
 **v1.1 trigger (2026-08-22):** Bulk-imported ~630 Filme via externes Script gegen die bestehenden `/movies/search` + `/movies/save` Endpoints. 462 gespeichert, aber nur 58 von 526 gespeicherten Filmen (~11%) haben Wikipedia-Daten — OMDB (523/526) unauffällig. Root cause: `enrichmentExecutor` (2 core/5 max Threads, `backend/.../config/AsyncConfig.java`) verarbeitete den Burst mit vielen sequenziellen Wikipedia-Calls pro Film; `WikipediaClient` User-Agent `"MovieArchive/0.1"` vermutlich rate-limited/blockiert. `EnrichmentService.enrich()` schluckt Wikipedia-Fehler bewusst still (D-15) — kein Retry, kein Fehlerstatus. `/movies/save` ist idempotent, re-triggert also kein Re-Enrichment für bereits gespeicherte Filme; `ReindexController` re-synct nur Postgres→OpenSearch, ruft nie externe APIs erneut auf. Live verifiziert: Wikipedia-Lookup-Logik selbst funktioniert (Testabruf für "Whiplash" fand sofort Treffer).
 
+**v1.1 resolution (Phasen 12–13, abgeschlossen 2026-08-27):** Wikipedia-Lookup läuft jetzt Wikidata-first über eine gebatchte SPARQL-Query (`query.wikidata.org/sparql`, bis zu 50 IMDb-IDs/Request) statt der REST-Suche, die Wikidata's anonymen Rate-Limiter nach 2-3 Filmen traf. `WikiReloadService.batchReload()` und `BulkImportService.runImport()` prefetchen die gesamte Wikidata-Auflösung einmal pro Lauf (nicht mehr einmal pro Film) — die one-movie-at-a-time-Exposure, die das ursprüngliche ~630-Film-Incident verursachte, existiert nicht mehr.
+
 ## Constraints
 
 - **Tech Stack:** Spring Boot 3 + Java 25 + Nuxt 3 — keine Änderungen am Stack
@@ -130,6 +135,8 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 | useHead html background für overscroll | Browser nutzen \<html\> background für top-overscroll gutter | ✓ Good — Phase 7 |
 | Cooldown-Zeitstempel statt permanentem "not found"-Flag für Wiki-Lookup | Wikipedia-Seiten entstehen über Zeit neu; permanenter Skip würde das dauerhaft verpassen | ✓ Good — Phase 8 |
 | Bulk-Import strikt `Title;OriginalTitle;Year` (Original Title optional leer) | Einfacher, testbarer Parser ohne echtes CSV-Quoting; UAT deckte auf, dass das Format ohne UI-Hinweis nicht selbsterklärend war | ⚠ Teilweise — Phase 10: Format-Hinweis + Pre-Flight-400 bei komplett unparsbaren Uploads nachgezogen; echtes CSV-Parsing bleibt v2-Kandidat (SET-06) |
+| Wikidata SPARQL statt REST (CirrusSearch + Sitelinks) für Wikipedia-Lookup | REST-Suche traf Wikidata's anonymen Rate-Limiter nach 2-3 Filmen unabhängig vom Pacing (absolutes per-minute Quota, kein Spacing-Problem); SPARQL VALUES-Klausel löst bis zu 50 IMDb-IDs pro Request auf | ✓ Good — Phase 13, live gegen query.wikidata.org verifiziert |
+| Chunking-Logik lebt in `WikipediaClient.resolveViaWikidataSparql` statt bei jedem Caller | `WikiReloadService`/`BulkImportService` können beliebig große IMDb-ID-Listen übergeben, ohne die Chunk-Size-Konstante zu kennen — hält das "one client, one method"-Pattern intakt | ✓ Good — Phase 13 |
 
 ## Design System
 
@@ -153,4 +160,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-24 after Phase 10*
+*Last updated: 2026-08-27 after Phase 13*

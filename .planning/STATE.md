@@ -3,13 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 13
-current_phase_name: Wikidata SPARQL Batch Lookup
-status: executing
-stopped_at: Phase 13 context gathered
-last_updated: "2026-08-27T11:12:01.525Z"
+status: completed
+stopped_at: Phase 13 complete — all phases complete
+last_updated: "2026-08-27T11:19:53.726Z"
 last_activity: 2026-08-27
-last_activity_desc: Phase 13 execution started
-state_head: da749320290b619ae082a7f231ce194318f60c58
+last_activity_desc: Phase 13 complete
+state_head: 3a45a4680596c12fa82c67bfe7b6958797611c1f
 progress:
   total_phases: 6
   completed_phases: 6
@@ -22,19 +21,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-24)
+See: .planning/PROJECT.md (updated 2026-08-27)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 13 — Wikidata SPARQL Batch Lookup
+**Current focus:** v1.1 complete — all 6 phases shipped, ready for milestone close
 
 ## Current Position
 
-Phase: 13 (Wikidata SPARQL Batch Lookup) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute
-Last activity: 2026-08-27 — Phase 13 execution started
+Phase: 13
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-08-27 — Phase 13 complete
 
-Progress: [██████████] 100% (phases) — Phase 11 complete, human UAT passed
+Progress: [████████████████████] 16/16 plans (100%) — Phase 13 complete, UAT passed (16/16 auto-covered)
 
 ## Performance Metrics
 
@@ -59,7 +58,8 @@ Progress: [██████████] 100% (phases) — Phase 11 complete, 
 | 9. Manual Wiki Retry | 2 | COMPLETE — 2026-08-23 |
 | 10. Bulk Import Engine | 3 | COMPLETE — 2026-08-24 |
 | 11. Bulk Import Feedback UI | 5 | COMPLETE — 2026-08-25 |
-| 12. Wikidata-based Wikipedia lookup | TBD | Not started |
+| 12. Wikidata-based Wikipedia lookup | 1 | COMPLETE — 2026-08-27 |
+| 13. Wikidata SPARQL Batch Lookup | 3 | COMPLETE — 2026-08-27 |
 
 ## Accumulated Context
 
@@ -74,6 +74,8 @@ Key decisions relevant to v1.1:
 - [v1.1 roadmap]: Phase 8 (data model + batch backend) trennt sich von Phase 9 (manual per-film retry, full stack) — jede Requirement-Gruppe bleibt vollständig in einer Phase
 - [v1.1 roadmap]: Phase 10 (Bulk-Import-Engine: Upload/Parse/Match/Save/Dedup) trennt sich von Phase 11 (Live-Progress + Ergebnisübersicht) — Engine zuerst, Feedback-UI konsumiert sie danach
 - [Phase 10 UAT]: Bulk-Import-Format bleibt strikt `Title;OriginalTitle;Year` (Original Title optional leer) — UI zeigt jetzt einen Format-Hinweis direkt im Bulk-Import-Bereich und ein komplett unparsbarer Upload wird synchron mit 400 + spezifischer Meldung abgelehnt statt still als "Import started" zu erscheinen (G-10-1, 10-03-PLAN.md)
+- [Phase 12]: Wikidata P345 (IMDb-ID) Cross-Reference löst Wikipedia-Artikel direkt auf statt bis zu 10 URL-Kandidaten zu raten — Fallback-Kaskade bleibt für Filme ohne Wikidata-Eintrag erhalten
+- [Phase 13]: REST-basierte Wikidata-Suche (CirrusSearch + Sitelinks) ersetzt durch gebatchte SPARQL-Query (bis zu 50 IMDb-IDs/Request) — REST-Suche traf Wikidata's anonymen Rate-Limiter nach 2-3 Filmen unabhängig vom Pacing; `WikiReloadService.batchReload()` und `BulkImportService.runImport()` prefetchen jetzt einmal pro Lauf statt einmal pro Film
 
 ### Pending Todos
 
@@ -100,7 +102,7 @@ None.
 
 ## Session Continuity
 
-**Resume file:** .planning/phases/13-wikidata-sparql-batch-lookup/13-CONTEXT.md
+**Resume file:** None
 
-Last session: 2026-08-26T18:20:21.457Z
-Stopped at: Phase 13 context gathered
+Last session: 2026-08-27
+Stopped at: Phase 13 complete, all v1.1 phases complete — ready for /gsd-complete-milestone

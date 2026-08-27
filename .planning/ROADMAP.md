@@ -147,10 +147,10 @@ Plans:
 **Goal:** Replace the per-movie two-call Wikidata REST lookup (CirrusSearch `action=query&list=search` for P345 + REST sitelinks) with a batched SPARQL query against `query.wikidata.org/sparql` that resolves multiple IMDb IDs to their enwiki article titles in a single request. The current REST-based search endpoint hits Wikidata's anonymous rate limiter after only 2-3 movies even at 3000ms per-request pacing — live testing shows this is an absolute per-minute quota on the CirrusSearch-backed search endpoint, not a spacing problem, so no amount of per-request delay fixes it. SPARQL avoids that expensive endpoint entirely and can resolve dozens of IMDb IDs per request.
 **Requirements**: D-01, D-02, D-03, D-04 (no formal REQUIREMENTS.md IDs — carries forward Phase 12's decision-as-requirement pattern; scope refined in 13-CONTEXT.md)
 **Depends on:** Phase 12
-**Plans:** 3 plans
+**Plans:** 3/3 plans executed
 
 Plans:
 
-- [ ] 13-01-PLAN.md — WikipediaClient SPARQL batch resolution: resolveViaWikidataSparql() + fetch() overloads, REST-era removal + D-04 dev-log cleanup (tracer)
-- [ ] 13-02-PLAN.md — WikiReloadService.batchReload() prefetch restructuring (D-02)
-- [ ] 13-03-PLAN.md — BulkImportService/EnrichmentService two-pass restructuring (D-03)
+- [x] 13-01-PLAN.md — WikipediaClient SPARQL batch resolution: resolveViaWikidataSparql() + fetch() overloads, REST-era removal + D-04 dev-log cleanup (tracer)
+- [x] 13-02-PLAN.md — WikiReloadService.batchReload() prefetch restructuring (D-02)
+- [x] 13-03-PLAN.md — BulkImportService/EnrichmentService two-pass restructuring (D-03)

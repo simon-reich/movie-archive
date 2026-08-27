@@ -4,11 +4,11 @@ milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 14
 status: in_progress
-stopped_at: Milestone re-opened after live verification — Phase 14/15 added, ready to plan
-last_updated: "2026-08-27T11:45:00.000Z"
+stopped_at: Phase 14 context gathered
+last_updated: "2026-08-27T12:36:17.609Z"
 last_activity: 2026-08-27
 last_activity_desc: Live verification of Phase 13 against real dev environment surfaced gaps; added Phase 14/15
-state_head: a6f6f7f
+state_head: 276ce5b67649ce2387ad9a6087f9255bcf02fc51
 progress:
   total_phases: 8
   completed_phases: 6
@@ -105,7 +105,7 @@ None.
 
 ## Session Continuity
 
-**Resume file:** None
+**Resume file:** .planning/phases/14-wiki-batch-reload-pacing-cooldown-fix-progress-ui/14-CONTEXT.md
 
-Last session: 2026-08-27
-Stopped at: Milestone v1.1 NOT closing yet — live verification surfaced real gaps (Phase 14/15 added). Next: /gsd-discuss-phase 14
+Last session: 2026-08-27T12:36:17.142Z
+Stopped at: Phase 14 context gathered

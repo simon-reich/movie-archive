@@ -160,12 +160,12 @@ Plans:
 **Goal:** Live verification of Phase 13 (real batchReload run against 409 cooldown-eligible movies, 2026-08-27) confirmed the Wikidata SPARQL batching fix works — 21/21 movies got a Wikipedia hit vs. the historical ~11% baseline — but surfaced two follow-on problems the mocked tests couldn't show: (1) the separate Wikipedia article-content fetch still hits real 429s roughly once/minute under sustained load even at 1000ms pacing (~2-3 movies/min real throughput, not the near-instant rate tests implied), and (2) `WikiReloadService.doRetryWikipedia()` sets `wikiLastAttemptedAt` unconditionally before every attempt, so a movie that fails only due to rate-limiting still gets 30-day-cooldown-blocked as if it had been genuinely checked and found empty. This phase: (a) embraces the real rate limit by pacing `batchReload()` at a deliberate, env-configurable cadence (`wiki.retry.pacing-delay-ms`, default raised toward ~30s) so it mostly avoids ever hitting the limit in the first place — the existing reactive 429/backoff handling (`recordRateLimited`/`backoffUntil`) stays exactly as-is as the fallback safety net for whenever the proactive pacing isn't enough; the two are complementary, not a replacement of one by the other; (b) fixes the cooldown-marking bug so `wikiLastAttemptedAt` is only set after a genuine, successfully-executed article-content fetch that came back empty — not on a technical/rate-limit failure; (c) adds a batch-reload progress UI (backend endpoint already exists, no UI yet — carries forward the 2026-08-23 "show-progress-indicator-for-wikipedia-batch-reload" todo): total movies targeted, live progress with which movies succeeded, an ETA computed from remaining-count × (call duration + pacing delay), and a stop button to cleanly interrupt and resume the run later.
 **Requirements**: D-14-01 (deliberate pacing, env-configurable), D-14-02 (cooldown only set on genuine empty-result attempt, not on failure), D-14-03 (progress UI: count + live progress + ETA), D-14-04 (stop/resume control) — no formal REQUIREMENTS.md IDs yet, carries forward Phase 12/13's decision-as-requirement pattern; to be refined in 14-CONTEXT.md
 **Depends on:** Phase 13
-**Plans:** 2 plans
+**Plans:** 2/2 plans executed
 
 Plans:
 
-- [ ] 14-01-PLAN.md — Backend: WikiReloadProgressService + stop-flag/outcome-classified progress wiring, cooldown-marking fix, pacing default, SSE+stop endpoints, Settings-page progress UI (tracer)
-- [ ] 14-02-PLAN.md — Rolling-average ETA calculation wired into the progress stream + Settings-page ETA display
+- [x] 14-01-PLAN.md — Backend: WikiReloadProgressService + stop-flag/outcome-classified progress wiring, cooldown-marking fix, pacing default, SSE+stop endpoints, Settings-page progress UI (tracer)
+- [x] 14-02-PLAN.md — Rolling-average ETA calculation wired into the progress stream + Settings-page ETA display
 
 ### Phase 15: Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing
 

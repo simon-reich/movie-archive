@@ -3,16 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 14
-status: in_progress
+current_phase_name: Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI
+status: executing
 stopped_at: Phase 14 context gathered
-last_updated: "2026-08-27T12:36:17.609Z"
+last_updated: "2026-08-27T15:27:41.791Z"
 last_activity: 2026-08-27
-last_activity_desc: Live verification of Phase 13 against real dev environment surfaced gaps; added Phase 14/15
-state_head: 276ce5b67649ce2387ad9a6087f9255bcf02fc51
+last_activity_desc: Phase 14 execution resumed (wave continue)
+state_head: 110403871620db90bacd55bc35aa215db08adb97
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 16
+  total_plans: 18
   completed_plans: 16
   percent: 75
 ---
@@ -28,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-08-27)
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
-Status: Ready to discuss/plan
-Last activity: 2026-08-27 — live verification of Phase 13 against real dev environment; milestone re-opened, Phase 14/15 added
+Phase: 14 (Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 14
+Last activity: 2026-08-27 — Phase 14 execution resumed (wave continue)
 
 Progress: 6/8 phases complete (75%) — Phase 14 (wiki pacing/cooldown/progress-UI) and Phase 15 (import page completion) remain before v1.1 can close
 

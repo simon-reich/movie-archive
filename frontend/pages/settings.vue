@@ -467,7 +467,7 @@ async function handleChangePassword() {
     <section id="wikipedia-data">
       <h1 class="text-xl font-semibold tracking-wide mb-6">Wikipedia Data</h1>
       <div class="flex items-center gap-2">
-        <ButtonPrimary type="button" :loading="wikiReloadTriggering" :disabled="wikiReloadTriggering || (wikiProgress && !wikiProgress.complete)" @click="onTriggerWikiReload">
+        <ButtonPrimary type="button" :loading="wikiReloadTriggering" :disabled="wikiReloadTriggering || !!(wikiProgress && !wikiProgress.complete)" @click="onTriggerWikiReload">
           {{ wikiReloadTriggering ? 'Starting...' : 'Reload missing Wikipedia data' }}
         </ButtonPrimary>
         <button

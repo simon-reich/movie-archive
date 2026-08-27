@@ -82,6 +82,7 @@ Key decisions relevant to v1.1:
 - 2026-08-25-enhance-bulk-import-batch-detail-page-view-toggle-movie-link — Enhance bulk import batch detail page: view toggle, movie links, inline ambiguous resolve [minor]
 - 2026-08-24-support-real-csv-parsing-for-bulk-import — Support real CSV parsing for bulk import (and matching CSV export) [minor]
 - 2026-08-23-show-progress-indicator-for-wikipedia-batch-reload — Show progress indicator for Wikipedia batch-reload [minor]
+- 2026-08-27-tune-wikipedia-article-fetch-pacing-under-real-rate-limits — Live v1.1 milestone verification (batchReload against 409 real cooldown-eligible movies) confirmed the Phase 13 Wikidata SPARQL batching fix works — 21/21 movies processed got a Wikipedia hit (100%) vs the historical ~11% baseline, and 9 real 429s over ~10 min were all correctly absorbed by the existing backoff (no crashes, no data loss). However, the separate Wikipedia article-content fetch step (not the batched Wikidata lookup) still hits real rate limits roughly once/minute under sustained load even at the existing 1000ms pacing, making a full-backlog batch (409 movies) take ~3h instead of minutes. Correctness is proven; throughput at scale is a follow-up candidate (e.g. increase wikipedia.request-pacing-ms, or parallelize article fetch across a small worker pool) [minor]
 
 ### Blockers/Concerns
 

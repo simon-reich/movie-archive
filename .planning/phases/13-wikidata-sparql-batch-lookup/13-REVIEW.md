@@ -19,8 +19,20 @@ findings:
   warning: 2
   info: 1
   total: 5
-status: issues_found
+status: fixed
 ---
+
+## Post-Review Fixes
+
+**CR-01 and CR-02 fixed** in commit `cf35820` (fix(13): pace BulkImportService Pass 2 dispatch and
+restore wiki cooldown default): Pass 2 now paces dispatches with `Thread.sleep(pacingDelayMs)` and
+wraps each call in try/catch (mirroring Pass 1), and `wiki.retry.cooldown-days` default was
+reverted from the leftover `0` to `30`. This also resolves WR-01 (same pacing fix limits
+concurrent worker fan-out). WR-02 and IN-01 remain open as documented lower-severity follow-ups —
+see their sections below for the accepted disposition and suggested fix.
+
+Verified: `BulkImportServiceTest` (9/9), `BulkImportControllerTest` (14/14), `WikiReloadServiceTest`
+(4/4), `WikiReloadServiceIntegrationTest` (5/5), `EnrichmentServiceTest` (4/4) all pass after the fix.
 
 # Phase 13: Code Review Report
 

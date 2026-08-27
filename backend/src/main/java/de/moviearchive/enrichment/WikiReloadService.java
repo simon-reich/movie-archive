@@ -158,60 +158,73 @@ public class WikiReloadService {
         // so a fresh Start after a prior Stop never inherits a stale true flag.
         progressService.resetRun(userId);
 
-        Instant cutoff = Instant.now().minus(cooldownDays, ChronoUnit.DAYS);
-        List<Movie> eligible = movieRepository.findEligibleForWikiReload(userId, cutoff);
-        log.info("Wiki batch-reload starting userId={} eligible={}", userId, eligible.size());
-
-        // D-02: resolve Wikidata for the ENTIRE eligible set in one (or a few chunked) SPARQL
-        // call(s) before the per-movie loop starts — calling resolveViaWikidataSparql() once
-        // per movie inside the loop would not reduce request count versus the old REST flow,
-        // only swap the endpoint (CONTEXT.md D-02).
-        List<String> imdbIds = eligible.stream()
-                .map(Movie::getImdbId)
-                .filter(id -> id != null && !id.isBlank())
-                .distinct()
-                .toList();
-        Map<String, String> resolvedTitles = wikipediaClient.resolveViaWikidataSparql(imdbIds);
-
+        // CR-01: the whole body is wrapped in try/finally so progressService.complete(userId)
+        // is GUARANTEED to run even if something before or during the loop throws (e.g. a
+        // transient DB error from findEligibleForWikiReload) — otherwise the SSE stream hangs
+        // forever for this user and the stopFlags/durationWindowsMs entries leak permanently,
+        // since complete() is the only code path that clears them.
+        int eligibleCount = 0;
         int processedCount = 0;
-        for (int i = 0; i < eligible.size(); i++) {
-            // D-08: checked between movies, never mid-fetch — a Stop click halts cleanly here.
-            if (progressService.isStopRequested(userId)) {
-                log.info("Wiki batch-reload stopped userId={} at index={}", userId, i);
-                break;
-            }
-            Movie movie = eligible.get(i);
-            String status;
-            long startMs = System.currentTimeMillis();
-            try {
-                WikiRetryOutcome outcome = self.retryWikipedia(movie, resolvedTitles);
-                status = outcome.name();
-            } catch (Exception e) {
-                log.warn("Wiki batch-reload: unexpected error for movieId={}: {}",
-                        movie.getId(), e.getMessage());
-                status = WikiRetryOutcome.FAILED.name();
-            }
-            long durationMs = System.currentTimeMillis() - startMs;
-            processedCount++;
-            progressService.publish(userId, processedCount, eligible.size(), movie.getTitle(), status, durationMs);
+        try {
+            Instant cutoff = Instant.now().minus(cooldownDays, ChronoUnit.DAYS);
+            List<Movie> eligible = movieRepository.findEligibleForWikiReload(userId, cutoff);
+            eligibleCount = eligible.size();
+            log.info("Wiki batch-reload starting userId={} eligible={}", userId, eligibleCount);
 
-            if (i < eligible.size() - 1) {
-                // A Stop click during the pacing window shouldn't wait out the full delay.
+            // D-02: resolve Wikidata for the ENTIRE eligible set in one (or a few chunked) SPARQL
+            // call(s) before the per-movie loop starts — calling resolveViaWikidataSparql() once
+            // per movie inside the loop would not reduce request count versus the old REST flow,
+            // only swap the endpoint (CONTEXT.md D-02).
+            List<String> imdbIds = eligible.stream()
+                    .map(Movie::getImdbId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .distinct()
+                    .toList();
+            Map<String, String> resolvedTitles = wikipediaClient.resolveViaWikidataSparql(imdbIds);
+
+            for (int i = 0; i < eligible.size(); i++) {
+                // D-08: checked between movies, never mid-fetch — a Stop click halts cleanly here.
                 if (progressService.isStopRequested(userId)) {
-                    log.info("Wiki batch-reload stopped userId={} before pacing at index={}", userId, i);
+                    log.info("Wiki batch-reload stopped userId={} at index={}", userId, i);
                     break;
                 }
+                Movie movie = eligible.get(i);
+                String status;
+                long startMs = System.currentTimeMillis();
                 try {
-                    Thread.sleep(pacingDelayMs);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Wiki batch-reload interrupted for userId={} at index={}", userId, i);
-                    progressService.complete(userId);
-                    return;
+                    WikiRetryOutcome outcome = self.retryWikipedia(movie, resolvedTitles);
+                    status = outcome.name();
+                } catch (Exception e) {
+                    log.warn("Wiki batch-reload: unexpected error for movieId={}: {}",
+                            movie.getId(), e.getMessage());
+                    status = WikiRetryOutcome.FAILED.name();
+                }
+                long durationMs = System.currentTimeMillis() - startMs;
+                processedCount++;
+                progressService.publish(userId, processedCount, eligibleCount, movie.getTitle(), status, durationMs);
+
+                if (i < eligible.size() - 1) {
+                    // A Stop click during the pacing window shouldn't wait out the full delay.
+                    if (progressService.isStopRequested(userId)) {
+                        log.info("Wiki batch-reload stopped userId={} before pacing at index={}", userId, i);
+                        break;
+                    }
+                    try {
+                        Thread.sleep(pacingDelayMs);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Wiki batch-reload interrupted for userId={} at index={}", userId, i);
+                        break;
+                    }
                 }
             }
+        } catch (Exception e) {
+            log.error("Wiki batch-reload: fatal error before/outside per-movie loop for userId={}: {}",
+                    userId, e.getMessage(), e);
+        } finally {
+            progressService.complete(userId);
         }
-        progressService.complete(userId);
-        log.info("Wiki batch-reload complete userId={} processed={}", userId, eligible.size());
+        log.info("Wiki batch-reload complete userId={} processed={} eligible={}",
+                userId, processedCount, eligibleCount);
     }
 }

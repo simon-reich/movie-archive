@@ -67,8 +67,15 @@ export function useSettings() {
     fetchEventSource(`/api/admin/wiki-reload/${userId}/progress`, {
       headers: authHeaders(),
       signal: ctrl.signal,
-      async onopen() {
-        // no-op: default fetch-event-source behavior already validates content-type on open
+      async onopen(response) {
+        if (response.status === 403 || response.status === 404) {
+          const fatal = new Error(
+            `Wiki-reload progress stream fatal error: ${response.status}`
+          ) as Error & { status?: number }
+          fatal.status = response.status
+          throw fatal
+        }
+        // Any other status: let the stream proceed / the library's default retry handle it.
       },
       onmessage(ev) {
         if (ev.event === 'progress' || ev.event === 'complete') {
@@ -76,8 +83,15 @@ export function useSettings() {
         }
       },
       onerror(err) {
-        // Stop the library's default retry-forever behavior on a fatal error (e.g. 403/404)
-        throw err
+        // Only stop the library's default retry-forever behavior for a fatal error
+        // (403/404, tagged by onopen above) — everything else (transient network drops)
+        // must fall through to the default retry/backoff instead of permanently killing
+        // the live progress subscription (WR-04). This matters more since this phase's
+        // pacing default means a run can now legitimately last many minutes.
+        const status = (err as { status?: number })?.status
+        if (status === 403 || status === 404) {
+          throw err
+        }
       },
     })
     return () => ctrl.abort()

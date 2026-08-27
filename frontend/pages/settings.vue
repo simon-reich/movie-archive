@@ -123,7 +123,9 @@ onMounted(async () => {
       }
     })
   } catch {
-    // Non-fatal — no live progress stream, page still usable
+    // Non-fatal — could not resolve the user id (e.g. /users/me failed); no live
+    // progress stream, page still usable. Does NOT cover SSE connection errors,
+    // which surface asynchronously via onerror (see useSettings.ts).
   }
 })
 
@@ -218,7 +220,10 @@ async function onTriggerWikiReload() {
   wikiReloadMessage.value = null
   try {
     const result = await triggerWikiReload()
-    if (result === 'started') {
+    // Only clear history when no run is currently active — the queue can accept a
+    // second 'started' trigger while the first run is still in progress (queueCapacity=1),
+    // and clearing here would wipe the still-running first run's visible history (WR-03).
+    if (result === 'started' && (!wikiProgress.value || wikiProgress.value.complete)) {
       wikiMovieHistory.value = []
     }
     wikiReloadMessage.value = result === 'started'
@@ -462,7 +467,7 @@ async function handleChangePassword() {
     <section id="wikipedia-data">
       <h1 class="text-xl font-semibold tracking-wide mb-6">Wikipedia Data</h1>
       <div class="flex items-center gap-2">
-        <ButtonPrimary type="button" :loading="wikiReloadTriggering" :disabled="wikiReloadTriggering" @click="onTriggerWikiReload">
+        <ButtonPrimary type="button" :loading="wikiReloadTriggering" :disabled="wikiReloadTriggering || (wikiProgress && !wikiProgress.complete)" @click="onTriggerWikiReload">
           {{ wikiReloadTriggering ? 'Starting...' : 'Reload missing Wikipedia data' }}
         </ButtonPrimary>
         <button

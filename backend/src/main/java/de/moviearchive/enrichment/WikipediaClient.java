@@ -27,8 +27,14 @@ public class WikipediaClient {
     private final String baseUrl;
     private final WebClient sparqlWebClient;
 
-    /** Number of IMDb IDs sent per SPARQL request; larger lists are chunked into multiple requests. */
-    private static final int SPARQL_CHUNK_SIZE = 50;
+    /**
+     * Number of IMDb IDs sent per SPARQL request; larger lists are chunked into multiple
+     * requests. Package-visible (not private) so {@link WikiReloadService#batchReload} can
+     * chunk its own movie list at the same boundary and interleave "resolve one chunk, then
+     * process those movies" instead of resolving every chunk back-to-back up front — see that
+     * method's javadoc for why.
+     */
+    static final int SPARQL_CHUNK_SIZE = 50;
 
     // Patterns for wikitext cleanup — compiled once at class load
     private static final Pattern REF_BLOCK   = Pattern.compile("<ref[^>]*>.*?</ref>", Pattern.DOTALL);

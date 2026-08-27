@@ -151,6 +151,17 @@ public class WikiReloadService {
      * Wikipedia calls, but never after the last eligible film, and performs zero sleeps
      * when 0 or 1 films are eligible (ENRICH-03). NOT @Transactional — see class javadoc.
      * A single per-movie failure never aborts processing of the remaining eligible movies.
+     *
+     * Resolves Wikidata one {@link WikipediaClient#SPARQL_CHUNK_SIZE}-sized chunk at a time,
+     * interleaved with processing that chunk's movies — NOT the whole eligible set resolved
+     * upfront in one back-to-back burst of SPARQL requests. Live UAT of this phase showed the
+     * old upfront-prefetch-everything approach fires ALL SPARQL chunk requests (e.g. 8 of them
+     * for 382 movies) within seconds of each other, tripping Wikidata's rate limiter almost
+     * immediately and burning through the shared 429 backoff before a single movie is even
+     * processed. Interleaving spreads each chunk's SPARQL request out by however long the
+     * PREVIOUS chunk's movies took to process (each paced at pacingDelayMs), which is exactly
+     * the kind of spacing the deliberate pacing this phase introduces (D-14-01) is meant to
+     * provide — the prefetch step just wasn't sharing in it before.
      */
     @Async("wikiReloadExecutor")
     public void batchReload(UUID userId) {
@@ -172,57 +183,67 @@ public class WikiReloadService {
             log.info("Wiki batch-reload starting userId={} eligible={}", userId, eligibleCount);
 
             if (eligibleCount > 0) {
-                // Publish a zero-progress "started" event now, before the Wikidata prefetch
-                // below — otherwise the frontend gets no progress signal (and shows no Stop
-                // button / progress panel) until the first movie is processed, which can be
-                // minutes away if the prefetch hits a rate-limit backoff.
+                // Publish a zero-progress "started" event now, before the first chunk's Wikidata
+                // prefetch below — otherwise the frontend gets no progress signal (and shows no
+                // Stop button / progress panel) until the first movie is processed, which can be
+                // delayed if that first chunk's prefetch hits a rate-limit backoff.
                 progressService.start(userId, eligibleCount);
             }
 
-            // D-02: resolve Wikidata for the ENTIRE eligible set in one (or a few chunked) SPARQL
-            // call(s) before the per-movie loop starts — calling resolveViaWikidataSparql() once
-            // per movie inside the loop would not reduce request count versus the old REST flow,
-            // only swap the endpoint (CONTEXT.md D-02).
-            List<String> imdbIds = eligible.stream()
-                    .map(Movie::getImdbId)
-                    .filter(id -> id != null && !id.isBlank())
-                    .distinct()
-                    .toList();
-            Map<String, String> resolvedTitles = wikipediaClient.resolveViaWikidataSparql(imdbIds);
-
-            for (int i = 0; i < eligible.size(); i++) {
-                // D-08: checked between movies, never mid-fetch — a Stop click halts cleanly here.
+            chunks:
+            for (List<Movie> movieChunk : WikipediaClient.chunk(eligible, WikipediaClient.SPARQL_CHUNK_SIZE)) {
+                // D-08: also checked BEFORE each chunk's own SPARQL request — a Stop click
+                // between chunks must not fire one more prefetch call it doesn't need.
                 if (progressService.isStopRequested(userId)) {
-                    log.info("Wiki batch-reload stopped userId={} at index={}", userId, i);
+                    log.info("Wiki batch-reload stopped userId={} before next chunk", userId);
                     break;
                 }
-                Movie movie = eligible.get(i);
-                String status;
-                long startMs = System.currentTimeMillis();
-                try {
-                    WikiRetryOutcome outcome = self.retryWikipedia(movie, resolvedTitles);
-                    status = outcome.name();
-                } catch (Exception e) {
-                    log.warn("Wiki batch-reload: unexpected error for movieId={}: {}",
-                            movie.getId(), e.getMessage());
-                    status = WikiRetryOutcome.FAILED.name();
-                }
-                long durationMs = System.currentTimeMillis() - startMs;
-                processedCount++;
-                progressService.publish(userId, processedCount, eligibleCount, movie.getTitle(), status, durationMs);
 
-                if (i < eligible.size() - 1) {
-                    // A Stop click during the pacing window shouldn't wait out the full delay.
+                // D-02: resolve Wikidata for THIS chunk only, immediately before processing it —
+                // see method javadoc for why this replaced resolving the entire eligible set
+                // upfront in one burst of back-to-back SPARQL requests.
+                List<String> chunkImdbIds = movieChunk.stream()
+                        .map(Movie::getImdbId)
+                        .filter(id -> id != null && !id.isBlank())
+                        .distinct()
+                        .toList();
+                Map<String, String> resolvedTitles = wikipediaClient.resolveViaWikidataSparql(chunkImdbIds);
+
+                for (Movie movie : movieChunk) {
+                    // D-08: checked between movies, never mid-fetch — a Stop click halts cleanly here.
                     if (progressService.isStopRequested(userId)) {
-                        log.info("Wiki batch-reload stopped userId={} before pacing at index={}", userId, i);
-                        break;
+                        log.info("Wiki batch-reload stopped userId={} at processedCount={}", userId, processedCount);
+                        break chunks;
                     }
+                    String status;
+                    long startMs = System.currentTimeMillis();
                     try {
-                        Thread.sleep(pacingDelayMs);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.warn("Wiki batch-reload interrupted for userId={} at index={}", userId, i);
-                        break;
+                        WikiRetryOutcome outcome = self.retryWikipedia(movie, resolvedTitles);
+                        status = outcome.name();
+                    } catch (Exception e) {
+                        log.warn("Wiki batch-reload: unexpected error for movieId={}: {}",
+                                movie.getId(), e.getMessage());
+                        status = WikiRetryOutcome.FAILED.name();
+                    }
+                    long durationMs = System.currentTimeMillis() - startMs;
+                    processedCount++;
+                    progressService.publish(userId, processedCount, eligibleCount, movie.getTitle(), status, durationMs);
+
+                    if (processedCount < eligibleCount) {
+                        // A Stop click during the pacing window shouldn't wait out the full delay.
+                        if (progressService.isStopRequested(userId)) {
+                            log.info("Wiki batch-reload stopped userId={} before pacing at processedCount={}",
+                                    userId, processedCount);
+                            break chunks;
+                        }
+                        try {
+                            Thread.sleep(pacingDelayMs);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Wiki batch-reload interrupted for userId={} at processedCount={}",
+                                    userId, processedCount);
+                            break chunks;
+                        }
                     }
                 }
             }

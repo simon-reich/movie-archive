@@ -171,6 +171,46 @@ class WikiReloadServiceTest {
     }
 
     @Test
+    void shouldInterleaveWikidataPrefetch_withMovieProcessing_perChunk_notAllUpfront() throws Exception {
+        // Root cause behind a real UAT-blocking bug (2026-08-27): resolving Wikidata for the
+        // ENTIRE eligible set upfront fires every SPARQL chunk request back-to-back within
+        // seconds, tripping Wikidata's rate limiter before a single movie is processed. This
+        // asserts the fix's actual ordering guarantee: chunk 1 is resolved, THEN chunk 1's
+        // movies are processed, THEN (only after that) chunk 2 is resolved — never both
+        // resolveViaWikidataSparql calls before any fetch() call.
+        UUID userId = UUID.randomUUID();
+        int chunkSize = 50; // must match WikipediaClient.SPARQL_CHUNK_SIZE
+        List<Movie> eligible = new java.util.ArrayList<>();
+        for (int i = 0; i < chunkSize + 2; i++) {
+            Movie movie = newMovie();
+            movie.setImdbId("tt" + (2000000 + i));
+            eligible.add(movie);
+        }
+        when(movieRepository.findEligibleForWikiReload(eq(userId), any(Instant.class)))
+                .thenReturn(eligible);
+
+        WikipediaResult result = new WikipediaResult(
+                "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class), any()))
+                .thenReturn(result);
+        ReflectionTestUtils.setField(wikiReloadService, "pacingDelayMs", 0L);
+
+        wikiReloadService.batchReload(userId);
+
+        verify(wikipediaClient, times(2)).resolveViaWikidataSparql(any());
+        verify(wikipediaClient, times(chunkSize + 2))
+                .fetch(anyString(), anyString(), anyInt(), nullable(String.class), any());
+
+        var inOrder = org.mockito.Mockito.inOrder(wikipediaClient);
+        inOrder.verify(wikipediaClient).resolveViaWikidataSparql(argThat(ids -> ids.size() == chunkSize));
+        inOrder.verify(wikipediaClient, times(chunkSize))
+                .fetch(anyString(), anyString(), anyInt(), nullable(String.class), any());
+        inOrder.verify(wikipediaClient).resolveViaWikidataSparql(argThat(ids -> ids.size() == 2));
+        inOrder.verify(wikipediaClient, times(2))
+                .fetch(anyString(), anyString(), anyInt(), nullable(String.class), any());
+    }
+
+    @Test
     void shouldPublishProgressWithNonNegativeDuration_forSuccessfullyProcessedMovie() throws Exception {
         UUID userId = UUID.randomUUID();
         Movie movie = newMovie();

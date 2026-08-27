@@ -1,8 +1,11 @@
 package de.moviearchive.bulkimport;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.moviearchive.enrichment.EnrichmentService;
 import de.moviearchive.enrichment.TmdbClient;
 import de.moviearchive.enrichment.WikipediaClient;
+import de.moviearchive.movie.Movie;
 import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.movie.MovieService;
 import de.moviearchive.movie.dto.MovieInitiateResult;
@@ -18,16 +21,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -62,6 +69,7 @@ class BulkImportServiceTest {
     private BulkImportProgressService progressService;
 
     private final ImportLineParser importLineParser = new ImportLineParser();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private BulkImportService bulkImportService;
 
@@ -83,7 +91,10 @@ class BulkImportServiceTest {
 
         user = new User(EMAIL, "hash");
 
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        // lenient(): shouldPersistImdbId_whenTmdbDetailReturnsOne() and
+        // shouldReturnNull_whenTmdbDetailCallFails() call resolveAndPersistImdbId() directly,
+        // which never reaches userRepository.findByEmail() — only processLine()/runImport() do.
+        lenient().when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
 
         lenient().when(bulkImportBatchRepository.getReferenceById(any()))
                 .thenReturn(new BulkImportBatch(user, 1));
@@ -103,6 +114,13 @@ class BulkImportServiceTest {
 
     private TmdbSearchResultItem item(int tmdbId, String title, String originalTitle, Integer year) {
         return new TmdbSearchResultItem(tmdbId, title, originalTitle, year, "/poster.jpg");
+    }
+
+    private JsonNode tmdbDetailWithImdbId(String imdbId) throws Exception {
+        String json = "{\"title\":\"Inception\",\"original_title\":\"Inception\","
+                + "\"release_date\":\"2010-07-16\",\"runtime\":148,"
+                + "\"external_ids\":{\"imdb_id\":\"" + imdbId + "\"}}";
+        return objectMapper.readTree(json);
     }
 
     @Test
@@ -193,5 +211,56 @@ class BulkImportServiceTest {
         ArgumentCaptor<BulkImportLine> captor = ArgumentCaptor.forClass(BulkImportLine.class);
         verify(bulkImportLineRepository).save(captor.capture());
         assertThat(captor.getValue().getTitle()).hasSize(500);
+    }
+
+    @Test
+    void shouldPersistImdbId_whenTmdbDetailReturnsOne() throws Exception {
+        UUID movieId = UUID.randomUUID();
+        when(tmdbClient.fetchDetail(27205, TMDB_KEY)).thenReturn(tmdbDetailWithImdbId("tt1375666"));
+        when(movieRepository.findById(movieId)).thenReturn(Optional.of(new Movie(user, 27205)));
+        lenient().when(movieRepository.save(any(Movie.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        String result = bulkImportService.resolveAndPersistImdbId(movieId, 27205, TMDB_KEY);
+
+        assertThat(result).isEqualTo("tt1375666");
+        verify(movieRepository).save(argThat(m -> "tt1375666".equals(m.getImdbId())));
+    }
+
+    @Test
+    void shouldReturnNull_whenTmdbDetailCallFails() {
+        UUID movieId = UUID.randomUUID();
+        when(tmdbClient.fetchDetail(27205, TMDB_KEY)).thenThrow(new RuntimeException("TMDB detail failed"));
+
+        String result = bulkImportService.resolveAndPersistImdbId(movieId, 27205, TMDB_KEY);
+
+        assertThat(result).isNull();
+        verify(movieRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldCallSparqlBatchOnce_forAllMatchedLinesInOneRun() throws Exception {
+        // Distinct MovieInitiateResult per tmdbId — the @BeforeEach lenient stub returns a
+        // single fixed UUID for every movieService.initiate() call, which would otherwise
+        // collapse both matched lines onto the same movieId key in imdbIdByMovieId.
+        when(movieService.initiate(EMAIL, 27205)).thenReturn(new MovieInitiateResult(UUID.randomUUID(), true));
+        when(movieService.initiate(EMAIL, 603)).thenReturn(new MovieInitiateResult(UUID.randomUUID(), true));
+        when(tmdbClient.search("Inception", TMDB_KEY))
+                .thenReturn(List.of(item(27205, "Inception", "Inception", 2010)));
+        when(tmdbClient.search("The Matrix", TMDB_KEY))
+                .thenReturn(List.of(item(603, "The Matrix", "The Matrix", 1999)));
+        when(tmdbClient.fetchDetail(27205, TMDB_KEY)).thenReturn(tmdbDetailWithImdbId("tt1375666"));
+        when(tmdbClient.fetchDetail(603, TMDB_KEY)).thenReturn(tmdbDetailWithImdbId("tt0133093"));
+        lenient().when(movieRepository.findById(any())).thenReturn(Optional.of(new Movie(user, 1)));
+        lenient().when(movieRepository.save(any(Movie.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(wikipediaClient.resolveViaWikidataSparql(anyList()))
+                .thenReturn(Map.of("tt1375666", "Inception"));
+
+        bulkImportService.runImport(EMAIL, TMDB_KEY,
+                List.of("Inception;;2010", "The Matrix;;1999"), UUID.randomUUID());
+
+        verify(wikipediaClient, times(1)).resolveViaWikidataSparql(argThat(ids ->
+                ids.containsAll(List.of("tt1375666", "tt0133093")) && ids.size() == 2));
+        verify(enrichmentService, times(2)).enrich(any(UUID.class), eq(Map.of("tt1375666", "Inception")));
+        verify(enrichmentService, never()).enrich(any(UUID.class));
     }
 }

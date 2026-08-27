@@ -99,12 +99,17 @@ public class WikiReloadProgressService {
     /**
      * Stores the given progress as userId's last-known state and sends a "progress" event to
      * every currently registered emitter for userId. {@code durationMs} is the just-completed
-     * movie's wall-clock call duration (including any time spent inside an active 429 backoff,
-     * since that wait happens synchronously inside the same call — D-07/D-14-03) — pushed onto
-     * userId's rolling window (capped at {@link #ETA_WINDOW_SIZE}), whose average feeds the
-     * etaSeconds computation: remaining-count times the average duration. Returns the
-     * constructed ProgressState (callers may ignore it) so tests can assert etaSeconds directly
-     * without mocking an SseEmitter.
+     * movie's FULL real per-movie cycle time — the wall-clock fetch-call duration (including any
+     * time spent inside an active 429 backoff, since that wait happens synchronously inside the
+     * same call — D-07/D-14-03) PLUS the pacing-delay sleep {@code batchReload()} applies after
+     * it. The pacing delay must be included: it dominates the real per-movie cadence under
+     * normal (non-rate-limited) conditions, and omitting it — publishing only the sub-second
+     * fetch-call time — was found live in UAT (2026-08-27) to produce a wildly-too-low ETA (e.g.
+     * ~40min shown for a run whose real pace implied 190min+). Pushed onto userId's rolling
+     * window (capped at {@link #ETA_WINDOW_SIZE}), whose average feeds the etaSeconds
+     * computation: remaining-count times the average duration. Returns the constructed
+     * ProgressState (callers may ignore it) so tests can assert etaSeconds directly without
+     * mocking an SseEmitter.
      */
     public ProgressState publish(UUID userId, int processed, int total, String lastMovieTitle,
                                   String lastMovieStatus, long durationMs) {

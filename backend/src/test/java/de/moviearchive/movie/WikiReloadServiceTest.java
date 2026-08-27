@@ -230,6 +230,31 @@ class WikiReloadServiceTest {
     }
 
     @Test
+    void shouldIncludePacingDelay_inPublishedDuration_soEtaReflectsRealCadence() throws Exception {
+        // Found live in UAT (2026-08-27): publishing only the raw fetch-call duration (well
+        // under 1s) massively understated the real per-movie cadence, since every movie but the
+        // last is ALSO followed by a pacingDelayMs sleep that the rolling ETA window never saw.
+        UUID userId = UUID.randomUUID();
+        Movie movieA = newMovie();
+        Movie movieB = newMovie();
+        when(movieRepository.findEligibleForWikiReload(eq(userId), any(Instant.class)))
+                .thenReturn(List.of(movieA, movieB));
+
+        WikipediaResult result = new WikipediaResult(
+                "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class), any()))
+                .thenReturn(result);
+        // Keep this small — batchReload() actually sleeps pacingDelayMs between movies.
+        ReflectionTestUtils.setField(wikiReloadService, "pacingDelayMs", 50L);
+
+        wikiReloadService.batchReload(userId);
+
+        verify(progressService).publish(
+                eq(userId), eq(1), eq(2), eq(movieA.getTitle()), eq("SUCCESS"),
+                longThat(d -> d >= 50L));
+    }
+
+    @Test
     void shouldPublishStart_beforeWikidataPrefetch_soStopButtonAppearsDuringPrefetch() throws Exception {
         // A Stop button (and progress panel) must appear as soon as a run starts, not only
         // after the first movie is processed — otherwise a slow/rate-limited Wikidata SPARQL

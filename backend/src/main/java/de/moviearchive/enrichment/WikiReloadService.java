@@ -225,7 +225,18 @@ public class WikiReloadService {
                                 movie.getId(), e.getMessage());
                         status = WikiRetryOutcome.FAILED.name();
                     }
-                    long durationMs = System.currentTimeMillis() - startMs;
+                    long callDurationMs = System.currentTimeMillis() - startMs;
+                    // ETA bug found live in UAT (2026-08-27, 382-movie run): publishing only the
+                    // raw fetch-call duration (typically well under 1s) massively understated the
+                    // real per-movie cadence, since every movie but the last is ALSO followed by
+                    // a pacingDelayMs sleep (30s by default) that the rolling window never saw —
+                    // an 8-of-380 run showed a ~40min ETA when the real pace implied ~190min+.
+                    // Adding pacingDelayMs here reflects the actual full per-movie cycle time
+                    // this loop imposes; it's a no-op for ETA purposes on the true last movie
+                    // (processed == eligibleCount makes the "remaining" factor zero anyway) and
+                    // still grows correctly under an active 429 backoff, since that wait happens
+                    // synchronously inside callDurationMs itself (D-07).
+                    long durationMs = callDurationMs + pacingDelayMs;
                     processedCount++;
                     progressService.publish(userId, processedCount, eligibleCount, movie.getTitle(), status, durationMs);
 

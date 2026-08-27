@@ -1,0 +1,11 @@
+{
+  "head": { "vars": ["imdbId", "articleName"] },
+  "results": {
+    "bindings": [
+      {
+        "imdbId": { "type": "literal", "value": "tt1375666" },
+        "articleName": { "type": "literal", "value": "Inception", "xml:lang": "en" }
+      }
+    ]
+  }
+}

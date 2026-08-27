@@ -141,9 +141,26 @@ public class BulkImportService {
         Map<String, String> resolvedTitles = wikipediaClient.resolveViaWikidataSparql(imdbIds);
 
         // Pass 2: enrich every matched line, threading the SAME resolved map into each call so
-        // the Wikipedia step skips a per-movie SPARQL call entirely.
-        for (UUID movieId : matchedMovieIds) {
-            enrichmentService.enrich(movieId, resolvedTitles);
+        // the Wikipedia step skips a per-movie SPARQL call entirely. Paced like Pass 1 (and
+        // wrapped per-call) so dispatch never bursts past enrichmentExecutor's bounded capacity
+        // (core=2/max=5/queue=50) — an unpaced tight loop over a realistic match count throws
+        // an uncaught rejection that aborts the batch and skips progressService.complete().
+        for (int i = 0; i < matchedMovieIds.size(); i++) {
+            UUID movieId = matchedMovieIds.get(i);
+            try {
+                enrichmentService.enrich(movieId, resolvedTitles);
+            } catch (Exception e) {
+                log.warn("Bulk import: enrichment dispatch failed for movieId={}: {}", movieId, e.getMessage());
+            }
+            if (i < matchedMovieIds.size() - 1) {
+                try {
+                    Thread.sleep(pacingDelayMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Bulk import interrupted for email={} during Pass 2 at index={}", email, i);
+                    return;
+                }
+            }
         }
 
         progressService.complete(batchId);

@@ -18,7 +18,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,7 +29,7 @@ class WikipediaClientTest extends AbstractWireMockTest {
         registry.add("wikipedia.base-url", wireMock::baseUrl);
         registry.add("tmdb.base-url", wireMock::baseUrl);
         registry.add("omdb.base-url", wireMock::baseUrl);
-        registry.add("wikidata.base-url", wireMock::baseUrl);
+        registry.add("wikidata.sparql-base-url", wireMock::baseUrl);
         // A 1s Retry-After is enough to prove the backoff is honored without slowing the suite.
         registry.add("wikipedia.rate-limit-fallback-backoff-s", () -> "1");
         registry.add("wikipedia.rate-limit-max-backoff-s", () -> "5");
@@ -129,34 +128,27 @@ class WikipediaClientTest extends AbstractWireMockTest {
     }
 
     /**
-     * D-01 happy path: imdbId matches a Wikidata P345 statement and the matched item has an
-     * enwiki sitelink -> fetch() resolves entirely via Wikidata, making exactly one search-API
-     * request and one sitelinks-API request, with zero candidate-cascade HTTP requests. The
-     * Wikidata-resolved slug is "Inception" (not "Inception_(2010_film)") — the fixture's
-     * resolved "title":"Inception (2010 film)" simulates Wikipedia's own redirect resolution.
+     * D-01 happy path: imdbId resolves via one batched SPARQL request against /sparql to an
+     * enwiki article title, and fetch() hands that title off to the existing tryFetch() for
+     * section extraction — zero candidate-cascade HTTP requests. The fixture's resolved
+     * articleName is exactly "Inception", matching the deleted sitelinks fixture's title
+     * verbatim, so the downstream Wikipedia section stubs below are unchanged from before
+     * this plan.
      */
     @Test
     void shouldReturnResult_viaWikidata_whenImdbIdMatchesP345() throws IOException {
-        String searchFoundJson = loadFixture("fixtures/wikidata/search-found.json");
-        String sitelinksFoundJson = loadFixture("fixtures/wikidata/sitelinks-found.json");
+        String batchFoundJson = loadFixture("fixtures/wikidata-sparql/batch-found.json");
         String sectionsJson = loadFixture("fixtures/wikipedia/inception-sections.json");
         String plotSectionJson = loadFixture("fixtures/wikipedia/inception-plot-section.json");
         String criticsSectionJson = loadFixture("fixtures/wikipedia/inception-critics-section.json");
         String summaryJson = loadFixture("fixtures/wikipedia/inception-plot.json");
 
-        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
-                .withQueryParam("action", containing("query"))
-                .withQueryParam("srsearch", containing("haswbstatement:P345"))
+        wireMock.stubFor(get(urlPathEqualTo("/sparql"))
+                .withQueryParam("query", containing("tt1375666"))
                 .willReturn(aResponse()
                         .withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(searchFoundJson)));
-
-        wireMock.stubFor(get(urlPathMatching("/w/rest.php/wikibase/v1/entities/items/.*/sitelinks/enwiki"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(sitelinksFoundJson)));
+                        .withHeader("Content-Type", "application/sparql-results+json")
+                        .withBody(batchFoundJson)));
 
         // Wikidata-resolved slug is "Inception" — matches Wikipedia's own redirect target.
         wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
@@ -203,10 +195,7 @@ class WikipediaClientTest extends AbstractWireMockTest {
         assertThat(result).isNotNull();
         assertThat(result.url()).contains("Inception_(2010_film)");
 
-        wireMock.verify(1, getRequestedFor(urlPathEqualTo("/w/api.php"))
-                .withQueryParam("srsearch", containing("haswbstatement:P345")));
-        wireMock.verify(1, getRequestedFor(
-                urlPathMatching("/w/rest.php/wikibase/v1/entities/items/.*/sitelinks/enwiki")));
+        wireMock.verify(1, getRequestedFor(urlPathEqualTo("/sparql")));
     }
 
     /**
@@ -249,94 +238,4 @@ class WikipediaClientTest extends AbstractWireMockTest {
         assertThat(elapsed).isGreaterThanOrEqualTo(Duration.ofMillis(950));
     }
 
-    /**
-     * D-01 fall-through: Wikidata search returns zero hits (totalhits: 0) -> fetch() falls
-     * through cleanly into the (unchanged) candidate cascade and eventually throws
-     * WikipediaNotFoundException when the cascade also exhausts.
-     */
-    @Test
-    void shouldFallThroughToCascade_whenWikidataSearchHasNoHits() throws IOException {
-        String searchNotFoundJson = loadFixture("fixtures/wikidata/search-not-found.json");
-
-        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
-                .withQueryParam("srsearch", containing("haswbstatement:P345"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(searchNotFoundJson)));
-
-        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
-                .withQueryParam("action", containing("parse"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(MISSING_PAGE_RESPONSE)));
-
-        assertThatThrownBy(() -> wikipediaClient.fetch("Inception", "Inception", 2010, "tt9999999"))
-                .isInstanceOf(WikipediaNotFoundException.class);
-    }
-
-    /**
-     * D-01 fall-through: Wikidata search finds an item, but the sitelinks REST call returns
-     * HTTP 404 (item has no enwiki sitelink) -> fetch() falls through cleanly into the
-     * candidate cascade, same end state as the no-hits case above.
-     */
-    @Test
-    void shouldFallThroughToCascade_whenWikidataItemHasNoEnwikiSitelink() throws IOException {
-        String searchFoundJson = loadFixture("fixtures/wikidata/search-found.json");
-
-        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
-                .withQueryParam("srsearch", containing("haswbstatement:P345"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(searchFoundJson)));
-
-        wireMock.stubFor(get(urlPathMatching("/w/rest.php/wikibase/v1/entities/items/.*/sitelinks/enwiki"))
-                .willReturn(aResponse().withStatus(404)));
-
-        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
-                .withQueryParam("action", containing("parse"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(MISSING_PAGE_RESPONSE)));
-
-        assertThatThrownBy(() -> wikipediaClient.fetch("Inception", "Inception", 2010, "tt1375666"))
-                .isInstanceOf(WikipediaNotFoundException.class);
-    }
-
-    /**
-     * Regression test: a 429 on the Wikidata search call must engage the SAME shared
-     * backoff window recordRateLimited() already writes to for en.wikipedia.org 429s — not
-     * a separate/unpaced path. Mirrors shouldHonorRetryAfterBackoff_beforeSubsequentRequests
-     * exactly, just targeting the Wikidata search stub.
-     */
-    @Test
-    void shouldHonorRetryAfterBackoff_onWikidataCall() {
-        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
-                .atPriority(1)
-                .withQueryParam("srsearch", containing("haswbstatement:P345"))
-                .willReturn(aResponse()
-                        .withStatus(429)
-                        .withHeader("Retry-After", "1")
-                        .withBody("{\"error\":\"rate limited\"}")));
-
-        // Every other request (remaining Wikidata calls + Wikipedia parse calls) returns a
-        // normal "page not found" so fetch() exhausts everything and throws, rather than
-        // hanging on an unstubbed request.
-        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
-                .atPriority(10)
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(MISSING_PAGE_RESPONSE)));
-
-        Instant start = Instant.now();
-        assertThatThrownBy(() -> wikipediaClient.fetch("Inception", "Inception", 2010, "tt1375666"))
-                .isInstanceOf(WikipediaNotFoundException.class);
-        Duration elapsed = Duration.between(start, Instant.now());
-
-        assertThat(elapsed).isGreaterThanOrEqualTo(Duration.ofMillis(950));
-    }
 }

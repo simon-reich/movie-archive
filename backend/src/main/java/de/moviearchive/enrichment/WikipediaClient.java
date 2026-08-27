@@ -3,21 +3,21 @@ package de.moviearchive.enrichment;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -25,7 +25,10 @@ public class WikipediaClient {
 
     private final WebClient webClient;
     private final String baseUrl;
-    private final WebClient wikidataWebClient;
+    private final WebClient sparqlWebClient;
+
+    /** Number of IMDb IDs sent per SPARQL request; larger lists are chunked into multiple requests. */
+    private static final int SPARQL_CHUNK_SIZE = 50;
 
     // Patterns for wikitext cleanup — compiled once at class load
     private static final Pattern REF_BLOCK   = Pattern.compile("<ref[^>]*>.*?</ref>", Pattern.DOTALL);
@@ -53,11 +56,14 @@ public class WikipediaClient {
     private long requestPacingMs;
 
     /**
-     * Minimum delay before EVERY outbound Wikidata API call inside {@link #tryFetchViaWikidata},
-     * kept separate from and longer than {@link #requestPacingMs}: a live production batch-reload
-     * run tripped wikidata.org's anonymous rate limiter after only ~3 movies (2 Wikidata calls
-     * each) at the shared 1000ms pace — wikidata.org's limiter is stricter than en.wikipedia.org's
-     * (12-RESEARCH.md: a burst of just 2 requests tripped it in live testing).
+     * Minimum delay before EVERY outbound SPARQL batch request inside
+     * {@link #resolveChunkViaWikidataSparql}, kept separate from and longer than
+     * {@link #requestPacingMs}: a live production batch-reload run tripped the REST-era
+     * wikidata.org anonymous rate limiter after only ~3 movies (2 Wikidata calls each) at the
+     * shared 1000ms pace — wikidata.org's limiter was stricter than en.wikipedia.org's
+     * (12-RESEARCH.md: a burst of just 2 requests tripped it in live testing). The SPARQL
+     * endpoint (query.wikidata.org) is a distinct host with its own documented limits; this
+     * pacing field is kept to stay conservative given this project's prior rate-limit history.
      */
     @Value("${wikidata.request-pacing-ms:3000}")
     private long wikidataRequestPacingMs;
@@ -75,13 +81,6 @@ public class WikipediaClient {
     private long maxBackoffSeconds;
 
     /**
-     * TEMPORARY (D-05, Phase 12) — dev-visibility only, safe to delete this property + its
-     * call sites later. Path to the plain-text per-attempt resolution log (see logResolution).
-     */
-    @Value("${wiki.resolution-log.path:./wiki-resolution.log}")
-    private String resolutionLogPath;
-
-    /**
      * Shared across all requests from this client (a singleton bean): once ANY request
      * gets 429'd, every subsequent request — for this movie AND every movie still queued
      * behind it — waits out the SAME backoff window before trying again. Fixed per-request
@@ -96,15 +95,15 @@ public class WikipediaClient {
 
     public WikipediaClient(WebClient.Builder builder,
                            @Value("${wikipedia.base-url:https://en.wikipedia.org}") String baseUrl,
-                           @Value("${wikidata.base-url:https://www.wikidata.org}") String wikidataBaseUrl) {
+                           @Value("${wikidata.sparql-base-url:https://query.wikidata.org}") String sparqlBaseUrl) {
         this.baseUrl = baseUrl;
         this.webClient = builder
                 .baseUrl(baseUrl)
                 .defaultHeader("User-Agent", "MovieArchive/0.1")
                 .build();
-        this.wikidataWebClient = builder
-                .baseUrl(wikidataBaseUrl)
-                .defaultHeader("User-Agent", "MovieArchive/0.1")
+        this.sparqlWebClient = builder
+                .baseUrl(sparqlBaseUrl)
+                .defaultHeader("User-Agent", "MovieArchive/0.1 (https://github.com/simon-reich/movie-archive)")
                 .build();
     }
 
@@ -115,9 +114,9 @@ public class WikipediaClient {
     /**
      * Same shared backoffUntil-wait as the no-arg {@link #paceRequest()}, parameterized on the
      * fixed per-request sleep applied after any backoff wait. Used by {@link
-     * #tryFetchViaWikidata} with {@link #wikidataRequestPacingMs} so Wikidata calls pace
-     * themselves independently from (and slower than) the en.wikipedia.org calls, which keep
-     * using the no-arg overload unchanged.
+     * #resolveChunkViaWikidataSparql} with {@link #wikidataRequestPacingMs} so SPARQL calls
+     * pace themselves independently from (and slower than) the en.wikipedia.org calls, which
+     * keep using the no-arg overload unchanged.
      */
     private void paceRequest(long delayMs) {
         Instant waitUntil = backoffUntil.get();
@@ -176,10 +175,25 @@ public class WikipediaClient {
      * 10. Wikipedia search API for {Title} + film
      */
     public WikipediaResult fetch(String originalTitle, String title, int year, String imdbId) {
-        Optional<WikipediaResult> viaWikidata = tryFetchViaWikidata(imdbId);
+        return fetch(originalTitle, title, year, imdbId, null);
+    }
+
+    /**
+     * Same as {@link #fetch(String, String, int, String)}, but accepts an optional map of
+     * IMDb ID -> enwiki article title already resolved by a caller's batch SPARQL prefetch
+     * (e.g. {@code WikiReloadService.batchReload} or {@code BulkImportService}'s two-pass
+     * enrichment). When {@code preResolvedTitles} is non-null, this movie's imdbId is looked
+     * up directly in the map instead of issuing a per-movie SPARQL call — a miss (key absent,
+     * or imdbId itself null) means "already checked by the caller's batch prefetch, do not
+     * re-query" and falls straight through to the candidate cascade below. Pass {@code null}
+     * for single-movie callers with no prefetched batch (save-flow, manual retry) — those
+     * still resolve via one SPARQL call for their single imdbId.
+     */
+    public WikipediaResult fetch(String originalTitle, String title, int year, String imdbId,
+                                  Map<String, String> preResolvedTitles) {
+        Optional<WikipediaResult> viaWikidata = resolveWikidataResult(imdbId, preResolvedTitles);
         if (viaWikidata.isPresent()) {
             log.debug("Wikipedia page found via Wikidata for imdbId={}", imdbId);
-            logResolution(originalTitle, year, "found via Wikidata");
             return viaWikidata.get();
         }
         List<String> candidates = buildCandidates(originalTitle, title, year);
@@ -188,7 +202,6 @@ public class WikipediaClient {
             Optional<WikipediaResult> result = tryFetch(candidate);
             if (result.isPresent()) {
                 log.debug("Wikipedia page found for candidate={}", candidate);
-                logResolution(originalTitle, year, "fallback candidate #" + (i + 1) + " (" + candidate + ")");
                 return result.get();
             }
         }
@@ -197,85 +210,123 @@ public class WikipediaClient {
             Optional<WikipediaResult> result = tryFetchViaSearch(searchTerm, year);
             if (result.isPresent()) {
                 log.debug("Wikipedia page found via search for term={}", searchTerm);
-                logResolution(originalTitle, year, "fallback search hit (" + searchTerm + ")");
                 return result.get();
             }
         }
-        logResolution(originalTitle, year, "not found");
         throw new WikipediaNotFoundException(
                 "No Wikipedia page found for titles: " + originalTitle + " / " + title);
     }
 
     /**
-     * TEMPORARY (D-05, Phase 12) — dev-visibility only, safe to delete this method + its
-     * call sites later. Appends one plain-text, human-readable line per Wikipedia
-     * enrichment attempt to a separate log file (distinct from SLF4J output), so the
-     * resolution path (Wikidata vs. fallback cascade vs. not found) is visible on demand.
-     * A write failure must never affect fetch()'s return value or propagate.
+     * Resolves this movie's Wikidata-backed Wikipedia title, either from a caller-supplied
+     * batch prefetch map or via a single-ID SPARQL call, then hands the resolved title to the
+     * existing {@link #tryFetch(String)} for section extraction. If {@code preResolvedTitles}
+     * is non-null, a miss (imdbId absent from the map, or imdbId itself null/blank) returns
+     * Optional.empty() without any HTTP call — the caller's batch prefetch already checked
+     * this id. If {@code preResolvedTitles} is null, falls back to a single-element SPARQL
+     * call for this movie's imdbId (the shape single-movie callers — save-flow, manual retry
+     * — use). Never throws; every failure path returns Optional.empty() so fetch() falls
+     * through into the candidate cascade unchanged.
      */
-    private void logResolution(String title, int year, String line) {
-        try {
-            Files.writeString(
-                    Path.of(resolutionLogPath),
-                    "%s (%d): %s%n".formatted(title, year, line),
-                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
-            log.debug("Failed to write wiki-resolution.log: {}", e.getMessage());
+    private Optional<WikipediaResult> resolveWikidataResult(String imdbId, Map<String, String> preResolvedTitles) {
+        String resolvedTitle;
+        if (preResolvedTitles != null) {
+            resolvedTitle = imdbId != null ? preResolvedTitles.get(imdbId) : null;
+        } else if (imdbId != null && !imdbId.isBlank()) {
+            resolvedTitle = resolveViaWikidataSparql(List.of(imdbId)).get(imdbId);
+        } else {
+            resolvedTitle = null;
         }
+        if (resolvedTitle == null || resolvedTitle.isBlank()) {
+            return Optional.empty();
+        }
+        return tryFetch(resolvedTitle.replace(' ', '_'));
     }
 
     /**
-     * Direct Wikidata IMDb-ID (P345) cross-reference — tried first in fetch(), before the
-     * title-guessing candidate cascade. Two paced calls against wikidata.org: a
-     * haswbstatement search resolving imdbId -> Wikidata QID, then a REST sitelinks lookup
-     * resolving QID -> enwiki article title, which is handed off to the existing tryFetch()
-     * for section extraction. Every failure path (null/blank imdbId, zero search hits, no
-     * enwiki sitelink, network error) returns Optional.empty() and lets fetch() fall
-     * through unchanged into the candidate cascade — this method never throws
-     * WikipediaNotFoundException directly.
-     *
-     * Note: haswbstatement string-property matching is case-sensitive; movie.getImdbId()
-     * is always TMDB's canonical lowercase "tt\d+" form, so this is not a practical risk.
+     * Resolves a batch of IMDb IDs to their enwiki article titles via one or more SPARQL
+     * queries against query.wikidata.org — the single Wikidata resolution entry point used by
+     * every caller shape (a single-element list for save-flow/manual retry, or an arbitrarily
+     * large list for batch-reload/bulk-import prefetch). Filters null/blank ids and dedupes
+     * before querying. Returns an empty map immediately, with zero HTTP calls, if the filtered
+     * list is empty — this is what keeps callers that batch-process many movies with no
+     * imdbId (or an empty prefetch batch) from ever reaching the live network. Larger lists
+     * are split into chunks of {@link #SPARQL_CHUNK_SIZE} ids each, one SPARQL request per
+     * chunk; a miss for a given id (no P345 match, or no enwiki sitelink) is simply absent
+     * from the returned map — never throws.
      */
-    private Optional<WikipediaResult> tryFetchViaWikidata(String imdbId) {
-        if (imdbId == null || imdbId.isBlank()) {
-            return Optional.empty();
+    public Map<String, String> resolveViaWikidataSparql(List<String> imdbIds) {
+        List<String> filtered = imdbIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        if (filtered.isEmpty()) {
+            return Map.of();
         }
+        Map<String, String> resolved = new HashMap<>();
+        for (List<String> batch : chunk(filtered, SPARQL_CHUNK_SIZE)) {
+            resolved.putAll(resolveChunkViaWikidataSparql(batch));
+        }
+        return resolved;
+    }
+
+    /** Partitions a list into fixed-size sublists; the final sublist may be smaller. */
+    static <T> List<List<T>> chunk(List<T> items, int size) {
+        List<List<T>> chunks = new ArrayList<>();
+        for (int i = 0; i < items.size(); i += size) {
+            chunks.add(items.subList(i, Math.min(i + size, items.size())));
+        }
+        return chunks;
+    }
+
+    /**
+     * Issues a single paced SPARQL request resolving up to {@link #SPARQL_CHUNK_SIZE} IMDb
+     * IDs to their enwiki article titles in one round-trip, via a {@code VALUES} clause
+     * joined through {@code wdt:P345} and the {@code schema:about}/{@code schema:isPartOf}/
+     * {@code schema:name} sitelink triple pattern. Never throws — a 429 engages the same
+     * shared {@link #recordRateLimited} backoff every other method in this class already
+     * writes to; any other failure (non-429 status, network error, malformed response) is
+     * logged at debug level and treated as "resolved nothing in this chunk".
+     */
+    private Map<String, String> resolveChunkViaWikidataSparql(List<String> imdbIds) {
         try {
             paceRequest(wikidataRequestPacingMs);
-            JsonNode searchResponse = wikidataWebClient.get()
-                    .uri("/w/api.php?action=query&list=search&srsearch=haswbstatement:P345={id}&format=json",
-                            imdbId)
+            String valuesClause = imdbIds.stream()
+                    .map(id -> "\"" + id + "\"")
+                    .collect(Collectors.joining(" "));
+            String query = "SELECT ?imdbId ?articleName WHERE { VALUES ?imdbId { " + valuesClause + " } "
+                    + "?film wdt:P345 ?imdbId . "
+                    + "?article schema:about ?film ; schema:isPartOf <https://en.wikipedia.org/> ; schema:name ?articleName . }";
+            JsonNode response = sparqlWebClient.get()
+                    .uri(uriBuilder -> uriBuilder.path("/sparql").queryParam("query", query).build())
+                    .accept(MediaType.parseMediaType("application/sparql-results+json"))
                     .retrieve()
                     .bodyToMono(JsonNode.class)
                     .block();
-            if (searchResponse == null) return Optional.empty();
-            JsonNode hits = searchResponse.path("query").path("search");
-            if (!hits.isArray() || hits.isEmpty()) return Optional.empty();
-            String qid = hits.get(0).path("title").asText(null);
-            if (qid == null || qid.isBlank()) return Optional.empty();
+            if (response == null) return Map.of();
 
-            paceRequest(wikidataRequestPacingMs);
-            JsonNode sitelink = wikidataWebClient.get()
-                    .uri("/w/rest.php/wikibase/v1/entities/items/{qid}/sitelinks/enwiki", qid)
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block();
-            if (sitelink == null) return Optional.empty();
-            String resolvedTitle = sitelink.path("title").asText(null);
-            if (resolvedTitle == null || resolvedTitle.isBlank()) return Optional.empty();
-
-            return tryFetch(resolvedTitle.replace(' ', '_'));
+            Map<String, String> resolved = new HashMap<>();
+            JsonNode bindings = response.path("results").path("bindings");
+            if (bindings.isArray()) {
+                for (JsonNode row : bindings) {
+                    String imdbId = row.path("imdbId").path("value").asText(null);
+                    String articleName = row.path("articleName").path("value").asText(null);
+                    if (imdbId != null && articleName != null) {
+                        resolved.put(imdbId, articleName);
+                    }
+                }
+            }
+            return resolved;
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 429) {
-                recordRateLimited(e, "wikidata imdbId=" + imdbId);
+                recordRateLimited(e, "sparql batch size=" + imdbIds.size());
             } else {
-                log.debug("Wikidata lookup failed for imdbId={} status={}", imdbId, e.getStatusCode().value());
+                log.debug("SPARQL batch lookup failed for size={} status={}", imdbIds.size(), e.getStatusCode().value());
             }
-            return Optional.empty();
+            return Map.of();
         } catch (Exception e) {
-            log.debug("Wikidata lookup exception for imdbId={}: {}", imdbId, e.getMessage());
-            return Optional.empty();
+            log.debug("SPARQL batch lookup exception for size={}: {}", imdbIds.size(), e.getMessage());
+            return Map.of();
         }
     }
 

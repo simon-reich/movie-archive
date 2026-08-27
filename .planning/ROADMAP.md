@@ -154,3 +154,25 @@ Plans:
 - [x] 13-01-PLAN.md — WikipediaClient SPARQL batch resolution: resolveViaWikidataSparql() + fetch() overloads, REST-era removal + D-04 dev-log cleanup (tracer)
 - [x] 13-02-PLAN.md — WikiReloadService.batchReload() prefetch restructuring (D-02)
 - [x] 13-03-PLAN.md — BulkImportService/EnrichmentService two-pass restructuring (D-03)
+
+### Phase 14: Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI
+
+**Goal:** Live verification of Phase 13 (real batchReload run against 409 cooldown-eligible movies, 2026-08-27) confirmed the Wikidata SPARQL batching fix works — 21/21 movies got a Wikipedia hit vs. the historical ~11% baseline — but surfaced two follow-on problems the mocked tests couldn't show: (1) the separate Wikipedia article-content fetch still hits real 429s roughly once/minute under sustained load even at 1000ms pacing (~2-3 movies/min real throughput, not the near-instant rate tests implied), and (2) `WikiReloadService.doRetryWikipedia()` sets `wikiLastAttemptedAt` unconditionally before every attempt, so a movie that fails only due to rate-limiting still gets 30-day-cooldown-blocked as if it had been genuinely checked and found empty. This phase: (a) embraces the real rate limit by pacing `batchReload()` at a deliberate, env-configurable cadence (`wiki.retry.pacing-delay-ms`, default raised toward ~30s) instead of racing and reactively backing off; (b) fixes the cooldown-marking bug so `wikiLastAttemptedAt` is only set after a genuine, successfully-executed article-content fetch that came back empty — not on a technical/rate-limit failure; (c) adds a batch-reload progress UI (backend endpoint already exists, no UI yet — carries forward the 2026-08-23 "show-progress-indicator-for-wikipedia-batch-reload" todo): total movies targeted, live progress with which movies succeeded, an ETA computed from remaining-count × (call duration + pacing delay), and a stop button to cleanly interrupt and resume the run later.
+**Requirements**: D-14-01 (deliberate pacing, env-configurable), D-14-02 (cooldown only set on genuine empty-result attempt, not on failure), D-14-03 (progress UI: count + live progress + ETA), D-14-04 (stop/resume control) — no formal REQUIREMENTS.md IDs yet, carries forward Phase 12/13's decision-as-requirement pattern; to be refined in 14-CONTEXT.md
+**Depends on:** Phase 13
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 14 to break down)
+
+### Phase 15: Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing
+
+**Goal:** Close out the two loose bulk-import todos left over from Phases 10-11: the batch detail page needs a view toggle, movie links, and inline ambiguous-match resolution (todo from 2026-08-25), and bulk-import parsing needs to move from the strict `Title;OriginalTitle;Year` format to real CSV parsing with proper quoting (todo from 2026-08-24, was v2 candidate SET-06, pulled forward into this milestone at the user's request so v1.1 closes with the import feature actually finished rather than partially so).
+**Requirements**: carries forward the deferred SET-06 CSV-import requirement plus the 2026-08-25 UAT-adjacent todo; no formal REQUIREMENTS.md IDs yet, to be refined in 15-CONTEXT.md
+**Depends on:** Phase 11 (Bulk Import Feedback UI) — independent of Phase 14's wiki-enrichment work, no shared files
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 15 to break down)

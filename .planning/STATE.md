@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
-current_phase: 13
-status: completed
-stopped_at: Phase 13 complete — all phases complete
-last_updated: "2026-08-27T11:19:53.726Z"
+current_phase: 14
+status: in_progress
+stopped_at: Milestone re-opened after live verification — Phase 14/15 added, ready to plan
+last_updated: "2026-08-27T11:45:00.000Z"
 last_activity: 2026-08-27
-last_activity_desc: Phase 13 complete
-state_head: 3a45a4680596c12fa82c67bfe7b6958797611c1f
+last_activity_desc: Live verification of Phase 13 against real dev environment surfaced gaps; added Phase 14/15
+state_head: a6f6f7f
 progress:
-  total_phases: 6
+  total_phases: 8
   completed_phases: 6
   total_plans: 16
   completed_plans: 16
-  percent: 100
+  percent: 75
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-27)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** v1.1 complete — all 6 phases shipped, ready for milestone close
+**Current focus:** Phase 14 — Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI
 
 ## Current Position
 
-Phase: 13
+Phase: 14
 Plan: Not started
-Status: All phases complete
-Last activity: 2026-08-27 — Phase 13 complete
+Status: Ready to discuss/plan
+Last activity: 2026-08-27 — live verification of Phase 13 against real dev environment; milestone re-opened, Phase 14/15 added
 
-Progress: [████████████████████] 16/16 plans (100%) — Phase 13 complete, UAT passed (16/16 auto-covered)
+Progress: 6/8 phases complete (75%) — Phase 14 (wiki pacing/cooldown/progress-UI) and Phase 15 (import page completion) remain before v1.1 can close
 
 ## Performance Metrics
 
@@ -100,10 +100,12 @@ None.
 
 - Phase 12 edited: edited fields: goal, depends_on
 - Phase 13 added: Wikidata SPARQL Batch Lookup
+- Phase 14 added: Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI — milestone re-opened after live verification of Phase 13 against real dev environment (2026-08-27) found real-world rate limiting the mocked tests couldn't surface, plus a cooldown-marking bug and a missing progress UI
+- Phase 15 added: Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing — folds in the 2026-08-24/25 loose todos so v1.1 closes with the import feature actually finished
 
 ## Session Continuity
 
 **Resume file:** None
 
 Last session: 2026-08-27
-Stopped at: Phase 13 complete, all v1.1 phases complete — ready for /gsd-complete-milestone
+Stopped at: Milestone v1.1 NOT closing yet — live verification surfaced real gaps (Phase 14/15 added). Next: /gsd-discuss-phase 14

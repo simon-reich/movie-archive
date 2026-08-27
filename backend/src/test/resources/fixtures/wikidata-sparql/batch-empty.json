@@ -1,0 +1,6 @@
+{
+  "head": { "vars": ["imdbId", "articleName"] },
+  "results": {
+    "bindings": []
+  }
+}

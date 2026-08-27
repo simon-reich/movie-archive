@@ -13,6 +13,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -238,4 +241,188 @@ class WikipediaClientTest extends AbstractWireMockTest {
         assertThat(elapsed).isGreaterThanOrEqualTo(Duration.ofMillis(950));
     }
 
+    /**
+     * A batch SPARQL response with fewer bindings than requested ids resolves only the ids
+     * actually present in the response — the caller (batch-reload/bulk-import prefetch) sees
+     * a partial map, not an error.
+     */
+    @Test
+    void shouldResolveOnlyMatchedIds_whenSparqlBatchIsPartial() throws IOException {
+        String batchPartialJson = loadFixture("fixtures/wikidata-sparql/batch-partial.json");
+
+        wireMock.stubFor(get(urlPathEqualTo("/sparql"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/sparql-results+json")
+                        .withBody(batchPartialJson)));
+
+        Map<String, String> resolved = wikipediaClient.resolveViaWikidataSparql(
+                List.of("tt1375666", "tt0133093", "tt0000001"));
+
+        assertThat(resolved).hasSize(2);
+        assertThat(resolved).containsEntry("tt1375666", "Inception");
+        assertThat(resolved).containsEntry("tt0133093", "The Matrix");
+        assertThat(resolved).doesNotContainKey("tt0000001");
+    }
+
+    /**
+     * A SPARQL response with zero bindings (none of the batch's ids have a P345 match or
+     * enwiki sitelink) resolves to an empty map, not an error.
+     */
+    @Test
+    void shouldReturnEmptyMap_whenSparqlBatchHasZeroBindings() throws IOException {
+        String batchEmptyJson = loadFixture("fixtures/wikidata-sparql/batch-empty.json");
+
+        wireMock.stubFor(get(urlPathEqualTo("/sparql"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/sparql-results+json")
+                        .withBody(batchEmptyJson)));
+
+        Map<String, String> resolved = wikipediaClient.resolveViaWikidataSparql(List.of("tt9999999"));
+
+        assertThat(resolved).isEmpty();
+    }
+
+    /**
+     * A batch of 51 ids is split into exactly 2 SPARQL requests (chunk size 50) — never 1
+     * oversized request and never 51 individual requests.
+     */
+    @Test
+    void shouldChunkRequests_whenMoreThanFiftyImdbIds() throws IOException {
+        String batchEmptyJson = loadFixture("fixtures/wikidata-sparql/batch-empty.json");
+
+        wireMock.stubFor(get(urlPathEqualTo("/sparql"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/sparql-results+json")
+                        .withBody(batchEmptyJson)));
+
+        List<String> ids = new ArrayList<>();
+        for (int i = 1; i <= 51; i++) {
+            ids.add("tt" + String.format("%07d", i));
+        }
+
+        wikipediaClient.resolveViaWikidataSparql(ids);
+
+        wireMock.verify(2, getRequestedFor(urlPathEqualTo("/sparql")));
+    }
+
+    /**
+     * D-01/D-02/D-03: when a caller supplies a pre-resolved title map (even empty, meaning
+     * "already checked by the batch prefetch"), a miss for this movie's imdbId falls straight
+     * through to the candidate cascade without ever issuing a per-movie SPARQL call.
+     */
+    @Test
+    void shouldSkipSparqlCall_whenPreResolvedMapProvidedAndImdbIdAbsent() {
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", containing("parse"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(MISSING_PAGE_RESPONSE)));
+
+        assertThatThrownBy(() -> wikipediaClient.fetch(
+                "Inception", "Inception", 2010, "tt1375666", Map.of()))
+                .isInstanceOf(WikipediaNotFoundException.class);
+
+        wireMock.verify(0, getRequestedFor(urlPathEqualTo("/sparql")));
+    }
+
+    /**
+     * D-01/D-02/D-03: when the pre-resolved title map contains this movie's imdbId, fetch()
+     * uses that title directly — zero SPARQL calls for a movie whose title was already
+     * resolved by the caller's batch prefetch.
+     */
+    @Test
+    void shouldUsePreResolvedTitle_whenPresentInMap() throws IOException {
+        String sectionsJson = loadFixture("fixtures/wikipedia/inception-sections.json");
+        String plotSectionJson = loadFixture("fixtures/wikipedia/inception-plot-section.json");
+        String criticsSectionJson = loadFixture("fixtures/wikipedia/inception-critics-section.json");
+        String summaryJson = loadFixture("fixtures/wikipedia/inception-plot.json");
+
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", containing("parse"))
+                .withQueryParam("page", containing("Inception"))
+                .withQueryParam("prop", containing("sections"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(sectionsJson)));
+
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", containing("parse"))
+                .withQueryParam("page", containing("Inception"))
+                .withQueryParam("prop", containing("wikitext"))
+                .withQueryParam("section", containing("0"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(summaryJson)));
+
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", containing("parse"))
+                .withQueryParam("page", containing("Inception"))
+                .withQueryParam("prop", containing("wikitext"))
+                .withQueryParam("section", containing("1"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(plotSectionJson)));
+
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", containing("parse"))
+                .withQueryParam("page", containing("Inception"))
+                .withQueryParam("prop", containing("wikitext"))
+                .withQueryParam("section", containing("7"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(criticsSectionJson)));
+
+        WikipediaResult result = wikipediaClient.fetch(
+                "Inception", "Inception", 2010, "tt1375666", Map.of("tt1375666", "Inception"));
+
+        assertThat(result).isNotNull();
+        wireMock.verify(0, getRequestedFor(urlPathEqualTo("/sparql")));
+    }
+
+    /**
+     * A 429 from /sparql must engage the SAME shared backoff window recordRateLimited()
+     * already writes to for en.wikipedia.org 429s — not a separate/unpaced path. Mirrors
+     * shouldHonorRetryAfterBackoff_beforeSubsequentRequests exactly, just targeting /sparql
+     * via the internal single-ID path (the 4-arg fetch() overload).
+     */
+    @Test
+    void shouldHonorRetryAfterBackoff_onSparqlCall() throws IOException {
+        String batchEmptyJson = loadFixture("fixtures/wikidata-sparql/batch-empty.json");
+
+        wireMock.stubFor(get(urlPathEqualTo("/sparql"))
+                .atPriority(1)
+                .willReturn(aResponse()
+                        .withStatus(429)
+                        .withHeader("Retry-After", "1")
+                        .withBody("{\"error\":\"rate limited\"}")));
+
+        wireMock.stubFor(get(urlPathEqualTo("/sparql"))
+                .atPriority(10)
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/sparql-results+json")
+                        .withBody(batchEmptyJson)));
+
+        wireMock.stubFor(get(urlPathEqualTo("/w/api.php"))
+                .withQueryParam("action", containing("parse"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(MISSING_PAGE_RESPONSE)));
+
+        Instant start = Instant.now();
+        assertThatThrownBy(() -> wikipediaClient.fetch("Inception", "Inception", 2010, "tt1375666"))
+                .isInstanceOf(WikipediaNotFoundException.class);
+        Duration elapsed = Duration.between(start, Instant.now());
+
+        assertThat(elapsed).isGreaterThanOrEqualTo(Duration.ofMillis(950));
+    }
 }

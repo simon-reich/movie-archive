@@ -171,6 +171,32 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     expect(mockStopWikiReload).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps showing "Stopping..." until the terminal complete event arrives, not just the POST round-trip', async () => {
+    // Found live in UAT (2026-08-27): the stop POST resolves in milliseconds, but the actual
+    // batch halt can take up to pacingDelayMs longer — resetting the button's state right after
+    // the POST made a Stop click feel like it did nothing for however long that real wait was.
+    mockStopWikiReload.mockResolvedValueOnce(undefined)
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
+    })
+    await nextTick()
+
+    await wrapper.find('[data-testid="wiki-stop-button"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="wiki-stop-button"]').text()).toBe('Stopping...')
+
+    await capturedOnProgress?.({
+      processed: 1, total: 3, complete: true, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="wiki-stop-button"]').exists()).toBe(false)
+  })
+
   it('renders the minutes-remaining ETA label when etaSeconds is 240', async () => {
     const wrapper = await mountPage()
 

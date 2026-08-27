@@ -121,6 +121,13 @@ onMounted(async () => {
       if (p.lastMovieTitle) {
         wikiMovieHistory.value.push({ title: p.lastMovieTitle, status: p.lastMovieStatus ?? 'FAILED' })
       }
+      // The stop click only sends the request — the run keeps processing until its next
+      // loop-boundary check, which can be up to a full pacingDelayMs away. Without this, the
+      // Stop button reverts to its normal label the instant the POST resolves (milliseconds),
+      // making a click feel like it did nothing for however long the real halt actually takes.
+      if (p.complete) {
+        wikiStopping.value = false
+      }
     })
   } catch {
     // Non-fatal — could not resolve the user id (e.g. /users/me failed); no live
@@ -240,9 +247,11 @@ async function onStopWikiReload() {
   wikiStopping.value = true
   try {
     await stopWikiReload()
+    // Deliberately NOT reset here — stays true (showing "Stopping...") until the SSE
+    // subscription's onProgress callback above sees the run's terminal complete event, since
+    // the actual halt can take up to pacingDelayMs after this POST resolves.
   } catch {
-    // Non-fatal — best-effort stop request
-  } finally {
+    // Non-fatal — best-effort stop request; nothing to wait for if it failed outright.
     wikiStopping.value = false
   }
 }

@@ -161,6 +161,10 @@ None - no external service configuration required. The SPARQL endpoint (`query.w
 - `WikipediaClient.resolveViaWikidataSparql(List<String>)` and the `fetch(..., Map<String,String>)` overload are the exact public API surface Plan 2 (`WikiReloadService.batchReload` prefetch restructuring, D-02) and Plan 3 (`BulkImportService` two-pass restructuring, D-03) depend on — both can now call the batch method once (or a few chunked times) before their per-movie loops, and pass the resulting map straight into `fetch()`.
 - No blockers. The live `curl` smoke test against the real `query.wikidata.org/sparql` endpoint (per this plan's `<verification>` requirement) confirms the query template works exactly as fixture-tested, de-risking Plan 2/3's reliance on this method actually resolving real Wikidata data in production.
 
+## Self-Check: PASSED
+
+All files created/modified verified present on disk (WikipediaClient.java, application.properties, WikipediaClientTest.java, and all 3 wikidata-sparql fixtures). All 3 commits (a294af5, bb1ee32, fde93c3) verified present in `git log --oneline --all`.
+
 ---
 *Phase: 13-wikidata-sparql-batch-lookup*
 *Completed: 2026-08-27*

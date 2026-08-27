@@ -5,11 +5,13 @@ import de.moviearchive.user.User;
 import de.moviearchive.user.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskRejectedException;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
 import java.util.UUID;
@@ -36,10 +38,13 @@ public class WikiReloadController {
 
     private final WikiReloadService wikiReloadService;
     private final UserRepository userRepository;
+    private final WikiReloadProgressService progressService;
 
-    public WikiReloadController(WikiReloadService wikiReloadService, UserRepository userRepository) {
+    public WikiReloadController(WikiReloadService wikiReloadService, UserRepository userRepository,
+                                 WikiReloadProgressService progressService) {
         this.wikiReloadService = wikiReloadService;
         this.userRepository = userRepository;
+        this.progressService = progressService;
     }
 
     /**
@@ -55,6 +60,35 @@ public class WikiReloadController {
         log.info("Wiki batch-reload requested for userId={}", userId);
         wikiReloadService.batchReload(userId);
         return ResponseEntity.accepted().body(Map.of("status", "started"));
+    }
+
+    /**
+     * GET /admin/wiki-reload/{userId}/progress — Server-Sent Events stream of live wiki-reload
+     * progress (D-14-03). SseEmitter(Long.MAX_VALUE) never relies on the container's default
+     * async timeout — a real reload can now run for many minutes at the new 30s pacing.
+     * Returns 403 if the path userId does not belong to the authenticated JWT subject (T-14-01).
+     */
+    @GetMapping(value = "/{userId}/progress", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter progress(@PathVariable UUID userId, Authentication auth) {
+        assertOwnership(auth, userId);
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        progressService.register(userId, emitter);
+        return emitter;
+    }
+
+    /**
+     * POST /admin/wiki-reload/{userId}/stop — requests a clean halt of the user's in-progress
+     * batch-reload run (D-14-04/D-08). The run finishes its currently-processing movie before
+     * exiting the loop — never a hard interrupt mid-fetch. Returns 403 if the path userId does
+     * not belong to the authenticated JWT subject (T-14-01).
+     */
+    @PostMapping("/{userId}/stop")
+    public ResponseEntity<Map<String, String>> stopReload(
+            @PathVariable UUID userId, Authentication auth) {
+        assertOwnership(auth, userId);
+        progressService.requestStop(userId);
+        log.info("Wiki batch-reload stop requested for userId={}", userId);
+        return ResponseEntity.accepted().body(Map.of("status", "stop-requested"));
     }
 
     /**

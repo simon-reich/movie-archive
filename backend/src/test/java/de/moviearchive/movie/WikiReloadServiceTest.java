@@ -1,5 +1,6 @@
 package de.moviearchive.movie;
 
+import de.moviearchive.admin.WikiReloadProgressService;
 import de.moviearchive.enrichment.WikiReloadService;
 import de.moviearchive.enrichment.WikipediaClient;
 import de.moviearchive.enrichment.WikipediaNotFoundException;
@@ -53,7 +54,8 @@ class WikiReloadServiceTest {
 
     @BeforeEach
     void setUp() {
-        wikiReloadService = new WikiReloadService(movieRepository, wikipediaClient, indexingService, null);
+        wikiReloadService = new WikiReloadService(
+                movieRepository, wikipediaClient, indexingService, new WikiReloadProgressService(), null);
         // No Spring context in this unit test, so there's no real @Lazy proxy to inject for
         // the "self" self-invocation fix (WR-01) — wire the instance to itself so
         // batchReload()'s self.retryWikipedia(...) call resolves the same way the AOP proxy
@@ -101,6 +103,20 @@ class WikiReloadServiceTest {
         verify(movieRepository).save(saved.capture());
         assertThat(saved.getValue().getWikiLastAttemptedAt()).isNotNull();
         assertThat(saved.getValue().getWikiUrl()).isNull();
+        verify(indexingService, never()).index(any());
+    }
+
+    @Test
+    void shouldNotSetTimestamp_onGenericTechnicalFailure() throws Exception {
+        Movie movie = newMovie();
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class)))
+                .thenThrow(new RuntimeException("network error"));
+
+        wikiReloadService.retryWikipedia(movie);
+
+        ArgumentCaptor<Movie> saved = ArgumentCaptor.forClass(Movie.class);
+        verify(movieRepository).save(saved.capture());
+        assertThat(saved.getValue().getWikiLastAttemptedAt()).isNull();
         verify(indexingService, never()).index(any());
     }
 

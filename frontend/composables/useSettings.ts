@@ -1,4 +1,13 @@
 import { ref } from 'vue'
+import { fetchEventSource } from '@microsoft/fetch-event-source'
+
+export interface WikiReloadProgress {
+  processed: number
+  total: number
+  complete: boolean
+  lastMovieTitle: string | null
+  lastMovieStatus: string | null
+}
 
 export function useSettings() {
   // Read the access token directly from the cookie — works on both SSR and client.
@@ -43,6 +52,44 @@ export function useSettings() {
       if (e?.response?.status === 503) return 'already-running'
       throw err
     }
+  }
+
+  // Subscribes to the live SSE progress stream for the given user's wiki-reload run
+  // (D-14-03). Mirrors useBulkImport.ts#subscribeToProgress exactly — never native
+  // EventSource, since this app's JWT scheme requires a header-based Authorization.
+  // Returns an unsubscribe function.
+  function subscribeToWikiReloadProgress(
+    userId: string,
+    onProgress: (p: WikiReloadProgress) => void
+  ): () => void {
+    const ctrl = new AbortController()
+    fetchEventSource(`/api/admin/wiki-reload/${userId}/progress`, {
+      headers: authHeaders(),
+      signal: ctrl.signal,
+      async onopen() {
+        // no-op: default fetch-event-source behavior already validates content-type on open
+      },
+      onmessage(ev) {
+        if (ev.event === 'progress' || ev.event === 'complete') {
+          onProgress(JSON.parse(ev.data) as WikiReloadProgress)
+        }
+      },
+      onerror(err) {
+        // Stop the library's default retry-forever behavior on a fatal error (e.g. 403/404)
+        throw err
+      },
+    })
+    return () => ctrl.abort()
+  }
+
+  // Requests a clean halt of the current user's in-progress wiki-reload run (D-14-04).
+  async function stopWikiReload(): Promise<void> {
+    const userId = await getCurrentUserId()
+    await $fetch(`/api/admin/wiki-reload/${userId}/stop` as string, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders(),
+    })
   }
 
   async function saveApiKey(provider: 'tmdb' | 'omdb', key: string): Promise<void> {
@@ -98,5 +145,7 @@ export function useSettings() {
     changeEmail,
     getCurrentUserId,
     triggerWikiReload,
+    subscribeToWikiReloadProgress,
+    stopWikiReload,
   }
 }

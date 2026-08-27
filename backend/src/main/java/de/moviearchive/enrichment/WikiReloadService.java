@@ -1,5 +1,6 @@
 package de.moviearchive.enrichment;
 
+import de.moviearchive.admin.WikiReloadProgressService;
 import de.moviearchive.indexing.IndexingService;
 import de.moviearchive.movie.Movie;
 import de.moviearchive.movie.MovieRepository;
@@ -38,6 +39,7 @@ public class WikiReloadService {
     private final MovieRepository movieRepository;
     private final WikipediaClient wikipediaClient;
     private final IndexingService indexingService;
+    private final WikiReloadProgressService progressService;
     private final WikiReloadService self;
 
     @Value("${wiki.retry.cooldown-days:30}")
@@ -45,6 +47,12 @@ public class WikiReloadService {
 
     @Value("${wiki.retry.pacing-delay-ms:1000}")
     private long pacingDelayMs;
+
+    /** Outcome of a single doRetryWikipedia() attempt — D-03/D-14-02: only SUCCESS and
+     * NOT_FOUND are genuine, successfully-executed attempts that advance the cooldown
+     * timestamp; FAILED is a technical/rate-limit failure that must NOT cooldown-block the
+     * movie for the next batch-reload run. */
+    public enum WikiRetryOutcome { SUCCESS, NOT_FOUND, FAILED }
 
     /**
      * {@code self} is a lazily-resolved reference to this bean's own Spring proxy. Calling
@@ -58,18 +66,22 @@ public class WikiReloadService {
     public WikiReloadService(MovieRepository movieRepository,
                              WikipediaClient wikipediaClient,
                              IndexingService indexingService,
+                             WikiReloadProgressService progressService,
                              @Lazy WikiReloadService self) {
         this.movieRepository = movieRepository;
         this.wikipediaClient = wikipediaClient;
         this.indexingService = indexingService;
+        this.progressService = progressService;
         this.self = self;
     }
 
     /**
      * Retries the Wikipedia step for a single movie. Plain method — NOT @Async, NOT
-     * @Retryable. Sets wikiLastAttemptedAt on EVERY attempt (success or failure) — ENRICH-01.
-     * On success, re-indexes the movie into OpenSearch and updates indexed_at (D-02).
-     * Resolves Wikidata via the internal single-ID SPARQL path — no batch prefetch map.
+     * @Retryable. Sets wikiLastAttemptedAt only on a genuine, successfully-executed attempt
+     * (success or confirmed WikipediaNotFoundException) — D-03/D-14-02; a technical/rate-limit
+     * failure leaves it unchanged so the movie stays eligible for the very next reload. On
+     * success, re-indexes the movie into OpenSearch and updates indexed_at (D-02). Resolves
+     * Wikidata via the internal single-ID SPARQL path — no batch prefetch map.
      */
     @Transactional
     public void retryWikipedia(Movie movie) {
@@ -81,14 +93,16 @@ public class WikiReloadService {
      * -> enwiki article title (built once per {@link #batchReload(UUID)} invocation, before its
      * per-movie loop starts) so this movie's Wikidata resolution skips its own per-movie SPARQL
      * call entirely — see {@link WikipediaClient#fetch(String, String, int, String, Map)}.
+     * Returns the {@link WikiRetryOutcome} so batchReload() can publish an accurate
+     * SUCCESS/NOT_FOUND/FAILED status per movie (D-14-03). This overload is only ever called
+     * internally by batchReload() — no external caller depends on its return type.
      */
     @Transactional
-    public void retryWikipedia(Movie movie, Map<String, String> preResolvedTitles) {
-        doRetryWikipedia(movie, preResolvedTitles);
+    public WikiRetryOutcome retryWikipedia(Movie movie, Map<String, String> preResolvedTitles) {
+        return doRetryWikipedia(movie, preResolvedTitles);
     }
 
-    private void doRetryWikipedia(Movie movie, Map<String, String> preResolvedTitles) {
-        movie.setWikiLastAttemptedAt(Instant.now());
+    private WikiRetryOutcome doRetryWikipedia(Movie movie, Map<String, String> preResolvedTitles) {
         try {
             int year = movie.getReleaseDate() != null ? movie.getReleaseDate().getYear() : 0;
             String origTitle = movie.getOriginalTitle() != null ? movie.getOriginalTitle() : movie.getTitle();
@@ -100,6 +114,7 @@ public class WikiReloadService {
             movie.setWikiSummary(wiki.summary());
             movie.setWikiPlot(wiki.plot());
             movie.setWikiCritics(wiki.critics());
+            movie.setWikiLastAttemptedAt(Instant.now());
             movieRepository.save(movie);
             log.info("Wiki retry succeeded movieId={}", movie.getId());
 
@@ -112,12 +127,20 @@ public class WikiReloadService {
                 log.warn("Wiki retry: OpenSearch re-index failed movieId={}: {}",
                         movie.getId(), e.getMessage());
             }
+            return WikiRetryOutcome.SUCCESS;
         } catch (WikipediaNotFoundException e) {
+            // Genuine result: the fallback cascade was fully exhausted with no hit — still
+            // advances the cooldown timestamp (D-03).
+            movie.setWikiLastAttemptedAt(Instant.now());
             movieRepository.save(movie);
             log.warn("Wiki retry: still not found movieId={}", movie.getId());
+            return WikiRetryOutcome.NOT_FOUND;
         } catch (Exception e) {
+            // Technical/rate-limit failure: wikiLastAttemptedAt intentionally left unchanged
+            // (D-03) — this movie remains immediately eligible for the very next reload run.
             movieRepository.save(movie);
             log.warn("Wiki retry failed movieId={}: {}", movie.getId(), e.getMessage());
+            return WikiRetryOutcome.FAILED;
         }
     }
 
@@ -131,6 +154,10 @@ public class WikiReloadService {
      */
     @Async("wikiReloadExecutor")
     public void batchReload(UUID userId) {
+        // D-14-04/Pitfall 4: reset the stop flag at the very top, before the per-movie loop,
+        // so a fresh Start after a prior Stop never inherits a stale true flag.
+        progressService.resetRun(userId);
+
         Instant cutoff = Instant.now().minus(cooldownDays, ChronoUnit.DAYS);
         List<Movie> eligible = movieRepository.findEligibleForWikiReload(userId, cutoff);
         log.info("Wiki batch-reload starting userId={} eligible={}", userId, eligible.size());
@@ -146,24 +173,43 @@ public class WikiReloadService {
                 .toList();
         Map<String, String> resolvedTitles = wikipediaClient.resolveViaWikidataSparql(imdbIds);
 
+        int processedCount = 0;
         for (int i = 0; i < eligible.size(); i++) {
+            // D-08: checked between movies, never mid-fetch — a Stop click halts cleanly here.
+            if (progressService.isStopRequested(userId)) {
+                log.info("Wiki batch-reload stopped userId={} at index={}", userId, i);
+                break;
+            }
             Movie movie = eligible.get(i);
+            String status;
             try {
-                self.retryWikipedia(movie, resolvedTitles);
+                WikiRetryOutcome outcome = self.retryWikipedia(movie, resolvedTitles);
+                status = outcome.name();
             } catch (Exception e) {
                 log.warn("Wiki batch-reload: unexpected error for movieId={}: {}",
                         movie.getId(), e.getMessage());
+                status = WikiRetryOutcome.FAILED.name();
             }
+            processedCount++;
+            progressService.publish(userId, processedCount, eligible.size(), movie.getTitle(), status);
+
             if (i < eligible.size() - 1) {
+                // A Stop click during the pacing window shouldn't wait out the full delay.
+                if (progressService.isStopRequested(userId)) {
+                    log.info("Wiki batch-reload stopped userId={} before pacing at index={}", userId, i);
+                    break;
+                }
                 try {
                     Thread.sleep(pacingDelayMs);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     log.warn("Wiki batch-reload interrupted for userId={} at index={}", userId, i);
+                    progressService.complete(userId);
                     return;
                 }
             }
         }
+        progressService.complete(userId);
         log.info("Wiki batch-reload complete userId={} processed={}", userId, eligible.size());
     }
 }

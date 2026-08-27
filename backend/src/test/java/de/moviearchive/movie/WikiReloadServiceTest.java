@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
@@ -113,12 +114,36 @@ class WikiReloadServiceTest {
 
         WikipediaResult result = new WikipediaResult(
                 "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
-        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class)))
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class), any()))
                 .thenThrow(new RuntimeException("boom"))
                 .thenReturn(result);
 
         wikiReloadService.batchReload(userId);
 
-        verify(wikipediaClient, times(2)).fetch(anyString(), anyString(), anyInt(), nullable(String.class));
+        verify(wikipediaClient, times(2))
+                .fetch(anyString(), anyString(), anyInt(), nullable(String.class), any());
+    }
+
+    @Test
+    void shouldCallResolveViaWikidataSparqlOnce_withAllEligibleImdbIds() throws Exception {
+        UUID userId = UUID.randomUUID();
+        Movie movieA = newMovie();
+        movieA.setImdbId("tt1000001");
+        Movie movieB = newMovie();
+        movieB.setImdbId("tt1000002");
+        when(movieRepository.findEligibleForWikiReload(eq(userId), any(Instant.class)))
+                .thenReturn(List.of(movieA, movieB));
+
+        WikipediaResult result = new WikipediaResult(
+                "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class), any()))
+                .thenReturn(result);
+
+        wikiReloadService.batchReload(userId);
+
+        verify(wikipediaClient, times(1)).resolveViaWikidataSparql(argThat(ids ->
+                ids.containsAll(List.of("tt1000001", "tt1000002")) && ids.size() == 2));
+        verify(wikipediaClient, times(2))
+                .fetch(anyString(), anyString(), anyInt(), nullable(String.class), any());
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -68,15 +69,33 @@ public class WikiReloadService {
      * Retries the Wikipedia step for a single movie. Plain method — NOT @Async, NOT
      * @Retryable. Sets wikiLastAttemptedAt on EVERY attempt (success or failure) — ENRICH-01.
      * On success, re-indexes the movie into OpenSearch and updates indexed_at (D-02).
+     * Resolves Wikidata via the internal single-ID SPARQL path — no batch prefetch map.
      */
     @Transactional
     public void retryWikipedia(Movie movie) {
+        doRetryWikipedia(movie, null);
+    }
+
+    /**
+     * Same as {@link #retryWikipedia(Movie)}, but accepts a batch-prefetched map of IMDb ID
+     * -> enwiki article title (built once per {@link #batchReload(UUID)} invocation, before its
+     * per-movie loop starts) so this movie's Wikidata resolution skips its own per-movie SPARQL
+     * call entirely — see {@link WikipediaClient#fetch(String, String, int, String, Map)}.
+     */
+    @Transactional
+    public void retryWikipedia(Movie movie, Map<String, String> preResolvedTitles) {
+        doRetryWikipedia(movie, preResolvedTitles);
+    }
+
+    private void doRetryWikipedia(Movie movie, Map<String, String> preResolvedTitles) {
         movie.setWikiLastAttemptedAt(Instant.now());
         try {
             int year = movie.getReleaseDate() != null ? movie.getReleaseDate().getYear() : 0;
             String origTitle = movie.getOriginalTitle() != null ? movie.getOriginalTitle() : movie.getTitle();
             String movieTitle = movie.getTitle() != null ? movie.getTitle() : "";
-            WikipediaResult wiki = wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId());
+            WikipediaResult wiki = preResolvedTitles != null
+                    ? wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId(), preResolvedTitles)
+                    : wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId());
             movie.setWikiUrl(wiki.url());
             movie.setWikiSummary(wiki.summary());
             movie.setWikiPlot(wiki.plot());
@@ -116,10 +135,21 @@ public class WikiReloadService {
         List<Movie> eligible = movieRepository.findEligibleForWikiReload(userId, cutoff);
         log.info("Wiki batch-reload starting userId={} eligible={}", userId, eligible.size());
 
+        // D-02: resolve Wikidata for the ENTIRE eligible set in one (or a few chunked) SPARQL
+        // call(s) before the per-movie loop starts — calling resolveViaWikidataSparql() once
+        // per movie inside the loop would not reduce request count versus the old REST flow,
+        // only swap the endpoint (CONTEXT.md D-02).
+        List<String> imdbIds = eligible.stream()
+                .map(Movie::getImdbId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        Map<String, String> resolvedTitles = wikipediaClient.resolveViaWikidataSparql(imdbIds);
+
         for (int i = 0; i < eligible.size(); i++) {
             Movie movie = eligible.get(i);
             try {
-                self.retryWikipedia(movie);
+                self.retryWikipedia(movie, resolvedTitles);
             } catch (Exception e) {
                 log.warn("Wiki batch-reload: unexpected error for movieId={}: {}",
                         movie.getId(), e.getMessage());

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import type { WikiReloadProgress } from '@/composables/useSettings'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('$fetch', mockFetch)
@@ -8,6 +11,27 @@ vi.stubGlobal('useRouter', () => ({ push: vi.fn() }))
 vi.mock('#app/composables/router', async (importOriginal) => {
   const original = await importOriginal<typeof import('#app/composables/router')>()
   return { ...original, navigateTo: vi.fn() }
+})
+
+// ── MOCK useSettings — only subscribeToWikiReloadProgress/stopWikiReload are stubbed;
+// every other function is passed through to the real composable so the pre-existing
+// behavior tests below (saveApiKey, changeEmail, etc.) keep exercising real logic. ──
+const mockSubscribeToWikiReloadProgress = vi.fn()
+const mockStopWikiReload = vi.fn()
+const mockUnsubscribeWikiProgress = vi.fn()
+
+let capturedOnProgress: ((p: WikiReloadProgress) => void) | undefined
+
+vi.mock('@/composables/useSettings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/composables/useSettings')>()
+  return {
+    ...actual,
+    useSettings: () => ({
+      ...actual.useSettings(),
+      subscribeToWikiReloadProgress: mockSubscribeToWikiReloadProgress,
+      stopWikiReload: mockStopWikiReload,
+    }),
+  }
 })
 
 describe('/settings page', () => {
@@ -74,5 +98,76 @@ describe('/settings page', () => {
     mockFetch.mockRejectedValueOnce(new Error('network down'))
     const { triggerWikiReload } = (await import('@/composables/useSettings')).useSettings()
     await expect(triggerWikiReload()).rejects.toThrow()
+  })
+})
+
+describe('/settings page — wiki-reload progress UI (mounted)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    mockFetch.mockReset()
+    mockSubscribeToWikiReloadProgress.mockReset()
+    mockStopWikiReload.mockReset()
+    mockUnsubscribeWikiProgress.mockReset()
+    capturedOnProgress = undefined
+    mockSubscribeToWikiReloadProgress.mockImplementation(
+      (_userId: string, onProgress: (p: WikiReloadProgress) => void) => {
+        capturedOnProgress = onProgress
+        return mockUnsubscribeWikiProgress
+      }
+    )
+  })
+
+  async function mountPage() {
+    // onMounted order: loadApiKeys() first, then getCurrentUserId() feeding
+    // subscribeToWikiReloadProgress() — both real composable calls hitting the
+    // globally-mocked $fetch.
+    mockFetch.mockResolvedValueOnce({ tmdb: null, omdb: null })
+    mockFetch.mockResolvedValueOnce({ id: 'user-abc' })
+    const { default: SettingsPage } = await import('@/pages/settings.vue')
+    const wrapper = mount(SettingsPage)
+    await nextTick()
+    await nextTick()
+    await nextTick()
+    return wrapper
+  }
+
+  it('renders processed/total and the movie title once a progress event arrives', async () => {
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS',
+    })
+    await nextTick()
+
+    expect(wrapper.text()).toContain('1 / 3 processed')
+    expect(wrapper.text()).toContain('Inception')
+  })
+
+  it('hides the Stop button while wikiProgress is null, shows it once a non-complete event arrives', async () => {
+    const wrapper = await mountPage()
+
+    expect(wrapper.find('[data-testid="wiki-stop-button"]').exists()).toBe(false)
+
+    await capturedOnProgress?.({
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS',
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="wiki-stop-button"]').exists()).toBe(true)
+  })
+
+  it('clicking the Stop button invokes the mocked stopWikiReload', async () => {
+    mockStopWikiReload.mockResolvedValueOnce(undefined)
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS',
+    })
+    await nextTick()
+
+    await wrapper.find('[data-testid="wiki-stop-button"]').trigger('click')
+    await nextTick()
+
+    expect(mockStopWikiReload).toHaveBeenCalledTimes(1)
   })
 })

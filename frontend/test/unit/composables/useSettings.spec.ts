@@ -149,4 +149,21 @@ describe('useSettings composable', () => {
     const { triggerWikiReload } = useSettings()
     await expect(triggerWikiReload()).rejects.toThrow()
   })
+
+  it('subscribeToWikiReloadProgress is exported as a function', () => {
+    const { subscribeToWikiReloadProgress } = useSettings()
+    expect(typeof subscribeToWikiReloadProgress).toBe('function')
+  })
+
+  it('stopWikiReload resolves when $fetch resolves', async () => {
+    mockFetch.mockResolvedValueOnce({ id: 'user-abc' })
+    mockFetch.mockResolvedValueOnce(null)
+    const { stopWikiReload } = useSettings()
+    await expect(stopWikiReload()).resolves.toBeUndefined()
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/admin/wiki-reload/user-abc/stop',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
+  })
 })

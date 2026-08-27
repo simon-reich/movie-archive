@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { CheckCircle2, XCircle } from 'lucide-vue-next'
 import FormField from '@/components/FormField.vue'
 import InputText from '@/components/InputText.vue'
 import ButtonPrimary from '@/components/ButtonPrimary.vue'
 import FormErrorBanner from '@/components/FormErrorBanner.vue'
+import type { WikiReloadProgress } from '@/composables/useSettings'
 
-const { saveApiKey, deleteApiKey, loadApiKeys, changePassword, changeEmail, triggerWikiReload } = useSettings()
+const {
+  saveApiKey, deleteApiKey, loadApiKeys, changePassword, changeEmail, triggerWikiReload,
+  subscribeToWikiReloadProgress, stopWikiReload, getCurrentUserId,
+} = useSettings()
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -41,6 +46,15 @@ const passwordFieldError = ref<string | null>(null)
 // Wikipedia Data section
 const wikiReloadTriggering = ref(false)
 const wikiReloadMessage = ref<string | null>(null)
+const wikiProgress = ref<WikiReloadProgress | null>(null)
+const wikiMovieHistory = ref<{ title: string; status: string }[]>([])
+const wikiStopping = ref(false)
+let unsubscribeWikiProgress: (() => void) | null = null
+
+const wikiProgressPercent = computed(() => {
+  if (!wikiProgress.value || wikiProgress.value.total === 0) return 0
+  return Math.round((wikiProgress.value.processed / wikiProgress.value.total) * 100)
+})
 
 // Reset inline success state when input value changes (D-06)
 watch(tmdbKey, () => {
@@ -90,6 +104,22 @@ onMounted(async () => {
   } finally {
     keysLoading.value = false
   }
+
+  try {
+    const userId = await getCurrentUserId()
+    unsubscribeWikiProgress = subscribeToWikiReloadProgress(userId, (p) => {
+      wikiProgress.value = p
+      if (p.lastMovieTitle) {
+        wikiMovieHistory.value.push({ title: p.lastMovieTitle, status: p.lastMovieStatus ?? 'FAILED' })
+      }
+    })
+  } catch {
+    // Non-fatal — no live progress stream, page still usable
+  }
+})
+
+onUnmounted(() => {
+  unsubscribeWikiProgress?.()
 })
 
 async function handleSaveTmdb() {
@@ -179,6 +209,9 @@ async function onTriggerWikiReload() {
   wikiReloadMessage.value = null
   try {
     const result = await triggerWikiReload()
+    if (result === 'started') {
+      wikiMovieHistory.value = []
+    }
     wikiReloadMessage.value = result === 'started'
       ? 'Reload started — this runs in the background and may take a few minutes.'
       : 'A reload is already in progress.'
@@ -186,6 +219,17 @@ async function onTriggerWikiReload() {
     wikiReloadMessage.value = 'Something went wrong. Please try again.'
   } finally {
     wikiReloadTriggering.value = false
+  }
+}
+
+async function onStopWikiReload() {
+  wikiStopping.value = true
+  try {
+    await stopWikiReload()
+  } catch {
+    // Non-fatal — best-effort stop request
+  } finally {
+    wikiStopping.value = false
   }
 }
 
@@ -408,10 +452,40 @@ async function handleChangePassword() {
     <!-- Section 4: Wikipedia Data -->
     <section id="wikipedia-data">
       <h1 class="text-xl font-semibold tracking-wide mb-6">Wikipedia Data</h1>
-      <ButtonPrimary type="button" :loading="wikiReloadTriggering" :disabled="wikiReloadTriggering" @click="onTriggerWikiReload">
-        {{ wikiReloadTriggering ? 'Starting...' : 'Reload missing Wikipedia data' }}
-      </ButtonPrimary>
+      <div class="flex items-center gap-2">
+        <ButtonPrimary type="button" :loading="wikiReloadTriggering" :disabled="wikiReloadTriggering" @click="onTriggerWikiReload">
+          {{ wikiReloadTriggering ? 'Starting...' : 'Reload missing Wikipedia data' }}
+        </ButtonPrimary>
+        <button
+          v-if="wikiProgress && !wikiProgress.complete"
+          type="button"
+          data-testid="wiki-stop-button"
+          :disabled="wikiStopping"
+          class="h-10 px-4 text-sm font-medium text-foreground border border-border rounded-none hover:bg-card disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          @click="onStopWikiReload"
+        >
+          {{ wikiStopping ? 'Stopping...' : 'Stop' }}
+        </button>
+      </div>
       <p v-if="wikiReloadMessage" class="text-sm text-foreground mt-2">{{ wikiReloadMessage }}</p>
+
+      <div v-if="wikiProgress && !wikiProgress.complete" data-testid="wiki-reload-progress" class="mt-4 space-y-2">
+        <p class="text-sm text-foreground">{{ wikiProgress.processed }} / {{ wikiProgress.total }} processed</p>
+        <div class="w-full h-2 bg-card border border-border">
+          <div class="h-full bg-primary" :style="{ width: `${wikiProgressPercent}%` }" />
+        </div>
+        <ul class="space-y-1">
+          <li
+            v-for="(entry, idx) in wikiMovieHistory"
+            :key="idx"
+            class="flex items-center gap-2 text-sm text-foreground"
+          >
+            <CheckCircle2 v-if="entry.status === 'SUCCESS'" class="w-4 h-4 shrink-0" />
+            <XCircle v-else class="w-4 h-4 shrink-0" />
+            <span>{{ entry.title }}</span>
+          </li>
+        </ul>
+      </div>
     </section>
 
   </div>

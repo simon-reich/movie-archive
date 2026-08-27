@@ -171,6 +171,14 @@ public class WikiReloadService {
             eligibleCount = eligible.size();
             log.info("Wiki batch-reload starting userId={} eligible={}", userId, eligibleCount);
 
+            if (eligibleCount > 0) {
+                // Publish a zero-progress "started" event now, before the Wikidata prefetch
+                // below — otherwise the frontend gets no progress signal (and shows no Stop
+                // button / progress panel) until the first movie is processed, which can be
+                // minutes away if the prefetch hits a rate-limit backoff.
+                progressService.start(userId, eligibleCount);
+            }
+
             // D-02: resolve Wikidata for the ENTIRE eligible set in one (or a few chunked) SPARQL
             // call(s) before the per-movie loop starts — calling resolveViaWikidataSparql() once
             // per movie inside the loop would not reduce request count versus the old REST flow,

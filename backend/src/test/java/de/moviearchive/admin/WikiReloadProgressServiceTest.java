@@ -130,6 +130,31 @@ class WikiReloadProgressServiceTest {
     }
 
     @Test
+    void start_publishesZeroProgressState_andDoesNotAffectEtaWindow() throws Exception {
+        SseEmitter emitter = mock(SseEmitter.class);
+        UUID userId = UUID.randomUUID();
+
+        progressService.start(userId, 382);
+        progressService.register(userId, emitter);
+
+        ArgumentCaptor<SseEmitter.SseEventBuilder> captor =
+                ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        verify(emitter, times(1)).send(captor.capture());
+
+        WikiReloadProgressService.ProgressState state = capturedState(captor.getValue());
+        assertThat(state.processed()).isZero();
+        assertThat(state.total()).isEqualTo(382);
+        assertThat(state.complete()).isFalse();
+        assertThat(state.etaSeconds()).isZero();
+
+        // A subsequent real publish()'s ETA must be computed purely from its own duration,
+        // proving start() did not seed a spurious 0ms entry into the rolling window.
+        WikiReloadProgressService.ProgressState afterFirstMovie =
+                progressService.publish(userId, 1, 382, "Movie A", "SUCCESS", 1000L);
+        assertThat(afterFirstMovie.etaSeconds()).isEqualTo(381L);
+    }
+
+    @Test
     void resetRun_withNoPriorRequestStop_isStopRequestedReturnsFalse() {
         UUID userId = UUID.randomUUID();
 

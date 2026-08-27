@@ -66,7 +66,10 @@ class WikiReloadServiceTest {
         // would in production (transactional semantics aren't exercised by Mockito anyway).
         ReflectionTestUtils.setField(wikiReloadService, "self", wikiReloadService);
         user = new User("test@example.com", "hash");
-        when(movieRepository.save(any(Movie.class))).thenAnswer(inv -> inv.getArgument(0));
+        // lenient: the zero-eligible-movies test never calls save() at all — strict stubbing
+        // would otherwise flag this shared default as unnecessary for that one test.
+        org.mockito.Mockito.lenient().when(movieRepository.save(any(Movie.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
     private Movie newMovie() {
@@ -184,5 +187,42 @@ class WikiReloadServiceTest {
         verify(progressService).publish(
                 eq(userId), eq(1), eq(1), eq(movie.getTitle()), eq("SUCCESS"),
                 longThat(d -> d >= 0));
+    }
+
+    @Test
+    void shouldPublishStart_beforeWikidataPrefetch_soStopButtonAppearsDuringPrefetch() throws Exception {
+        // A Stop button (and progress panel) must appear as soon as a run starts, not only
+        // after the first movie is processed — otherwise a slow/rate-limited Wikidata SPARQL
+        // prefetch (which runs BEFORE the per-movie loop) leaves the frontend with no signal
+        // that a run is in progress at all, and no way to stop it, for however long the
+        // prefetch takes.
+        UUID userId = UUID.randomUUID();
+        Movie movieA = newMovie();
+        Movie movieB = newMovie();
+        when(movieRepository.findEligibleForWikiReload(eq(userId), any(Instant.class)))
+                .thenReturn(List.of(movieA, movieB));
+
+        WikipediaResult result = new WikipediaResult(
+                "https://en.wikipedia.org/wiki/Inception", "summary", "plot", "critics");
+        when(wikipediaClient.fetch(anyString(), anyString(), anyInt(), nullable(String.class), any()))
+                .thenReturn(result);
+
+        wikiReloadService.batchReload(userId);
+
+        var inOrder = org.mockito.Mockito.inOrder(progressService, wikipediaClient);
+        inOrder.verify(progressService).start(userId, 2);
+        inOrder.verify(wikipediaClient).resolveViaWikidataSparql(any());
+    }
+
+    @Test
+    void shouldNotPublishStart_whenNoMoviesEligible() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(movieRepository.findEligibleForWikiReload(eq(userId), any(Instant.class)))
+                .thenReturn(List.of());
+
+        wikiReloadService.batchReload(userId);
+
+        verify(progressService, never()).start(any(), anyInt());
+        verify(progressService).complete(userId);
     }
 }

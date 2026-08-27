@@ -78,6 +78,25 @@ public class WikiReloadProgressService {
     }
 
     /**
+     * Publishes a zero-progress "run has started" state for userId — MUST be called by
+     * {@code WikiReloadService.batchReload()} right after computing the eligible list, before
+     * the (potentially slow, rate-limit-backoff-prone) Wikidata SPARQL prefetch call. Without
+     * this, the frontend receives no "progress" event — and therefore never shows the Stop
+     * button or progress panel — until the first movie is actually processed, which can be
+     * minutes away under real rate-limiting for a large eligible count; a Stop click during
+     * that window is honored as soon as the per-movie loop's first iteration runs (it already
+     * checks {@link #isStopRequested(UUID)} before processing movie 0), but the user had no way
+     * to see a run was in progress or to click Stop at all. Deliberately does NOT touch
+     * durationWindowsMs — this is not a real per-movie call duration and must not skew the
+     * ETA rolling average.
+     */
+    public void start(UUID userId, int total) {
+        ProgressState state = new ProgressState(0, total, false, null, null, 0L);
+        lastKnown.put(userId, state);
+        broadcast(userId, "progress", state);
+    }
+
+    /**
      * Stores the given progress as userId's last-known state and sends a "progress" event to
      * every currently registered emitter for userId. {@code durationMs} is the just-completed
      * movie's wall-clock call duration (including any time spent inside an active 429 backoff,

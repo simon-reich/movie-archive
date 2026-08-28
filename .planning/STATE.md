@@ -5,11 +5,11 @@ milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 15
 current_phase_name: "Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing"
 status: planning
-stopped_at: Phase 14 complete, ready to plan Phase 15
-last_updated: "2026-08-28T09:57:31.232Z"
+stopped_at: Phase 15 context gathered
+last_updated: "2026-08-28T12:30:00.000Z"
 last_activity: 2026-08-28
-last_activity_desc: Phase 14 complete, transitioned to Phase 15
-state_head: b53d3b307a843cff3bdb635da2fcccc319cd3e1f
+last_activity_desc: Phase 15 context gathered
+state_head: 7a624b7
 progress:
   total_phases: 8
   completed_phases: 7
@@ -31,8 +31,8 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 15 — Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-08-28 — Phase 14 complete, transitioned to Phase 15
+Status: Context gathered — ready to plan
+Last activity: 2026-08-28 — Phase 15 context gathered (15-CONTEXT.md, 17 decisions across view toggle, movie links, inline resolve, CSV format)
 
 Progress: 7/8 phases complete (88%) — Phase 15 (import page completion) is the last phase before v1.1 can close
 
@@ -109,7 +109,7 @@ None.
 
 ## Session Continuity
 
-**Resume file:** None
+**Resume file:** .planning/phases/15-bulk-import-page-completion-view-toggle-movie-links-real-csv/15-CONTEXT.md
 
-Last session: 2026-08-28T12:00:00.000Z
-Stopped at: Phase 14 complete, ready to plan Phase 15
+Last session: 2026-08-28T12:30:00.000Z
+Stopped at: Phase 15 context gathered

@@ -31,9 +31,27 @@ every SSE-backed progress stream's completion and should be root-caused properly
 
 ## Solution
 
-TBD — likely needs to either exclude the async re-dispatch from Spring Security's filter chain
-for these SSE completion paths (e.g. via `shouldNotFilterAsyncDispatch` behavior verification,
-or a custom `AsyncRequestNotUsableException`-aware exception handler), or investigate why the
-JWT auth filter's context isn't available/re-derivable on the async completion dispatch.
-Investigate both `WikiReloadController` and `BulkImportController`'s progress endpoints together
-since they share the exact same pattern — a fix for one should apply to both.
+Resolved via `.planning/debug/resolved/sse-auth-denied-on-complete.md`.
+
+**Root cause:** Spring Boot's default `spring.security.filter.dispatcher-types` (REQUEST, ASYNC,
+ERROR) registers Spring Security's `FilterChainProxy` — including `AuthorizationFilter` — to run
+again on the ASYNC servlet redispatch that follows `SseEmitter.complete()` (called from a
+background executor thread in `WikiReloadProgressService.complete()` /
+`BulkImportProgressService.complete()`). `AuthorizationFilter` is not a `OncePerRequestFilter`
+and therefore does not skip ASYNC dispatch, but `JwtAuthFilter` IS a `OncePerRequestFilter`
+(skips ASYNC dispatch by default) and never persists its `Authentication` to a
+`SecurityContextRepository` — combined with `SecurityConfig`'s STATELESS session policy
+defaulting to `NullSecurityContextRepository`, the `SecurityContext` is empty on the redispatch,
+so `AuthorizationFilter` denies the already-authenticated, already-completed request.
+
+**Fix:** Set `spring.security.filter.dispatcher-types=request,error` in
+`backend/src/main/resources/application.properties`, excluding ASYNC from the set of dispatcher
+types Spring Boot registers Spring Security's filter chain for. Both SSE endpoints' ownership/
+IDOR checks already run synchronously on the initial REQUEST dispatch, unaffected by this
+change. Added regression tests to `WikiReloadControllerTest` and `BulkImportControllerTest` that
+use MockMvc's `asyncDispatch()` to simulate the real container ASYNC redispatch and assert it no
+longer throws `AuthorizationDeniedException`.
+
+**Verified live (2026-08-28):** started/stopped a wiki-reload batch multiple times — no
+`AuthorizationDeniedException` or "response already committed" errors in the backend log around
+any completion/stop.

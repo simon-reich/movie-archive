@@ -169,3 +169,12 @@ None - both tasks completed as specified; all 24 tests in `imports-batchId.spec.
 ---
 *Phase: 15-bulk-import-page-completion-view-toggle-movie-links-real-csv*
 *Completed: 2026-08-28*
+
+## Self-Check: PASSED
+
+- FOUND: `frontend/pages/imports/[batchId].vue`
+- FOUND: `frontend/test/unit/pages/imports-batchId.spec.ts`
+- FOUND: `.planning/phases/15-bulk-import-page-completion-view-toggle-movie-links-real-csv/15-04-SUMMARY.md`
+- FOUND commit: `52af012` (Task 1)
+- FOUND commit: `39beb9b` (Task 2)
+- FOUND commit: `1cbfe71` (SUMMARY docs)

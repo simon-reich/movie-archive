@@ -172,7 +172,7 @@ Plans:
 **Goal:** Close out the two loose bulk-import todos left over from Phases 10-11: the batch detail page needs a view toggle, movie links, and inline ambiguous-match resolution (todo from 2026-08-25), and bulk-import parsing needs to move from the strict `Title;OriginalTitle;Year` format to real CSV parsing with proper quoting (todo from 2026-08-24, was v2 candidate SET-06, pulled forward into this milestone at the user's request so v1.1 closes with the import feature actually finished rather than partially so).
 **Requirements**: carries forward the deferred SET-06 CSV-import requirement plus the 2026-08-25 UAT-adjacent todo; no formal REQUIREMENTS.md IDs yet, to be refined in 15-CONTEXT.md
 **Depends on:** Phase 11 (Bulk Import Feedback UI) — independent of Phase 14's wiki-enrichment work, no shared files
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -185,4 +185,4 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 15-03-PLAN.md — Real CSV parsing: Apache Commons CSV, file-level format detection, optional header-row skip, legacy semicolon format unchanged (D-12–D-17)
+- [x] 15-03-PLAN.md — Real CSV parsing: Apache Commons CSV, file-level format detection, optional header-row skip, legacy semicolon format unchanged (D-12–D-17)

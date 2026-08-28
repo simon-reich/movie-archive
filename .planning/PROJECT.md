@@ -68,10 +68,14 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 - ✓ IMPORT-03: Ergebnisübersicht nach Import — Titel, Poster, Status (gespeichert/mehrdeutig/nicht gefunden) pro Zeile — Phase 11
 - ✓ Wikidata-first Wikipedia-Lookup (P345 IMDb-ID Cross-Reference statt URL-Kandidaten-Raten) — Phase 12
 - ✓ Batched SPARQL-Wikidata-Auflösung (bis zu 50 IMDb-IDs pro Request) ersetzt die per-movie REST-Suche, die Wikidata's anonymen Rate-Limiter nach 2-3 Filmen traf; `WikiReloadService.batchReload()` und `BulkImportService` prefetchen jetzt einmal pro Lauf statt einmal pro Film — behebt das ~630-Film Rate-Limit-Incident aus dem v1.1-Trigger — Phase 13
+- ✓ D-14-01: Deliberate, env-configurable Pacing zwischen Filmen in `batchReload()` (Default via Live-A/B-Test auf 20s justiert) — Phase 14
+- ✓ D-14-02: Cooldown (`wikiLastAttemptedAt`) wird nur bei genuinem, erfolgreich ausgeführtem Versuch (Success oder bestätigtes Not-Found) gesetzt, nicht bei technischem/Rate-Limit-Fehler — Phase 14
+- ✓ D-14-03: Batch-Reload Progress-UI — Live-SSE-Stream mit Anzahl, Live-Fortschritt pro Film, Rolling-Average-ETA — Phase 14
+- ✓ D-14-04: Stop-Control zum sauberen Unterbrechen eines laufenden Batch-Reload-Runs (kein dediziertes Resume nötig, nutzt bestehende Cooldown-Eligibility-Query) — Phase 14
 
 ### Active
 
-(keine offenen v1.1-Requirements — alle Phasen abgeschlossen)
+(keine offenen v1.1-Requirements — Phase 15 bricht die letzten zwei losen Bulk-Import-Todos ab, bevor v1.1 geschlossen werden kann)
 
 ### v2 candidates (deferred, not in v1.1)
 
@@ -105,6 +109,8 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 
 **v1.1 resolution (Phasen 12–13, abgeschlossen 2026-08-27):** Wikipedia-Lookup läuft jetzt Wikidata-first über eine gebatchte SPARQL-Query (`query.wikidata.org/sparql`, bis zu 50 IMDb-IDs/Request) statt der REST-Suche, die Wikidata's anonymen Rate-Limiter nach 2-3 Filmen traf. `WikiReloadService.batchReload()` und `BulkImportService.runImport()` prefetchen die gesamte Wikidata-Auflösung einmal pro Lauf (nicht mehr einmal pro Film) — die one-movie-at-a-time-Exposure, die das ursprüngliche ~630-Film-Incident verursachte, existiert nicht mehr.
 
+**v1.1 Phase-14-Nachlese (abgeschlossen 2026-08-28):** Live-UAT gegen echte Daten (368-382 eligible Filme) fand fünf reale Bugs, die gemockte Tests nicht reproduzieren konnten: der Stop-Button erschien nicht während der Wikidata-Prefetch-Phase; der SPARQL-Prefetch für den gesamten eligible-Satz feuerte alle Chunks in einem Rate-Limit-tripenden Burst statt verteilt mit der Movie-Verarbeitung zu interleaven; die ETA-Berechnung war massiv zu niedrig (fehlendes Pacing-Delay in der Dauer-Messung); der Stop-Button gab kein Feedback während der echten Wartezeit; und ein `disabled`-Prop-Typfehler wurde vom Frontend-Typecheck live während des Tests gefangen. Alle fünf wurden noch in dieser Session gefixt. Zusätzlich: Live-A/B-Test von `wiki.retry.pacing-delay-ms` (20s vs. 15s) auf echten Daten zeigte 20s als sauberen Wert (nur 1 harmloser 1s-Backoff über 7 Filme) gegenüber 15s (häufige 9-23s-Backoffs) — neuer Default ist 20s (war 30s).
+
 ## Constraints
 
 - **Tech Stack:** Spring Boot 3 + Java 25 + Nuxt 3 — keine Änderungen am Stack
@@ -137,6 +143,10 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 | Bulk-Import strikt `Title;OriginalTitle;Year` (Original Title optional leer) | Einfacher, testbarer Parser ohne echtes CSV-Quoting; UAT deckte auf, dass das Format ohne UI-Hinweis nicht selbsterklärend war | ⚠ Teilweise — Phase 10: Format-Hinweis + Pre-Flight-400 bei komplett unparsbaren Uploads nachgezogen; echtes CSV-Parsing bleibt v2-Kandidat (SET-06) |
 | Wikidata SPARQL statt REST (CirrusSearch + Sitelinks) für Wikipedia-Lookup | REST-Suche traf Wikidata's anonymen Rate-Limiter nach 2-3 Filmen unabhängig vom Pacing (absolutes per-minute Quota, kein Spacing-Problem); SPARQL VALUES-Klausel löst bis zu 50 IMDb-IDs pro Request auf | ✓ Good — Phase 13, live gegen query.wikidata.org verifiziert |
 | Chunking-Logik lebt in `WikipediaClient.resolveViaWikidataSparql` statt bei jedem Caller | `WikiReloadService`/`BulkImportService` können beliebig große IMDb-ID-Listen übergeben, ohne die Chunk-Size-Konstante zu kennen — hält das "one client, one method"-Pattern intakt | ✓ Good — Phase 13 |
+| Wikidata-Prefetch chunk-weise interleaved mit Movie-Verarbeitung statt gesamten eligible-Satz upfront aufzulösen | Upfront-Auflösung feuerte alle SPARQL-Chunk-Requests (z.B. 8 für 382 Filme) innerhalb von Sekunden hintereinander und trat Wikidata's Rate-Limiter fast sofort — live in UAT gefunden | ✓ Good — Phase 14, live verifiziert |
+| ETA-Berechnung inkludiert `pacingDelayMs`, nicht nur die reine Fetch-Call-Dauer | Ohne Pacing-Delay war die ETA massiv zu niedrig (z.B. 40min statt real ~190min+ bei 8/380 verarbeiteten Filmen) — der Pacing-Sleep dominiert die reale Pro-Film-Kadenz unter Normalbedingungen | ✓ Good — Phase 14, live gefunden und verifiziert |
+| Stop-Button bleibt in "Stopping..."-Zustand bis das echte Complete-SSE-Event ankommt, nicht nur bis der POST-Request zurückkehrt | POST löst in Millisekunden auf, der echte Halt kann aber bis zu `pacingDelayMs` länger dauern — ohne diesen Fix fühlte sich ein Stop-Klick an, als würde nichts passieren | ✓ Good — Phase 14, User-Feedback live in UAT |
+| `wiki.retry.pacing-delay-ms` Default 30s → 20s | Live-A/B-Test auf echten Daten: 20s zeigte nur 1 harmlosen 1s-Backoff über 7 Filme, 15s zeigte häufige 9-23s-Backoffs — 20s ist der bessere Kompromiss aus Durchsatz und Rate-Limit-Sicherheit | ✓ Good — Phase 14, live A/B-getestet |
 
 ## Design System
 
@@ -160,4 +170,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-27 after Phase 13*
+*Last updated: 2026-08-28 after Phase 14*

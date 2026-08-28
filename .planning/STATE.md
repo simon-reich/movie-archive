@@ -2,39 +2,39 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
-current_phase: 14
-current_phase_name: Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI
-status: executing
-stopped_at: Phase 14 context gathered
-last_updated: "2026-08-27T15:27:41.791Z"
-last_activity: 2026-08-27
-last_activity_desc: Phase 14 execution resumed (wave continue)
-state_head: 110403871620db90bacd55bc35aa215db08adb97
+current_phase: 15
+current_phase_name: "Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing"
+status: planning
+stopped_at: Phase 14 complete, ready to plan Phase 15
+last_updated: "2026-08-28T09:57:31.232Z"
+last_activity: 2026-08-28
+last_activity_desc: Phase 14 complete, transitioned to Phase 15
+state_head: b53d3b307a843cff3bdb635da2fcccc319cd3e1f
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 18
-  completed_plans: 16
-  percent: 75
+  completed_plans: 18
+  percent: 88
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-27)
+See: .planning/PROJECT.md (updated 2026-08-28)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 14 — Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI
+**Current focus:** Phase 15 — Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing
 
 ## Current Position
 
-Phase: 14 (Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 14
-Last activity: 2026-08-27 — Phase 14 execution resumed (wave continue)
+Phase: 15 — Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-28 — Phase 14 complete, transitioned to Phase 15
 
-Progress: 6/8 phases complete (75%) — Phase 14 (wiki pacing/cooldown/progress-UI) and Phase 15 (import page completion) remain before v1.1 can close
+Progress: 7/8 phases complete (88%) — Phase 15 (import page completion) is the last phase before v1.1 can close
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: 6/8 phases complete (75%) — Phase 14 (wiki pacing/cooldown/progress-
 | 11. Bulk Import Feedback UI | 5 | COMPLETE — 2026-08-25 |
 | 12. Wikidata-based Wikipedia lookup | 1 | COMPLETE — 2026-08-27 |
 | 13. Wikidata SPARQL Batch Lookup | 3 | COMPLETE — 2026-08-27 |
+| 14. Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI | 2 | COMPLETE — 2026-08-28 |
 
 ## Accumulated Context
 
@@ -77,6 +78,7 @@ Key decisions relevant to v1.1:
 - [Phase 10 UAT]: Bulk-Import-Format bleibt strikt `Title;OriginalTitle;Year` (Original Title optional leer) — UI zeigt jetzt einen Format-Hinweis direkt im Bulk-Import-Bereich und ein komplett unparsbarer Upload wird synchron mit 400 + spezifischer Meldung abgelehnt statt still als "Import started" zu erscheinen (G-10-1, 10-03-PLAN.md)
 - [Phase 12]: Wikidata P345 (IMDb-ID) Cross-Reference löst Wikipedia-Artikel direkt auf statt bis zu 10 URL-Kandidaten zu raten — Fallback-Kaskade bleibt für Filme ohne Wikidata-Eintrag erhalten
 - [Phase 13]: REST-basierte Wikidata-Suche (CirrusSearch + Sitelinks) ersetzt durch gebatchte SPARQL-Query (bis zu 50 IMDb-IDs/Request) — REST-Suche traf Wikidata's anonymen Rate-Limiter nach 2-3 Filmen unabhängig vom Pacing; `WikiReloadService.batchReload()` und `BulkImportService.runImport()` prefetchen jetzt einmal pro Lauf statt einmal pro Film
+- [Phase 14]: Live-UAT gegen echte Daten (368-382 eligible Filme) fand und fixte 5 reale Bugs, die gemockte Tests nicht zeigen konnten (Stop-Button unsichtbar während Prefetch, SPARQL-Prefetch-Burst statt Chunk-Interleaving, ETA ohne Pacing-Delay massiv zu niedrig, Stop-Button ohne Wartezeit-Feedback, ein Frontend-Typfehler); Wikidata-Prefetch läuft jetzt chunk-weise interleaved mit der Movie-Verarbeitung statt den gesamten eligible-Satz upfront in einem Rate-Limit-tripenden Burst aufzulösen; `wiki.retry.pacing-delay-ms` Default per Live-A/B-Test auf 20s justiert (war 30s)
 
 ### Pending Todos
 
@@ -84,7 +86,6 @@ Key decisions relevant to v1.1:
 - 2026-08-24-support-real-csv-parsing-for-bulk-import — Support real CSV parsing for bulk import (and matching CSV export) [minor]
 - 2026-08-27-distinguish-stopped-vs-completed-in-progress-ui — Distinguish "stopped early" from "fully completed" in the wiki-reload progress UI (WR-02 from 14-REVIEW.md; deferred ProgressState schema change) [minor]
 - 2026-08-27-authorizationdeniedexception-on-sse-emitter-complete — AuthorizationDeniedException logged on SseEmitter.complete() async re-dispatch; pre-existing pattern shared with bulk-import's progress endpoint, appears to be log noise only (response already committed) but needs proper root-causing [minor]
-- 2026-08-27-tune-wikipedia-article-fetch-pacing-under-real-rate-limits — Live v1.1 milestone verification (batchReload against 409 real cooldown-eligible movies) confirmed the Phase 13 Wikidata SPARQL batching fix works — 21/21 movies processed got a Wikipedia hit (100%) vs the historical ~11% baseline, and 9 real 429s over ~10 min were all correctly absorbed by the existing backoff (no crashes, no data loss). However, the separate Wikipedia article-content fetch step (not the batched Wikidata lookup) still hits real rate limits roughly once/minute under sustained load even at the existing 1000ms pacing, making a full-backlog batch (409 movies) take ~3h instead of minutes. Correctness is proven; throughput at scale is a follow-up candidate (e.g. increase wikipedia.request-pacing-ms, or parallelize article fetch across a small worker pool) [minor]
 
 ### Blockers/Concerns
 
@@ -107,7 +108,7 @@ None.
 
 ## Session Continuity
 
-**Resume file:** .planning/phases/14-wiki-batch-reload-pacing-cooldown-fix-progress-ui/14-CONTEXT.md
+**Resume file:** None
 
-Last session: 2026-08-27T12:36:17.142Z
-Stopped at: Phase 14 context gathered
+Last session: 2026-08-28T12:00:00.000Z
+Stopped at: Phase 14 complete, ready to plan Phase 15

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.moviearchive.AbstractWireMockTest;
 import de.moviearchive.auth.RateLimitService;
+import de.moviearchive.movie.Movie;
 import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.settings.ApiKeyProvider;
 import de.moviearchive.settings.EncryptionService;
@@ -438,6 +439,10 @@ class BulkImportControllerTest extends AbstractWireMockTest {
         JsonNode inceptionLine = null;
         JsonNode robinHoodLine = null;
         for (JsonNode line : lines) {
+            // Every line in the response carries a non-null id (UUID string).
+            assertThat(line.get("id")).isNotNull();
+            assertThat(line.get("id").isNull()).isFalse();
+            assertThat(line.get("id").asText()).isNotBlank();
             if ("Inception".equals(line.get("title").asText())) {
                 inceptionLine = line;
             } else if ("Robin Hood".equals(line.get("title").asText())) {
@@ -447,11 +452,76 @@ class BulkImportControllerTest extends AbstractWireMockTest {
         assertThat(inceptionLine).isNotNull();
         assertThat(inceptionLine.get("status").asText()).isEqualTo("SAVED");
         assertThat(inceptionLine.get("posterPath").asText()).isEqualTo("/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg");
+        // The SAVED (Inception) line's movieId equals the persisted Movie row's id for this
+        // user+tmdbId.
+        Movie savedMovie = movieRepository.findByUserIdAndTmdbId(user.getId(), 27205)
+                .orElseThrow();
+        assertThat(inceptionLine.get("movieId").asText()).isEqualTo(savedMovie.getId().toString());
 
         assertThat(robinHoodLine).isNotNull();
         assertThat(robinHoodLine.get("status").asText()).isEqualTo("AMBIGUOUS");
         // Rows with no TMDB match render without a fabricated poster — null, not a broken URL.
         assertThat(robinHoodLine.get("posterPath").isNull()).isTrue();
+        // AMBIGUOUS lines never get a movieId — D-06/D-07.
+        assertThat(robinHoodLine.get("movieId").isNull()).isTrue();
+    }
+
+    @Test
+    void shouldExposeRawLine_forParseErrorLines() throws Exception {
+        createActiveUser("parseerror@example.com");
+        User user = userRepository.findByEmail("parseerror@example.com").orElseThrow();
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("parseerror@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+        // Also stub the TMDB detail endpoint (resolveAndPersistImdbId) — leaving it unstubbed
+        // triggers @Retryable's 404 retry/backoff (~3s), pushing BadLine's processing past the
+        // 5s poll timeout below (pacing-delay-ms=2000 for this class).
+        wireMock.stubFor(get(urlPathMatching("/3/movie/\\d+"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-detail.json"))));
+
+        // Mix a valid line with the parse-error line — G-10-1's pre-flight guard rejects a
+        // wholly-unparseable batch synchronously (400), so an all-PARSE_ERROR upload never
+        // reaches the async pipeline this test exercises.
+        String badRawLine = "BadLine;;notayear";
+        byte[] content = ("Inception;;2010\n" + badRawLine).getBytes(StandardCharsets.UTF_8);
+        String uploadResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain", content))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(uploadResponseBody).get("batchId").asText();
+
+        BulkImportLine persisted = pollForLineByTitle("BadLine", 5000);
+        assertThat(persisted).isNotNull();
+        assertThat(persisted.getStatus()).isEqualTo(BulkImportLineStatus.PARSE_ERROR);
+        drainBulkImportExecutor(10000);
+
+        String detailResponseBody = mockMvc.perform(MockMvcRequestBuilders.get(
+                        "/movies/bulk-import/batches/{batchId}", batchId)
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode detail = objectMapper.readTree(detailResponseBody);
+        JsonNode lines = detail.get("lines");
+        assertThat(lines.size()).isEqualTo(2);
+
+        JsonNode parseErrorLine = null;
+        for (JsonNode line : lines) {
+            if ("PARSE_ERROR".equals(line.get("status").asText())) {
+                parseErrorLine = line;
+            }
+        }
+        assertThat(parseErrorLine).isNotNull();
+        assertThat(parseErrorLine.get("rawLine").asText()).isEqualTo(badRawLine);
+        assertThat(parseErrorLine.get("movieId").isNull()).isTrue();
     }
 
     @Test

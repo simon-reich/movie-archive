@@ -18,13 +18,27 @@ vi.mock('@/composables/useBulkImport', () => ({
   }),
 }))
 
+const NUXT_LINK_STUB = {
+  template: '<a :href="to"><slot /></a>',
+  props: ['to'],
+}
+
 const MOCK_DETAIL: BulkImportBatchDetail = {
   batchId: 'batch-1',
   createdAt: '2026-08-24T10:00:00Z',
   totalLines: 2,
   lines: [
-    { title: 'Inception', originalTitle: null, year: 2010, status: 'SAVED', posterPath: '/poster.jpg' },
-    { title: 'Unknown Film', originalTitle: null, year: null, status: 'NOT_FOUND', posterPath: null },
+    { id: 'line-1', title: 'Inception', originalTitle: null, year: 2010, status: 'SAVED', posterPath: '/poster.jpg', movieId: 'movie-1', rawLine: 'Inception;;2010' },
+    { id: 'line-2', title: 'Unknown Film', originalTitle: null, year: null, status: 'NOT_FOUND', posterPath: null, movieId: null, rawLine: 'Unknown Film;;9999' },
+  ],
+}
+
+const MOCK_DETAIL_WITH_PARSE_ERROR: BulkImportBatchDetail = {
+  batchId: 'batch-2',
+  createdAt: '2026-08-24T10:00:00Z',
+  totalLines: 1,
+  lines: [
+    { id: 'line-3', title: 'BadLine', originalTitle: null, year: null, status: 'PARSE_ERROR', posterPath: null, movieId: null, rawLine: 'BadLine;;notayear' },
   ],
 }
 
@@ -34,6 +48,7 @@ async function mountPage() {
     global: {
       stubs: {
         SpinnerIcon: { template: '<div data-testid="spinner"></div>' },
+        NuxtLink: NUXT_LINK_STUB,
       },
     },
   })
@@ -106,5 +121,45 @@ describe('/imports/[batchId] page', () => {
     const wrapper = await mountPage()
     wrapper.unmount()
     expect(mockUnsubscribe).toHaveBeenCalled()
+  })
+
+  it('wraps a SAVED line in a whole-card link to /movies/{movieId}', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 2, total: 2, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const links = wrapper.findAll('a')
+    const savedLink = links.find(a => (a.attributes('href') ?? '').includes('/movies/movie-1'))
+    expect(savedLink).toBeDefined()
+  })
+
+  it('does not render a movie link for an AMBIGUOUS/NOT_FOUND line', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 2, total: 2, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const links = wrapper.findAll('a')
+    const movieLinks = links.filter(a => (a.attributes('href') ?? '').includes('/movies/'))
+    expect(movieLinks).toHaveLength(1)
+    expect(movieLinks[0]!.attributes('href')).toContain('/movies/movie-1')
+  })
+
+  it('renders a PARSE_ERROR line with its distinct testid and raw line text', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_WITH_PARSE_ERROR)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const parseErrorCard = wrapper.find('[data-testid="parse-error-card"]')
+    expect(parseErrorCard.exists()).toBe(true)
+
+    const rawLineText = wrapper.find('[data-testid="raw-line-text"]')
+    expect(rawLineText.exists()).toBe(true)
+    expect(rawLineText.text()).toBe('BadLine;;notayear')
   })
 })

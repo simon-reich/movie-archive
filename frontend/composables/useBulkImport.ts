@@ -2,11 +2,14 @@ import { fetchEventSource } from '@microsoft/fetch-event-source'
 
 // Types
 export interface BulkImportLineResult {
+  id: string
   title: string
   originalTitle: string | null
   year: number | null
   status: 'SAVED' | 'AMBIGUOUS' | 'NOT_FOUND' | 'PARSE_ERROR'
   posterPath: string | null
+  movieId: string | null
+  rawLine: string
 }
 
 export interface BulkImportBatchDetail {

@@ -3,6 +3,8 @@ package de.moviearchive.bulkimport;
 import de.moviearchive.bulkimport.dto.BulkImportBatchDetail;
 import de.moviearchive.bulkimport.dto.BulkImportBatchSummary;
 import de.moviearchive.bulkimport.dto.BulkImportLineResult;
+import de.moviearchive.movie.Movie;
+import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.movie.MovieService;
 import de.moviearchive.movie.NoTmdbKeyException;
 import de.moviearchive.user.User;
@@ -54,6 +56,7 @@ public class BulkImportController {
     private final BulkImportBatchRepository bulkImportBatchRepository;
     private final BulkImportLineRepository bulkImportLineRepository;
     private final BulkImportProgressService progressService;
+    private final MovieRepository movieRepository;
 
     // WR-02: the global bulkImportExecutor is sized to a single running + single queued slot
     // (AsyncConfig.java), so an unbounded upload can tie up the only import slot for hours at
@@ -64,7 +67,8 @@ public class BulkImportController {
     public BulkImportController(
             BulkImportService bulkImportService, MovieService movieService, ImportLineParser importLineParser,
             UserRepository userRepository, BulkImportBatchRepository bulkImportBatchRepository,
-            BulkImportLineRepository bulkImportLineRepository, BulkImportProgressService progressService) {
+            BulkImportLineRepository bulkImportLineRepository, BulkImportProgressService progressService,
+            MovieRepository movieRepository) {
         this.bulkImportService = bulkImportService;
         this.movieService = movieService;
         this.importLineParser = importLineParser;
@@ -72,6 +76,7 @@ public class BulkImportController {
         this.bulkImportBatchRepository = bulkImportBatchRepository;
         this.bulkImportLineRepository = bulkImportLineRepository;
         this.progressService = progressService;
+        this.movieRepository = movieRepository;
     }
 
     @PostMapping(value = "/bulk-import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -174,11 +179,21 @@ public class BulkImportController {
     @GetMapping("/bulk-import/batches/{batchId}")
     public ResponseEntity<BulkImportBatchDetail> getBatchDetail(@PathVariable UUID batchId, Authentication auth) {
         BulkImportBatch batch = loadOwnedBatch(auth, batchId);
+        UUID userId = batch.getUser().getId();
         List<BulkImportLineResult> lines = bulkImportLineRepository.findByBatchIdOrderByTitle(batchId)
                 .stream()
-                .map(line -> new BulkImportLineResult(
-                        line.getTitle(), line.getOriginalTitle(), line.getYear(),
-                        line.getStatus().name(), line.getPosterPath()))
+                .map(line -> {
+                    // D-06/D-07: only SAVED lines ever get a movie lookup — every other status
+                    // gets movieId=null with zero extra query cost.
+                    UUID movieId = (line.getStatus() == BulkImportLineStatus.SAVED && line.getTmdbId() != null)
+                            ? movieRepository.findByUserIdAndTmdbId(userId, line.getTmdbId())
+                                    .map(Movie::getId)
+                                    .orElse(null)
+                            : null;
+                    return new BulkImportLineResult(
+                            line.getId(), line.getTitle(), line.getOriginalTitle(), line.getYear(),
+                            line.getStatus().name(), line.getPosterPath(), movieId, line.getRawLine());
+                })
                 .toList();
         return ResponseEntity.ok(
                 new BulkImportBatchDetail(batch.getId(), batch.getCreatedAt(), batch.getTotalLines(), lines));

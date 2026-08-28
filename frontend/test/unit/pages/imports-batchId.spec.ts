@@ -7,6 +7,7 @@ import type { BulkImportBatchDetail, BulkImportProgress } from '@/composables/us
 const mockSubscribeToProgress = vi.fn()
 const mockGetBatchDetail = vi.fn()
 const mockUnsubscribe = vi.fn()
+const mockResolveLine = vi.fn()
 
 let capturedOnProgress: ((p: BulkImportProgress) => void | Promise<void>) | undefined
 
@@ -15,6 +16,16 @@ vi.mock('@/composables/useBulkImport', () => ({
     subscribeToProgress: mockSubscribeToProgress,
     getBatchDetail: mockGetBatchDetail,
     getBatches: vi.fn(),
+    resolveLine: mockResolveLine,
+  }),
+}))
+
+// ── MOCK useMovies ───────────────────────────────────────────────────────────
+const mockSearchTmdb = vi.fn()
+
+vi.mock('@/composables/useMovies', () => ({
+  useMovies: () => ({
+    searchTmdb: mockSearchTmdb,
   }),
 }))
 
@@ -39,6 +50,15 @@ const MOCK_DETAIL_WITH_PARSE_ERROR: BulkImportBatchDetail = {
   totalLines: 1,
   lines: [
     { id: 'line-3', title: 'BadLine', originalTitle: null, year: null, status: 'PARSE_ERROR', posterPath: null, movieId: null, rawLine: 'BadLine;;notayear' },
+  ],
+}
+
+const MOCK_DETAIL_AMBIGUOUS: BulkImportBatchDetail = {
+  batchId: 'batch-3',
+  createdAt: '2026-08-28T10:00:00Z',
+  totalLines: 1,
+  lines: [
+    { id: 'line-4', title: 'Robin Hood', originalTitle: null, year: 2010, status: 'AMBIGUOUS', posterPath: null, movieId: null, rawLine: 'Robin Hood;;2010' },
   ],
 }
 
@@ -223,5 +243,80 @@ describe('/imports/[batchId] page', () => {
 
     expect(wrapper.findAll('[data-testid="view-list-row"]')).toHaveLength(MOCK_DETAIL.lines.length)
     expect(wrapper.findAll('[data-testid="result-card"]')).toHaveLength(0)
+  })
+
+  // ── D-08/D-11: inline resolve widget ────────────────────────────────────
+
+  it('renders a resolve-toggle on an AMBIGUOUS line but not on a PARSE_ERROR line', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="resolve-toggle"]').exists()).toBe(true)
+  })
+
+  it('does not render a resolve-toggle on a PARSE_ERROR line', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_WITH_PARSE_ERROR)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="resolve-toggle"]').exists()).toBe(false)
+  })
+
+  it('expanding the resolve widget runs a fresh TMDB search prefilled with the line title and renders candidates', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
+    mockSearchTmdb.mockResolvedValueOnce([
+      { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
+    ])
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    await wrapper.find('[data-testid="resolve-toggle"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    expect(mockSearchTmdb).toHaveBeenCalledWith('Robin Hood')
+    expect(wrapper.findAll('[data-testid="resolve-candidate"]')).toHaveLength(1)
+  })
+
+  it('clicking a candidate calls resolveLine with the picked tmdbId/posterPath, then refetches the batch', async () => {
+    mockGetBatchDetail
+      .mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
+      .mockResolvedValueOnce({
+        ...MOCK_DETAIL_AMBIGUOUS,
+        lines: [{ ...MOCK_DETAIL_AMBIGUOUS.lines[0]!, status: 'SAVED', movieId: 'movie-9' }],
+      })
+    mockSearchTmdb.mockResolvedValueOnce([
+      { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
+    ])
+    mockResolveLine.mockResolvedValueOnce({ movieId: 'movie-9' })
+
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    await wrapper.find('[data-testid="resolve-toggle"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    await wrapper.find('[data-testid="resolve-candidate"]').trigger('click')
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    expect(mockResolveLine).toHaveBeenCalledTimes(1)
+    const [, calledLineId, calledTmdbId, calledPosterPath] = mockResolveLine.mock.calls[0]!
+    expect(calledLineId).toBe('line-4')
+    expect(calledTmdbId).toBe(1002)
+    expect(calledPosterPath).toBe('/robinhood2.jpg')
+    // D-09: the refetch is distinguishable from the initial mount-time getBatchDetail call.
+    expect(mockGetBatchDetail).toHaveBeenCalledTimes(2)
   })
 })

@@ -55,6 +55,23 @@ export function useBulkImport() {
     })
   }
 
+  async function resolveLine(
+    batchId: string,
+    lineId: string,
+    tmdbId: number,
+    posterPath: string | null,
+  ): Promise<{ movieId: string }> {
+    return await $fetch<{ movieId: string }>(
+      `/api/movies/bulk-import/batches/${batchId}/lines/${lineId}/resolve`,
+      {
+        method: 'POST',
+        body: { tmdbId, posterPath },
+        credentials: 'include',
+        headers: authHeaders(),
+      },
+    )
+  }
+
   function subscribeToProgress(batchId: string, onProgress: (p: BulkImportProgress) => void): () => void {
     const ctrl = new AbortController()
     fetchEventSource(`/api/movies/bulk-import/${batchId}/progress`, {
@@ -76,5 +93,5 @@ export function useBulkImport() {
     return () => ctrl.abort()
   }
 
-  return { getBatches, getBatchDetail, subscribeToProgress }
+  return { getBatches, getBatchDetail, subscribeToProgress, resolveLine }
 }

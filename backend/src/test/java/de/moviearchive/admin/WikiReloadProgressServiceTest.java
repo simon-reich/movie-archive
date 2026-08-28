@@ -74,7 +74,7 @@ class WikiReloadProgressServiceTest {
     }
 
     @Test
-    void publishThenRegisterThenPublishThenComplete_sendsThreeEvents_andCompletesEmitter() throws Exception {
+    void publishThenRegisterThenPublishThenComplete_sendsThreeEvents_andKeepsEmitterOpen() throws Exception {
         SseEmitter emitter = mock(SseEmitter.class);
         UUID userId = UUID.randomUUID();
 
@@ -92,7 +92,9 @@ class WikiReloadProgressServiceTest {
         ArgumentCaptor<SseEmitter.SseEventBuilder> captor =
                 ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
         verify(emitter, times(3)).send(captor.capture());
-        verify(emitter, times(1)).complete();
+        // wiki-reload-progress-blind-window fix: complete() must NOT close the emitter — the
+        // page's single SSE subscription must survive to carry future runs' events too.
+        verify(emitter, org.mockito.Mockito.never()).complete();
 
         var states = captor.getAllValues().stream().map(this::capturedState).toList();
         assertThat(states.get(0)).isEqualTo(
@@ -104,7 +106,7 @@ class WikiReloadProgressServiceTest {
     }
 
     @Test
-    void register_afterComplete_getsSyntheticCompleteFallback_notReplayOfRealCompletion() throws Exception {
+    void register_afterComplete_replaysRealCompletionState_notSyntheticFallback() throws Exception {
         SseEmitter firstEmitter = mock(SseEmitter.class);
         UUID userId = UUID.randomUUID();
 
@@ -113,9 +115,9 @@ class WikiReloadProgressServiceTest {
         progressService.publish(userId, 2, 10, "Whiplash", "NOT_FOUND", 1000L);
         progressService.complete(userId);
 
-        // A fresh emitter registering after complete() must NOT see a replay of the real
-        // completion state (total=10) — lastKnown was evicted by complete(), so it must hit the
-        // zero-value synthetic-complete fallback, proving eviction rather than a stale replay.
+        // A fresh emitter registering after complete() (e.g. after the client's connection
+        // genuinely dropped and it reconnects) must see a replay of the REAL completion state —
+        // lastKnown is no longer evicted by complete() (wiki-reload-progress-blind-window fix).
         SseEmitter secondEmitter = mock(SseEmitter.class);
         progressService.register(userId, secondEmitter);
 
@@ -124,9 +126,34 @@ class WikiReloadProgressServiceTest {
         verify(secondEmitter, times(1)).send(captor.capture());
 
         WikiReloadProgressService.ProgressState state = capturedState(captor.getValue());
-        assertThat(state.processed()).isZero();
-        assertThat(state.total()).isZero();
+        assertThat(state.processed()).isEqualTo(10);
+        assertThat(state.total()).isEqualTo(10);
         assertThat(state.complete()).isTrue();
+        assertThat(state.lastMovieTitle()).isEqualTo("Whiplash");
+        assertThat(state.lastMovieStatus()).isEqualTo("NOT_FOUND");
+    }
+
+    @Test
+    void secondRun_afterComplete_broadcastsToStillRegisteredEmitter_noReReg() throws Exception {
+        // Reproduces the exact bug scenario: one SSE connection registered once (as settings.vue
+        // does in onMounted), a full run completes, then a SECOND run starts and publishes —
+        // all WITHOUT any new register() call. The original emitter must still receive both
+        // runs' events, proving the page's single persistent subscription survives a run
+        // boundary (wiki-reload-progress-blind-window fix).
+        SseEmitter emitter = mock(SseEmitter.class);
+        UUID userId = UUID.randomUUID();
+
+        progressService.register(userId, emitter); // page mount — synthetic complete (1st send)
+        progressService.start(userId, 5);           // run 1 starts (2nd send)
+        progressService.publish(userId, 5, 5, "Movie A", "SUCCESS", 1000L); // run 1 last movie (3rd send)
+        progressService.complete(userId);            // run 1 ends (4th send)
+
+        progressService.start(userId, 3);            // run 2 starts — NO re-register() call (5th send)
+        progressService.publish(userId, 1, 3, "Movie B", "SUCCESS", 500L); // (6th send)
+        progressService.complete(userId);             // run 2 ends (7th send)
+
+        verify(emitter, times(7)).send(any(SseEmitter.SseEventBuilder.class));
+        verify(emitter, org.mockito.Mockito.never()).complete();
     }
 
     @Test

@@ -35,6 +35,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * WikiReloadService.batchReload()} at the very top of the method, before its per-movie loop, so
  * a second "Start" after a "Stop" never inherits a stale {@code true} flag (RESEARCH.md
  * Pitfall 4's stale-flag self-inflicted-DoS fix).
+ *
+ * <p><b>Registry lifecycle differs from the bulk-import model it was cloned from</b>
+ * (wiki-reload-progress-blind-window fix, 2026-08-28): bulk-import's emitter registry is keyed
+ * per-batch-id, so closing it when that one batch finishes is correct. This registry is keyed
+ * per-userId and the frontend opens exactly one SSE subscription per page load, covering EVERY
+ * future run — so {@link #complete(UUID)} must never close the emitter or evict the registry
+ * entry on a run merely finishing; only an actual client disconnect (via {@code
+ * onCompletion}/{@code onTimeout} in {@link #register}, or a failed send in {@code sendEvent})
+ * may do that. See {@link #complete(UUID)}'s javadoc for the full incident writeup.
  */
 @Service
 @Slf4j
@@ -129,11 +138,28 @@ public class WikiReloadProgressService {
     }
 
     /**
-     * Stores a terminal (total, total, true, ...) state as userId's last-known state, sends a
-     * "complete" event to every registered emitter, calls emitter.complete() on each (unless its
-     * send() already failed — see sendEvent()), then removes the emitter list, the lastKnown
-     * entry, AND the stop-flag entry for userId. A later register() for this userId correctly
-     * hits the synthesized-complete fallback above, since the run is genuinely done.
+     * Stores a terminal (total, total, true, ...) state as userId's last-known state and
+     * broadcasts a "complete" event to every currently-registered emitter for userId. Clears
+     * the per-RUN state (stop flag, ETA duration window) but deliberately does NOT touch the
+     * `emitters` registry entry or call emitter.complete() on anything — see the fix note below.
+     *
+     * <p>Bug history (wiki-reload-progress-blind-window, 2026-08-28): this method used to also
+     * call {@code emitter.complete()} on each emitter and then remove userId's entry from both
+     * {@code emitters} and {@code lastKnown}. That closed the underlying SSE HTTP stream. The
+     * frontend (settings.vue) opens exactly ONE {@code fetchEventSource()} subscription per page
+     * mount — covering every future run, not just the current one — and
+     * {@code @microsoft/fetch-event-source} does NOT auto-reconnect after a clean
+     * server-initiated stream close (only after a thrown/network error; confirmed by reading its
+     * installed source). So closing the emitter here permanently killed the page's only SSE
+     * connection the moment the FIRST run finished: every subsequent run's start()/publish()
+     * calls broadcast into an empty emitter list and silently no-op (see broadcast()'s early
+     * return), leaving the frontend frozen on the prior terminal state — no progress panel, no
+     * Stop button — for the rest of the page session. The registry is keyed per-userId
+     * (page-lifetime scope), not per-run, so its lifecycle must be driven by the CLIENT actually
+     * disconnecting (register()'s onCompletion/onTimeout wiring, or a failed send in
+     * sendEvent()/removeEmitter()), never by a run merely finishing. lastKnown is likewise kept
+     * (not evicted) so a genuine reconnect after a completed run replays the real terminal state
+     * instead of a synthesized placeholder.
      */
     public void complete(UUID userId) {
         ProgressState prior = lastKnown.get(userId);
@@ -145,16 +171,8 @@ public class WikiReloadProgressService {
                 0L);
         lastKnown.put(userId, state);
 
-        List<SseEmitter> userEmitters = emitters.get(userId);
-        if (userEmitters != null) {
-            for (SseEmitter emitter : userEmitters) {
-                if (sendEvent(emitter, userId, "complete", state)) {
-                    emitter.complete();
-                }
-            }
-        }
-        emitters.remove(userId);
-        lastKnown.remove(userId);
+        broadcast(userId, "complete", state);
+
         stopFlags.remove(userId);
         durationWindowsMs.remove(userId);
     }

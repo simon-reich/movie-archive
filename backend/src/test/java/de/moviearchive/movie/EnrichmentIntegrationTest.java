@@ -18,10 +18,13 @@ import org.springframework.test.context.DynamicPropertySource;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.moreThanOrExactly;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -164,5 +167,56 @@ class EnrichmentIntegrationTest extends AbstractWireMockTest {
 
         Movie enriched = pollForCompletion(movieId, 5000);
         assertThat(enriched.getStatus()).isEqualTo(MovieStatus.SUCCESS);
+    }
+
+    @Test
+    void shouldSkipWikipedia_andBeImmediatelyEligibleForWikiReload_whenSkipWikipediaTrue() throws Exception {
+        String tmdbDetailJson = loadFixture("fixtures/tmdb/inception-detail.json");
+
+        wireMock.stubFor(get(urlPathEqualTo("/3/movie/27205"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(tmdbDetailJson)));
+
+        UUID movieId = createPendingMovie();
+        enrichmentService.enrich(movieId, true);
+
+        Movie enriched = pollForCompletion(movieId, 5000);
+
+        assertThat(enriched.getStatus()).isEqualTo(MovieStatus.SUCCESS);
+        assertThat(enriched.getWikiUrl()).isNull();
+        assertThat(enriched.getWikiSummary()).isNull();
+        assertThat(enriched.getWikiPlot()).isNull();
+        assertThat(enriched.getWikiCritics()).isNull();
+        assertThat(enriched.getWikiLastAttemptedAt()).isNull();
+        wireMock.verify(0, getRequestedFor(urlPathEqualTo("/w/api.php")));
+
+        List<Movie> eligible = movieRepository.findEligibleForWikiReload(testUser.getId(), Instant.now());
+        assertThat(eligible).extracting(Movie::getId).contains(movieId);
+    }
+
+    @Test
+    void shouldFetchWikipedia_whenSingleArgEnrichUsed() throws Exception {
+        String tmdbDetailJson = loadFixture("fixtures/tmdb/inception-detail.json");
+
+        wireMock.stubFor(get(urlPathEqualTo("/3/movie/27205"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(tmdbDetailJson)));
+
+        UUID movieId = createPendingMovie();
+        enrichmentService.enrich(movieId);
+
+        pollForCompletion(movieId, 5000);
+
+        // moreThanOrExactly(1), not exactly 1 — the missing-page stub makes every candidate in
+        // WikipediaClient's 6-step fallback cascade miss, so a full single-arg enrich() run
+        // legitimately makes more than one request. The point of this test is only to prove the
+        // single-arg path still hits the endpoint at all, contrasting with the skipWikipedia=true
+        // path (0 requests) asserted above — pinning to the exact fallback-cascade request count
+        // would make this test brittle to WikipediaClient's internal fallback implementation.
+        wireMock.verify(moreThanOrExactly(1), getRequestedFor(urlPathEqualTo("/w/api.php")));
     }
 }

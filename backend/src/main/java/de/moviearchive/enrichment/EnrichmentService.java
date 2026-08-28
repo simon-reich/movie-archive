@@ -50,23 +50,23 @@ public class EnrichmentService {
     @Async("enrichmentExecutor")
     @Transactional
     public void enrich(UUID movieId) {
-        doEnrich(movieId, null);
+        doEnrich(movieId, false);
     }
 
     /**
-     * Same as {@link #enrich(UUID)}, but accepts a batch caller's pre-resolved
-     * IMDb-id-to-enwiki-title map (Phase 13 D-03) — used by {@code BulkImportService}'s
-     * two-pass restructuring so the Wikipedia step below skips a per-movie SPARQL call
-     * entirely, threading the SAME map into {@link WikipediaClient#fetch(String, String, int,
-     * String, Map)} for every matched line in a run.
+     * Same as {@link #enrich(UUID)}, but lets the caller skip Step 3 (Wikipedia) entirely.
+     * {@code BulkImportService} calls this with {@code skipWikipedia=true} so newly-imported
+     * movies get TMDB + OMDB data only during the (paced) bulk-import dispatch loop; the
+     * separate, already-paced {@link WikiReloadService#batchReload(UUID)} job backfills their
+     * Wikipedia data later, outside that loop.
      */
     @Async("enrichmentExecutor")
     @Transactional
-    public void enrich(UUID movieId, Map<String, String> preResolvedWikiTitles) {
-        doEnrich(movieId, preResolvedWikiTitles);
+    public void enrich(UUID movieId, boolean skipWikipedia) {
+        doEnrich(movieId, skipWikipedia);
     }
 
-    private void doEnrich(UUID movieId, Map<String, String> preResolvedWikiTitles) {
+    private void doEnrich(UUID movieId, boolean skipWikipedia) {
         try {
             // JOIN FETCH user to avoid LazyInitializationException on async thread
             Movie movie = movieRepository.findByIdWithUser(movieId)
@@ -112,24 +112,27 @@ public class EnrichmentService {
             }
 
             // === Step 3: Wikipedia (OPTIONAL — 6-step fallback, always silent on failure) ===
-            try {
-                movie.setWikiLastAttemptedAt(Instant.now());
-                int year = movie.getReleaseDate() != null ? movie.getReleaseDate().getYear() : 0;
-                String origTitle = movie.getOriginalTitle() != null ? movie.getOriginalTitle() : movie.getTitle();
-                String movieTitle = movie.getTitle() != null ? movie.getTitle() : "";
-                WikipediaResult wiki = preResolvedWikiTitles != null
-                        ? wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId(), preResolvedWikiTitles)
-                        : wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId());
-                movie.setWikiUrl(wiki.url());
-                movie.setWikiSummary(wiki.summary());
-                movie.setWikiPlot(wiki.plot());
-                movie.setWikiCritics(wiki.critics());
-                log.info("Wikipedia data fetched for movieId={}", movieId);
-            } catch (WikipediaNotFoundException e) {
-                log.warn("Wikipedia: no page found for movieId={} after 6 attempts — saving without wiki data", movieId);
-            } catch (Exception e) {
-                log.warn("Wikipedia enrichment failed for movieId={} — continuing without wiki data: {}",
-                        movieId, e.getMessage());
+            if (!skipWikipedia) {
+                try {
+                    movie.setWikiLastAttemptedAt(Instant.now());
+                    int year = movie.getReleaseDate() != null ? movie.getReleaseDate().getYear() : 0;
+                    String origTitle = movie.getOriginalTitle() != null ? movie.getOriginalTitle() : movie.getTitle();
+                    String movieTitle = movie.getTitle() != null ? movie.getTitle() : "";
+                    WikipediaResult wiki = wikipediaClient.fetch(origTitle, movieTitle, year, movie.getImdbId());
+                    movie.setWikiUrl(wiki.url());
+                    movie.setWikiSummary(wiki.summary());
+                    movie.setWikiPlot(wiki.plot());
+                    movie.setWikiCritics(wiki.critics());
+                    log.info("Wikipedia data fetched for movieId={}", movieId);
+                } catch (WikipediaNotFoundException e) {
+                    log.warn("Wikipedia: no page found for movieId={} after 6 attempts — saving without wiki data", movieId);
+                } catch (Exception e) {
+                    log.warn("Wikipedia enrichment failed for movieId={} — continuing without wiki data: {}",
+                            movieId, e.getMessage());
+                }
+            } else {
+                log.info("Wikipedia step skipped for movieId={} (bulk import — backfilled later by batch reload)",
+                        movieId);
             }
 
             // === Step 4: Persist with SUCCESS ===

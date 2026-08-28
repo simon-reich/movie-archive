@@ -60,6 +60,9 @@ dependencies {
     // Rate Limiting
     implementation("com.bucket4j:bucket4j-core:$bucket4jVersion")
 
+    // CSV parsing (bulk-import, D-13)
+    implementation("org.apache.commons:commons-csv:1.14.1")
+
     // Lombok
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

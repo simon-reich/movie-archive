@@ -34,6 +34,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +102,31 @@ public class BulkImportController {
         // backing temp storage is cleared once the HTTP request completes (RESEARCH.md Pitfall 1).
         // JDK's new String(bytes, UTF_8) never throws (lenient replacement-character decoding),
         // so non-UTF-8-decodable content simply fails to split into 3 valid fields downstream.
-        List<String> rawLines = new String(file.getBytes(), StandardCharsets.UTF_8).lines().toList();
+        List<String> rawLines = new ArrayList<>(
+                new String(file.getBytes(), StandardCharsets.UTF_8).lines().toList());
+
+        // D-12/A2: detect the file-level format once, from the first non-blank line —
+        // comma-delimited CSV if it contains a comma, otherwise the legacy semicolon format.
+        // No non-blank line at all -> default to the legacy format (nothing to sniff).
+        boolean isCsvFormat = rawLines.stream()
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .findFirst()
+                .map(line -> line.contains(","))
+                .orElse(false);
+
+        // D-14: auto-detect and skip an optional CSV header row, scoped to the CSV path only
+        // (A1 — the legacy semicolon path is completely untouched, per D-16). Skip the first
+        // line ONLY when it parses with a valid title (3-field-count + non-blank title both
+        // passed) but an invalid year — i.e. the year column specifically isn't numeric, the
+        // header-row signature. A null result (blank first line) or a null title (field-count
+        // mismatch/blank title) falls through unchanged to the normal PARSE_ERROR path.
+        if (isCsvFormat && !rawLines.isEmpty()) {
+            ImportLineParser.ParsedLine firstLineParsed = importLineParser.parseCsv(rawLines.get(0));
+            if (firstLineParsed != null && firstLineParsed.title() != null && !firstLineParsed.valid()) {
+                rawLines.remove(0);
+            }
+        }
 
         if (rawLines.size() > maxLines) {
             throw new IllegalArgumentException(
@@ -112,9 +137,13 @@ public class BulkImportController {
         // starting a no-op async job (D-01's strict format spec). Partial-failure batches
         // (some parseable lines mixed with some invalid ones) are unaffected — they still
         // fall through to bulkImportService.runImport() and hit the per-line PARSE_ERROR
-        // persistence path (D-03) exactly as before.
+        // persistence path (D-03) exactly as before. Dispatches through the same isCsvFormat
+        // selection used by the async pipeline (G-10-1 CSV regression guard) — without this, a
+        // well-formed comma-delimited CSV upload would incorrectly fail this synchronous 400
+        // gate, since the semicolon splitter alone treats every comma-containing line as
+        // unparseable.
         boolean anyLineParses = rawLines.stream()
-                .map(importLineParser::parse)
+                .map(line -> isCsvFormat ? importLineParser.parseCsv(line) : importLineParser.parse(line))
                 .anyMatch(parsed -> parsed != null && parsed.valid());
         if (!anyLineParses) {
             throw new IllegalArgumentException(
@@ -125,7 +154,7 @@ public class BulkImportController {
 
         BulkImportBatch batch = bulkImportService.createBatch(email, rawLines.size());
         log.info("Bulk import requested email={} lines={} batchId={}", email, rawLines.size(), batch.getId());
-        bulkImportService.runImport(email, tmdbKey, rawLines, batch.getId());
+        bulkImportService.runImport(email, tmdbKey, rawLines, batch.getId(), isCsvFormat);
         return ResponseEntity.accepted().body(Map.of("status", "started", "batchId", batch.getId().toString()));
     }
 

@@ -98,7 +98,8 @@ public class BulkImportService {
      * the batch), pacing Thread.sleep(pacingDelayMs) between lines (never after the last).
      */
     @Async("bulkImportExecutor")
-    public void runImport(String email, String tmdbKey, List<String> rawLines, UUID batchId) {
+    public void runImport(
+            String email, String tmdbKey, List<String> rawLines, UUID batchId, boolean isCsvFormat) {
         log.info("Bulk import starting email={} lines={} batchId={}", email, rawLines.size(), batchId);
 
         // Pass 1: match + save every line, resolving each newly-matched line's TMDB detail
@@ -114,7 +115,7 @@ public class BulkImportService {
                 // its transaction has already committed — safe to fire the TMDB detail call
                 // now. Calling it from inside processLine() (while its own transaction is still
                 // open) raced against the not-yet-committed INSERT.
-                self.processLine(email, tmdbKey, rawLines.get(i), batchId).ifPresent(matched -> {
+                self.processLine(email, tmdbKey, rawLines.get(i), batchId, isCsvFormat).ifPresent(matched -> {
                     matchedMovieIds.add(matched.movieId());
                     String imdbId = self.resolveAndPersistImdbId(matched.movieId(), matched.tmdbId(), tmdbKey);
                     if (imdbId != null) {
@@ -242,8 +243,9 @@ public class BulkImportService {
      * at status=PENDING forever.
      */
     @Transactional
-    public Optional<MatchedLine> processLine(String email, String tmdbKey, String rawLine, UUID batchId) {
-        ParsedLine parsed = importLineParser.parse(rawLine);
+    public Optional<MatchedLine> processLine(
+            String email, String tmdbKey, String rawLine, UUID batchId, boolean isCsvFormat) {
+        ParsedLine parsed = isCsvFormat ? importLineParser.parseCsv(rawLine) : importLineParser.parse(rawLine);
         if (parsed == null) {
             // D-02: blank line — skip silently, nothing persisted.
             return Optional.empty();

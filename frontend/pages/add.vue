@@ -216,7 +216,7 @@ async function handleBulkImport() {
 
     <section id="bulk-import">
       <h1 class="text-xl font-semibold tracking-wide mb-6">Bulk Import</h1>
-      <p class="text-sm text-muted-foreground mb-3">One film per line: Title;OriginalTitle;Year — leave Original Title empty if unknown, e.g. "Inception;;2010".</p>
+      <p class="text-sm text-muted-foreground mb-3">One film per line, either format: Title;OriginalTitle;Year (semicolon) or Title,OriginalTitle,Year (comma-delimited CSV, quote titles containing a comma) — leave Original Title empty if unknown, e.g. "Inception;;2010" or "Inception,,2010". CSV must use a comma as the separator — a semicolon-delimited Excel export (common in German locale settings) is not supported as CSV; use the semicolon format instead.</p>
       <form class="flex items-center gap-3" @submit.prevent="handleBulkImport">
         <input
           id="bulk-import-file"

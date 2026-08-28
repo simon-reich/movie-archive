@@ -128,7 +128,7 @@ class BulkImportServiceTest {
         when(tmdbClient.search("Ghost Movie", TMDB_KEY))
                 .thenReturn(List.of(item(1, "Ghost Movie", "Ghost Movie", 1999)));
 
-        bulkImportService.processLine(EMAIL, TMDB_KEY, "Ghost Movie;;2010", UUID.randomUUID());
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Ghost Movie;;2010", UUID.randomUUID(), false);
 
         verify(movieService, never()).initiate(anyString(), anyInt());
 
@@ -142,7 +142,7 @@ class BulkImportServiceTest {
         when(tmdbClient.search("Inception", TMDB_KEY))
                 .thenReturn(List.of(item(27205, "Inception", "Inception", 2010)));
 
-        bulkImportService.processLine(EMAIL, TMDB_KEY, "Inception;;2010", UUID.randomUUID());
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Inception;;2010", UUID.randomUUID(), false);
 
         verify(movieService).initiate(EMAIL, 27205);
 
@@ -160,7 +160,7 @@ class BulkImportServiceTest {
                 item(1001, "Robin Hood", "Robin Hood", 2010),
                 item(1002, "Robin Hood", "Robin des Bois", 2010)));
 
-        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;;2010", UUID.randomUUID());
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;;2010", UUID.randomUUID(), false);
 
         verify(movieService, never()).initiate(anyString(), anyInt());
 
@@ -175,7 +175,7 @@ class BulkImportServiceTest {
                 item(1001, "Robin Hood", "Robin Hood", 2010),
                 item(1002, "Robin Hood", "Robin des Bois", 2010)));
 
-        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;Robin des Bois;2010", UUID.randomUUID());
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;Robin des Bois;2010", UUID.randomUUID(), false);
 
         verify(movieService).initiate(EMAIL, 1002);
 
@@ -191,7 +191,7 @@ class BulkImportServiceTest {
                 item(1001, "Robin Hood", "Robin Hood", 2010),
                 item(1002, "Robin Hood", "Robin des Bois", 2010)));
 
-        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;No Match Title;2010", UUID.randomUUID());
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;No Match Title;2010", UUID.randomUUID(), false);
 
         verify(movieService, never()).initiate(anyString(), anyInt());
 
@@ -206,7 +206,7 @@ class BulkImportServiceTest {
         when(tmdbClient.search(longTitle, TMDB_KEY))
                 .thenReturn(List.of(item(5000, longTitle, longTitle, 2020)));
 
-        bulkImportService.processLine(EMAIL, TMDB_KEY, longTitle + ";;2020", UUID.randomUUID());
+        bulkImportService.processLine(EMAIL, TMDB_KEY, longTitle + ";;2020", UUID.randomUUID(), false);
 
         ArgumentCaptor<BulkImportLine> captor = ArgumentCaptor.forClass(BulkImportLine.class);
         verify(bulkImportLineRepository).save(captor.capture());
@@ -256,7 +256,7 @@ class BulkImportServiceTest {
                 .thenReturn(Map.of("tt1375666", "Inception"));
 
         bulkImportService.runImport(EMAIL, TMDB_KEY,
-                List.of("Inception;;2010", "The Matrix;;1999"), UUID.randomUUID());
+                List.of("Inception;;2010", "The Matrix;;1999"), UUID.randomUUID(), false);
 
         verify(wikipediaClient, times(1)).resolveViaWikidataSparql(argThat(ids ->
                 ids.containsAll(List.of("tt1375666", "tt0133093")) && ids.size() == 2));

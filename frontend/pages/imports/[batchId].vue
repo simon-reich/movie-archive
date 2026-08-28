@@ -83,6 +83,14 @@ function posterUrl(posterPath: string | null): string {
   return `https://image.tmdb.org/t/p/w300${posterPath}`
 }
 
+// G-15-4: a candidate's poster alone isn't enough to pick the correct film (same
+// poster can be reused across regional releases, remakes, or similar sequels) — this
+// is the single source of the "Title (Year)" label, degrading to title-only (never a
+// dangling "()" or the literal "null") when year is unknown.
+function candidateLabel(candidate: TmdbSearchResult): string {
+  return candidate.year ? `${candidate.title} (${candidate.year})` : candidate.title
+}
+
 function statusLabel(status: string): string {
   switch (status) {
     case 'SAVED':
@@ -308,6 +316,12 @@ async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchRe
                 >
                   <SpinnerIcon class="w-4 h-4" />
                 </div>
+                <p
+                  data-testid="resolve-candidate-label"
+                  class="text-[10px] text-muted-foreground text-center leading-tight truncate mt-1"
+                >
+                  {{ candidateLabel(candidate) }}
+                </p>
               </button>
             </div>
           </div>
@@ -404,6 +418,12 @@ async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchRe
                 >
                   <SpinnerIcon class="w-4 h-4" />
                 </div>
+                <p
+                  data-testid="resolve-candidate-label"
+                  class="text-[10px] text-muted-foreground text-center leading-tight truncate mt-1"
+                >
+                  {{ candidateLabel(candidate) }}
+                </p>
               </button>
             </div>
           </div>

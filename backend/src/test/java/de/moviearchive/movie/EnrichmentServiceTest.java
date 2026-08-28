@@ -178,4 +178,21 @@ class EnrichmentServiceTest {
         assertThat(saved.getValue().getWikiLastAttemptedAt()).isNotNull();
         assertThat(saved.getValue().getWikiUrl()).isEqualTo(wiki.url());
     }
+
+    @Test
+    void shouldSkipWikipedia_whenSkipWikipediaTrue() throws Exception {
+        when(settingsService.getApiKeys("test@example.com"))
+                .thenReturn(Map.of("tmdb", "tmdb-key"));
+        when(tmdbClient.fetchDetail(27205, "tmdb-key"))
+                .thenReturn(tmdbDetailWithImdbId("tt1375666"));
+
+        enrichmentService.enrich(movieId, true);
+
+        verify(wikipediaClient, never()).fetch(anyString(), anyString(), anyInt(), nullable(String.class));
+
+        ArgumentCaptor<Movie> saved = ArgumentCaptor.forClass(Movie.class);
+        verify(movieRepository).save(saved.capture());
+        assertThat(saved.getValue().getStatus()).isEqualTo(MovieStatus.SUCCESS);
+        assertThat(saved.getValue().getWikiLastAttemptedAt()).isNull();
+    }
 }

@@ -1,14 +1,14 @@
 ---
-status: partial
+status: complete
 phase: 14-wiki-batch-reload-pacing-cooldown-fix-progress-ui
 source: [14-VERIFICATION.md]
 started: 2026-08-27T18:20:00.000Z
-updated: 2026-08-28T00:00:00.000Z
+updated: 2026-08-28T12:00:00.000Z
 ---
 
 ## Current Test
 
-[testing paused — pacing-value experiment requested by user before phase close]
+[testing complete]
 
 ## Tests
 
@@ -57,3 +57,8 @@ blocked: 0
     can be improved without re-tripping the Wikipedia/Wikidata rate limits — user wants to try
     this live before closing the phase."
   deferred_at: 2026-08-28
+  resolution: "Done, not deferred — live A/B tested 20s vs 15s pacing against real data on
+    2026-08-28. 20s showed only one harmless 1s rate-limit backoff across 7 movies; 15s showed
+    frequent 9-23s backoffs and was rejected as too aggressive. Adopted 20s as the new
+    wiki.retry.pacing-delay-ms default (was 30000, now 20000) — see commit
+    'chore(14): lower wiki.retry.pacing-delay-ms default from 30s to 20s'."

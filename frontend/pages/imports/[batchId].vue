@@ -318,7 +318,7 @@ async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchRe
                 </div>
                 <p
                   data-testid="resolve-candidate-label"
-                  class="text-[10px] text-muted-foreground text-center leading-tight truncate mt-1"
+                  class="text-[10px] text-muted-foreground text-center leading-tight mt-1"
                 >
                   {{ candidateLabel(candidate) }}
                 </p>
@@ -420,7 +420,7 @@ async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchRe
                 </div>
                 <p
                   data-testid="resolve-candidate-label"
-                  class="text-[10px] text-muted-foreground text-center leading-tight truncate mt-1"
+                  class="text-[10px] text-muted-foreground text-center leading-tight mt-1"
                 >
                   {{ candidateLabel(candidate) }}
                 </p>

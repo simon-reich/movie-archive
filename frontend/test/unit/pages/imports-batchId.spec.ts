@@ -496,11 +496,22 @@ describe('/imports/[batchId] page', () => {
 
   // ── G-15-4: candidate title + year label under each resolve-candidate poster ──
 
-  it('renders a title + year label under each candidate poster in grid view, degrading gracefully for a null year', async () => {
+  // G-15-5: a long title must still be fully readable — the label wraps instead of
+  // being clipped by Tailwind's `truncate` (overflow-hidden + ellipsis + nowrap), which
+  // was cutting off the trailing year on long titles.
+  const LONG_TITLE_CANDIDATE = {
+    tmdbId: 1004,
+    title: 'A Very Long Movie Title That Would Previously Have Been Clipped By The Truncate Utility',
+    year: 2020,
+    posterPath: null,
+  }
+
+  it('renders a title + year label under each candidate poster in grid view, degrading gracefully for a null year, and wraps long titles instead of truncating (G-15-5)', async () => {
     mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
     mockSearchTmdb.mockResolvedValueOnce([
       { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
       { tmdbId: 1003, title: 'Unknown Cut', year: null, posterPath: null },
+      LONG_TITLE_CANDIDATE,
     ])
     const wrapper = await mountPage()
     await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
@@ -512,20 +523,25 @@ describe('/imports/[batchId] page', () => {
     await nextTick()
 
     const labels = wrapper.findAll('[data-testid="resolve-candidate-label"]')
-    expect(labels).toHaveLength(2)
+    expect(labels).toHaveLength(3)
     expect(labels[0]!.text()).toBe('Robin Hood (2010)')
     // Graceful degradation: a null year renders title-only — no dangling "()" and
     // never the literal string "null".
     expect(labels[1]!.text()).toBe('Unknown Cut')
     expect(labels[1]!.text()).not.toContain('(')
     expect(labels[1]!.text()).not.toContain('null')
+    // G-15-5: `truncate` must be gone so the label wraps instead of clipping, and the
+    // full title + year must be present, un-clipped, in the rendered text.
+    expect(labels[2]!.classes()).not.toContain('truncate')
+    expect(labels[2]!.text()).toBe(`${LONG_TITLE_CANDIDATE.title} (${LONG_TITLE_CANDIDATE.year})`)
   })
 
-  it('renders the identical title + year label under each candidate poster in list view', async () => {
+  it('renders the identical title + year label under each candidate poster in list view, and wraps long titles instead of truncating (G-15-5)', async () => {
     mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
     mockSearchTmdb.mockResolvedValueOnce([
       { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
       { tmdbId: 1003, title: 'Unknown Cut', year: null, posterPath: null },
+      LONG_TITLE_CANDIDATE,
     ])
     const wrapper = await mountPage()
     await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
@@ -541,9 +557,13 @@ describe('/imports/[batchId] page', () => {
     await nextTick()
 
     const labels = wrapper.findAll('[data-testid="resolve-candidate-label"]')
-    expect(labels).toHaveLength(2)
+    expect(labels).toHaveLength(3)
     expect(labels[0]!.text()).toBe('Robin Hood (2010)')
     expect(labels[1]!.text()).toBe('Unknown Cut')
+    // G-15-5: `truncate` must be gone so the label wraps instead of clipping, and the
+    // full title + year must be present, un-clipped, in the rendered text.
+    expect(labels[2]!.classes()).not.toContain('truncate')
+    expect(labels[2]!.text()).toBe(`${LONG_TITLE_CANDIDATE.title} (${LONG_TITLE_CANDIDATE.year})`)
   })
 
   it('does not alter the existing poster img src/alt/class or the candidate button testid/click handler', async () => {

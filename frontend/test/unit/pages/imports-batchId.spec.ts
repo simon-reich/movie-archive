@@ -493,4 +493,77 @@ describe('/imports/[batchId] page', () => {
     expect(candidateImg.classes()).toContain('w-full')
     expect(candidateImg.classes()).not.toContain('w-10')
   })
+
+  // ── G-15-4: candidate title + year label under each resolve-candidate poster ──
+
+  it('renders a title + year label under each candidate poster in grid view, degrading gracefully for a null year', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
+    mockSearchTmdb.mockResolvedValueOnce([
+      { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
+      { tmdbId: 1003, title: 'Unknown Cut', year: null, posterPath: null },
+    ])
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    await wrapper.find('[data-testid="resolve-toggle"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const labels = wrapper.findAll('[data-testid="resolve-candidate-label"]')
+    expect(labels).toHaveLength(2)
+    expect(labels[0]!.text()).toBe('Robin Hood (2010)')
+    // Graceful degradation: a null year renders title-only — no dangling "()" and
+    // never the literal string "null".
+    expect(labels[1]!.text()).toBe('Unknown Cut')
+    expect(labels[1]!.text()).not.toContain('(')
+    expect(labels[1]!.text()).not.toContain('null')
+  })
+
+  it('renders the identical title + year label under each candidate poster in list view', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
+    mockSearchTmdb.mockResolvedValueOnce([
+      { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
+      { tmdbId: 1003, title: 'Unknown Cut', year: null, posterPath: null },
+    ])
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const listButton = wrapper.find('[aria-label="List view"]')
+    await listButton.trigger('click')
+    await nextTick()
+
+    await wrapper.find('[data-testid="resolve-toggle"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const labels = wrapper.findAll('[data-testid="resolve-candidate-label"]')
+    expect(labels).toHaveLength(2)
+    expect(labels[0]!.text()).toBe('Robin Hood (2010)')
+    expect(labels[1]!.text()).toBe('Unknown Cut')
+  })
+
+  it('does not alter the existing poster img src/alt/class or the candidate button testid/click handler', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
+    mockSearchTmdb.mockResolvedValueOnce([
+      { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
+    ])
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    await wrapper.find('[data-testid="resolve-toggle"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const candidateButton = wrapper.find('[data-testid="resolve-candidate"]')
+    expect(candidateButton.exists()).toBe(true)
+    const img = candidateButton.find('img')
+    expect(img.attributes('alt')).toBe('Robin Hood')
+    expect(img.attributes('src')).toContain('/robinhood2.jpg')
+  })
 })

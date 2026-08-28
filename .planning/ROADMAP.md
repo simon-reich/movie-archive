@@ -172,12 +172,12 @@ Plans:
 **Goal:** Close out the two loose bulk-import todos left over from Phases 10-11: the batch detail page needs a view toggle, movie links, and inline ambiguous-match resolution (todo from 2026-08-25), and bulk-import parsing needs to move from the strict `Title;OriginalTitle;Year` format to real CSV parsing with proper quoting (todo from 2026-08-24, was v2 candidate SET-06, pulled forward into this milestone at the user's request so v1.1 closes with the import feature actually finished rather than partially so).
 **Requirements**: carries forward the deferred SET-06 CSV-import requirement plus the 2026-08-25 UAT-adjacent todo; no formal REQUIREMENTS.md IDs yet, to be refined in 15-CONTEXT.md
 **Depends on:** Phase 11 (Bulk Import Feedback UI) — independent of Phase 14's wiki-enrichment work, no shared files
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 15-01-PLAN.md — Batch-detail page completion: DTO id/movieId/rawLine extension, whole-card movie links, PARSE_ERROR raw-line display, grid/list view toggle (D-01–D-07, D-11 display half, tracer)
+- [x] 15-01-PLAN.md — Batch-detail page completion: DTO id/movieId/rawLine extension, whole-card movie links, PARSE_ERROR raw-line display, grid/list view toggle (D-01–D-07, D-11 display half, tracer)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 

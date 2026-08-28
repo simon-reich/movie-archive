@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 15-bulk-import-page-completion-view-toggle-movie-links-real-csv
 source: [15-VERIFICATION.md, 15-04-SUMMARY.md, 15-05-SUMMARY.md]
 started: 2026-08-28T14:25:58Z
-updated: 2026-08-28T21:40:00Z
+updated: 2026-08-28T21:45:00Z
 ---
 
 ## Current Test
@@ -111,5 +111,10 @@ blocked: 0
     User reported (re-test after 15-05's title/year label fix): the new label is an improvement, but long titles get clipped (presumably CSS text-overflow: ellipsis / truncate on a single line), which pushes the year off-screen or hides it entirely. Verbatim: "Ja, schon besser. Problem ist, dass längere Titel nicht ganz dargestellt werden und damit auch die Jahreszahl verloren geht. Also, da muss es irgendwie einen Zeilenumbruch geben, sodass der Titel komplett dargestellt wird, nicht mit Punkt abgekürzt wird. So dass der komplette titel und dann auch noch die Jahreszahlen zu sehen ist." (Need line-wrap instead of ellipsis-truncation so the full title AND the year are both always visible — no single-line clipping.)
   severity: minor
   test: 3
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
+  root_cause: "frontend/pages/imports/[batchId].vue's resolve-candidate-label elements (grid ~line 321, list ~line 423) use Tailwind's `truncate` utility (overflow-hidden + text-overflow-ellipsis + whitespace-nowrap), which forces the whole title+year string onto one line and clips it with '…' once it overflows the narrow candidate-cell width — this is exactly the utility class 15-01/15-05 already use elsewhere for genuinely single-line contexts (line title, status label), just not appropriate here where the year at the end must stay visible."
+  artifacts:
+    - path: "frontend/pages/imports/[batchId].vue"
+      issue: "Line ~321 (grid) and ~423 (list): resolve-candidate-label has class=\"text-[10px] text-muted-foreground text-center leading-tight truncate mt-1\" — the `truncate` utility clips long titles, cutting off the trailing year."
+  missing:
+    - "Remove `truncate` from both resolve-candidate-label elements so the label wraps onto multiple lines instead of being clipped — e.g. replace with a plain multi-line-friendly class list (drop `truncate`, keep `text-center leading-tight`), so the full title text wraps and the year (rendered as part of the same candidateLabel() string, or as a separate line) remains visible."
+  debug_session: ""

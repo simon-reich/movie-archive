@@ -8,7 +8,7 @@ status: executing
 stopped_at: Phase 15 context gathered
 last_updated: "2026-08-28T11:33:15.362Z"
 last_activity: 2026-08-28
-last_activity_desc: Phase 15 execution started
+last_activity_desc: Completed quick task 260828-qh2: Bulk import - skip Wikipedia fetch during import, rely on WikiReloadService batch-reload to backfill later
 state_head: dbff4a26c69f57f6b0adeac0b30602d6be02df22
 progress:
   total_phases: 8
@@ -98,6 +98,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 260519-fcg | Fix all ESLint errors and warnings from CI lint output across the frontend | 2026-05-19 | b944dc0 | [260519-fcg-fix-all-eslint-errors-and-warnings-from-](./quick/260519-fcg-fix-all-eslint-errors-and-warnings-from-/) |
 | 2 | 260826-pwp: Set wiki.retry.cooldown-days default to 0 temporarily (dev testing) | 2026-08-26 | 4f139c0 | — |
+| 260828-qh2 | Bulk import: skip Wikipedia fetch during import, rely on WikiReloadService batch-reload to backfill later | 2026-08-28 | 635a744 | [260828-qh2-bulk-import-skip-wikipedia-fetch-during-](./quick/260828-qh2-bulk-import-skip-wikipedia-fetch-during-/) |
 | 3 | 260826-qfm: Give Wikidata calls their own longer request pacing (3000ms default) | 2026-08-26 | d7cb20a | — |
 
 ### Roadmap Evolution

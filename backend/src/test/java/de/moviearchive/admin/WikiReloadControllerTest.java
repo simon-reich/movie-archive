@@ -21,6 +21,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -32,8 +33,10 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -77,6 +80,9 @@ class WikiReloadControllerTest extends AbstractOpenSearchTest {
 
     @Autowired
     private OpenSearchClient client;
+
+    @Autowired
+    private WikiReloadProgressService wikiReloadProgressService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -301,6 +307,37 @@ class WikiReloadControllerTest extends AbstractOpenSearchTest {
                         .header("Authorization", tokenB))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("Access denied."));
+    }
+
+    /**
+     * Regression test for the AuthorizationDeniedException-on-SSE-completion bug (debug session
+     * sse-auth-denied-on-complete.md). WikiReloadProgressService.complete(userId) calls
+     * emitter.complete() from a background thread (mirroring the real batchReload() async
+     * flow) — this triggers Tomcat's ASYNC servlet redispatch. Before the fix
+     * (spring.security.filter.dispatcher-types), that redispatch re-ran the full Spring
+     * Security filter chain against an empty SecurityContext (JwtAuthFilter, a
+     * OncePerRequestFilter, does not re-run on ASYNC dispatch) and AuthorizationFilter denied
+     * it, throwing AuthorizationDeniedException even though the SSE "complete" event had
+     * already been sent to the client. MockMvc's asyncDispatch(MvcResult) is the standard way
+     * to simulate that exact container redispatch through the real filter chain.
+     */
+    @Test
+    void shouldNotDenyAuthorization_onAsyncRedispatch_afterEmitterComplete() throws Exception {
+        User user = createActiveUser("wiki-progress-complete@example.com");
+        String token = loginAndGetToken("wiki-progress-complete@example.com");
+
+        MvcResult mvcResult = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/admin/wiki-reload/" + user.getId() + "/progress")
+                        .header("Authorization", token))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        // Simulates the real batchReload() async flow calling emitter.complete() from a
+        // background executor thread, well after this request's controller method returned.
+        wikiReloadProgressService.complete(user.getId());
+
+        mockMvc.perform(asyncDispatch(mvcResult))
+                .andExpect(status().isOk());
     }
 
     /**

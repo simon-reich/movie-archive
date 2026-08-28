@@ -78,6 +78,9 @@ class BulkImportControllerTest extends AbstractWireMockTest {
     @Autowired
     private RateLimitService rateLimitService;
 
+    @Autowired
+    private BulkImportProgressService bulkImportProgressService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @DynamicPropertySource
@@ -284,6 +287,51 @@ class BulkImportControllerTest extends AbstractWireMockTest {
                 .andReturn();
 
         assertThat(result.getResponse().getContentType()).startsWith(MediaType.TEXT_EVENT_STREAM_VALUE);
+    }
+
+    /**
+     * Regression test for the AuthorizationDeniedException-on-SSE-completion bug (debug session
+     * sse-auth-denied-on-complete.md). Unlike shouldReturnEventStream_whenOwnerRequestsProgress
+     * above (which deliberately never dispatches the async context because register() alone
+     * never calls emitter.complete()), this test explicitly triggers
+     * BulkImportProgressService.complete(batchId) — mirroring the real runImport() async flow —
+     * to force the container's ASYNC servlet redispatch and confirm it no longer gets denied by
+     * Spring Security's AuthorizationFilter.
+     */
+    @Test
+    void shouldNotDenyAuthorization_onAsyncRedispatch_afterEmitterComplete() throws Exception {
+        User user = createActiveUser("progress-complete@example.com");
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("progress-complete@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+
+        String responseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Inception;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(responseBody).get("batchId").asText();
+
+        drainBulkImportExecutor(10000);
+
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get(
+                        "/movies/bulk-import/{batchId}/progress", batchId)
+                        .header("Authorization", token))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        // Simulates the real runImport() async flow calling emitter.complete() from a
+        // background executor thread, well after this request's controller method returned.
+        bulkImportProgressService.complete(UUID.fromString(batchId));
+
+        mockMvc.perform(MockMvcRequestBuilders.asyncDispatch(result))
+                .andExpect(status().isOk());
     }
 
     @Test

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, resolveComponent } from 'vue'
 import { CheckCircle2, XCircle } from 'lucide-vue-next'
 import FormErrorBanner from '@/components/FormErrorBanner.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
@@ -11,6 +11,15 @@ const BULK_IMPORT_VIEW_MODE_KEY = 'bulk-import-view-mode'
 
 const route = useRoute()
 const batchId = route.params.batchId as string
+
+// G-15-2 fix: Nuxt's build-time component scan only auto-registers built-ins like
+// NuxtLink into a file's compiled output when it detects a LITERAL <NuxtLink> tag in
+// that file's template AST. This file never uses <NuxtLink> as a literal tag, so a
+// bare-string `:is="'NuxtLink'"` ternary silently falls back to an inert unresolved
+// custom element at runtime. Capturing the component reference via resolveComponent()
+// with a literal string argument IS statically detectable by Nuxt's compiler, and
+// binding `:is` to the captured reference (not the bare string) resolves correctly.
+const NuxtLink = resolveComponent('NuxtLink')
 
 const { subscribeToProgress, getBatchDetail, resolveLine } = useBulkImport()
 const { searchTmdb } = useMovies()
@@ -99,6 +108,24 @@ function movieLinkTarget(line: BulkImportLineResult): string | null {
 // PARSE_ERROR/SAVED lines never do.
 function isResolvable(line: BulkImportLineResult): boolean {
   return line.status === 'AMBIGUOUS' || line.status === 'NOT_FOUND'
+}
+
+// G-15-2: results are grouped into four fixed, ordered sections — Saved, Ambiguous,
+// Not found, Parse error. PARSE_ERROR is rendered separately (see parseErrorLines /
+// the always-row section below) and is never part of orderedCards.
+const savedLines = computed(() => batch.value?.lines.filter(l => l.status === 'SAVED') ?? [])
+const ambiguousLines = computed(() => batch.value?.lines.filter(l => l.status === 'AMBIGUOUS') ?? [])
+const notFoundLines = computed(() => batch.value?.lines.filter(l => l.status === 'NOT_FOUND') ?? [])
+const parseErrorLines = computed(() => batch.value?.lines.filter(l => l.status === 'PARSE_ERROR') ?? [])
+
+// Fixed concatenation order encodes the required Saved -> Ambiguous -> Not found sequence.
+const orderedCards = computed(() => [...savedLines.value, ...ambiguousLines.value, ...notFoundLines.value])
+
+// Flags the first item of each status run in orderedCards, so a section heading is
+// inserted exactly once per status group.
+function isGroupStart(index: number): boolean {
+  if (index === 0) return true
+  return orderedCards.value[index - 1]!.status !== orderedCards.value[index]!.status
 }
 
 interface ResolveWidgetState {
@@ -193,29 +220,20 @@ async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchRe
       </div>
 
       <div v-if="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        <component
-          :is="movieLinkTarget(line) ? 'NuxtLink' : 'div'"
-          v-for="line in batch.lines"
-          :key="line.id"
-          :to="movieLinkTarget(line) ?? undefined"
-          data-testid="result-card"
-          class="relative overflow-hidden block"
-          :class="line.status === 'PARSE_ERROR' ? 'border-l-2 border-[#7A3520]' : ''"
-        >
-          <template v-if="line.status === 'PARSE_ERROR'">
-            <div
-              data-testid="parse-error-card"
-              class="w-full aspect-[2/3] bg-card border border-[#7A3520] flex items-center justify-center p-2"
-            >
-              <p class="text-xs text-[#7A3520] text-center">{{ line.title || 'Unparseable line' }}</p>
-            </div>
-            <div class="absolute bottom-0 right-0 p-2 bg-background/70 flex items-center justify-center">
-              <XCircle class="w-6 h-6 text-[#7A3520]" />
-            </div>
-            <p class="pt-2 text-sm font-medium text-[#7A3520] truncate">{{ statusLabel(line.status) }}</p>
-            <p data-testid="raw-line-text" class="text-xs text-muted-foreground break-all">{{ line.rawLine }}</p>
-          </template>
-          <template v-else>
+        <template v-for="(line, idx) in orderedCards" :key="line.id">
+          <h3
+            v-if="isGroupStart(idx)"
+            :data-testid="`section-heading-${line.status}`"
+            class="col-span-full text-sm font-semibold tracking-wide text-foreground mt-4 first:mt-0"
+          >
+            {{ statusLabel(line.status) }}
+          </h3>
+          <component
+            :is="movieLinkTarget(line) ? NuxtLink : 'div'"
+            :to="movieLinkTarget(line) ?? undefined"
+            data-testid="result-card"
+            class="relative overflow-hidden block"
+          >
             <img
               v-if="line.posterPath"
               :src="posterUrl(line.posterPath)"
@@ -285,33 +303,25 @@ async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchRe
                 </div>
               </div>
             </div>
-          </template>
-        </component>
+          </component>
+        </template>
       </div>
 
       <div v-else class="divide-y divide-border">
-        <component
-          :is="movieLinkTarget(line) ? 'NuxtLink' : 'div'"
-          v-for="line in batch.lines"
-          :key="line.id"
-          :to="movieLinkTarget(line) ?? undefined"
-          data-testid="view-list-row"
-          class="flex gap-4 py-3"
-          :class="line.status === 'PARSE_ERROR' ? 'border-l-2 border-[#7A3520] pl-3' : ''"
-        >
-          <template v-if="line.status === 'PARSE_ERROR'">
-            <div
-              data-testid="parse-error-card"
-              class="w-16 aspect-[2/3] flex-shrink-0 bg-card border border-[#7A3520] flex items-center justify-center p-1"
-            >
-              <XCircle class="w-4 h-4 text-[#7A3520]" />
-            </div>
-            <div class="flex flex-col min-w-0 gap-1">
-              <p class="text-sm font-medium text-[#7A3520] truncate">{{ statusLabel(line.status) }}</p>
-              <p data-testid="raw-line-text" class="text-xs text-muted-foreground break-all">{{ line.rawLine }}</p>
-            </div>
-          </template>
-          <template v-else>
+        <template v-for="(line, idx) in orderedCards" :key="line.id">
+          <h3
+            v-if="isGroupStart(idx)"
+            :data-testid="`section-heading-${line.status}`"
+            class="text-sm font-semibold tracking-wide text-foreground pt-4 pb-2 first:pt-0"
+          >
+            {{ statusLabel(line.status) }}
+          </h3>
+          <component
+            :is="movieLinkTarget(line) ? NuxtLink : 'div'"
+            :to="movieLinkTarget(line) ?? undefined"
+            data-testid="view-list-row"
+            class="flex gap-4 py-3"
+          >
             <img
               v-if="line.posterPath"
               :src="posterUrl(line.posterPath)"
@@ -381,9 +391,34 @@ async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchRe
                 </div>
               </div>
             </div>
-          </template>
-        </component>
+          </component>
+        </template>
       </div>
+
+      <section v-if="parseErrorLines.length" data-testid="parse-error-section" class="mt-8">
+        <h3 data-testid="section-heading-PARSE_ERROR" class="text-sm font-semibold tracking-wide text-foreground mb-2">
+          {{ statusLabel('PARSE_ERROR') }}
+        </h3>
+        <div class="divide-y divide-border">
+          <div
+            v-for="line in parseErrorLines"
+            :key="line.id"
+            data-testid="parse-error-row"
+            class="flex gap-4 py-3 border-l-2 border-[#7A3520] pl-3"
+          >
+            <div
+              data-testid="parse-error-card"
+              class="w-16 aspect-[2/3] flex-shrink-0 bg-card border border-[#7A3520] flex items-center justify-center p-1"
+            >
+              <XCircle class="w-4 h-4 text-[#7A3520]" />
+            </div>
+            <div class="flex flex-col min-w-0 gap-1">
+              <p class="text-sm font-medium text-[#7A3520] truncate">{{ statusLabel(line.status) }}</p>
+              <p data-testid="raw-line-text" class="text-xs text-muted-foreground break-all">{{ line.rawLine }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 </template>

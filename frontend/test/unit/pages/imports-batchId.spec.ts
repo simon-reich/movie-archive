@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 import type { BulkImportBatchDetail, BulkImportProgress } from '@/composables/useBulkImport'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const PAGE_FILE_PATH = resolve(__dirname, '../../../pages/imports/[batchId].vue')
 
 // ── MOCK useBulkImport ──────────────────────────────────────────────────────
 const mockSubscribeToProgress = vi.fn()
@@ -59,6 +65,21 @@ const MOCK_DETAIL_AMBIGUOUS: BulkImportBatchDetail = {
   totalLines: 1,
   lines: [
     { id: 'line-4', title: 'Robin Hood', originalTitle: null, year: 2010, status: 'AMBIGUOUS', posterPath: null, movieId: null, rawLine: 'Robin Hood;;2010' },
+  ],
+}
+
+// G-15-2: one line of every status, to verify the four-section grouping/ordering
+// (Saved -> Ambiguous -> Not found -> Parse error) and the always-row PARSE_ERROR
+// treatment.
+const MOCK_DETAIL_ALL_STATUSES: BulkImportBatchDetail = {
+  batchId: 'batch-4',
+  createdAt: '2026-08-28T10:00:00Z',
+  totalLines: 4,
+  lines: [
+    { id: 'line-5', title: 'Inception', originalTitle: null, year: 2010, status: 'SAVED', posterPath: '/poster.jpg', movieId: 'movie-5', rawLine: 'Inception;;2010' },
+    { id: 'line-6', title: 'Robin Hood', originalTitle: null, year: 2010, status: 'AMBIGUOUS', posterPath: null, movieId: null, rawLine: 'Robin Hood;;2010' },
+    { id: 'line-7', title: 'Unknown Film', originalTitle: null, year: null, status: 'NOT_FOUND', posterPath: null, movieId: null, rawLine: 'Unknown Film;;9999' },
+    { id: 'line-8', title: 'BadLine', originalTitle: null, year: null, status: 'PARSE_ERROR', posterPath: null, movieId: null, rawLine: 'BadLine;;notayear' },
   ],
 }
 
@@ -318,5 +339,87 @@ describe('/imports/[batchId] page', () => {
     expect(calledPosterPath).toBe('/robinhood2.jpg')
     // D-09: the refetch is distinguishable from the initial mount-time getBatchDetail call.
     expect(mockGetBatchDetail).toHaveBeenCalledTimes(2)
+  })
+
+  // ── G-15-2: NuxtLink resolution, four-section grouping, always-row PARSE_ERROR ──
+
+  it('resolves NuxtLink via resolveComponent() instead of a bare string (source-level regression guard)', () => {
+    // A render-time mount can never prove this either way — Vue Test Utils' named
+    // global.stubs resolves a component by name regardless of how the SFC itself would
+    // have resolved it in a real (un-stubbed) Nuxt runtime. See
+    // .planning/debug/bulk-import-saved-card-link-broken.md for the full explanation of
+    // why this specific bug class requires a source-level check, not a render assertion.
+    const source = readFileSync(PAGE_FILE_PATH, 'utf-8')
+    expect(source).toContain("resolveComponent('NuxtLink')")
+    // The fix must bind :is to the captured reference, not a bare string literal.
+    expect(source).not.toContain('movieLinkTarget(line) ? \'NuxtLink\' : \'div\'')
+  })
+
+  it('renders four section headings in Saved -> Ambiguous -> Not found -> Parse error order', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_ALL_STATUSES)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 4, total: 4, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const headings = wrapper.findAll('h3[data-testid^="section-heading-"]')
+    const testids = headings.map(h => h.attributes('data-testid'))
+    expect(testids).toEqual([
+      'section-heading-SAVED',
+      'section-heading-AMBIGUOUS',
+      'section-heading-NOT_FOUND',
+      'section-heading-PARSE_ERROR',
+    ])
+    expect(headings.map(h => h.text())).toEqual(['Saved', 'Ambiguous', 'Not found', 'Parse error'])
+  })
+
+  it('renders no heading for a status missing from the batch', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 2, total: 2, complete: true })
+    await nextTick()
+    await nextTick()
+
+    // MOCK_DETAIL has only SAVED and NOT_FOUND lines — no AMBIGUOUS or PARSE_ERROR.
+    expect(wrapper.find('[data-testid="section-heading-SAVED"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="section-heading-NOT_FOUND"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="section-heading-AMBIGUOUS"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="section-heading-PARSE_ERROR"]').exists()).toBe(false)
+  })
+
+  it('renders a PARSE_ERROR line as an always-row, never inside a result-card/view-list-row, in grid view', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_ALL_STATUSES)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 4, total: 4, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const cards = wrapper.findAll('[data-testid="result-card"]')
+    expect(cards.some(c => c.text().includes('BadLine;;notayear'))).toBe(false)
+
+    const parseErrorRows = wrapper.findAll('[data-testid="parse-error-row"]')
+    expect(parseErrorRows).toHaveLength(1)
+    expect(parseErrorRows[0]!.find('[data-testid="raw-line-text"]').text()).toBe('BadLine;;notayear')
+  })
+
+  it('renders the identical PARSE_ERROR row content after toggling to list view', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_ALL_STATUSES)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 4, total: 4, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const gridRawText = wrapper.find('[data-testid="parse-error-row"] [data-testid="raw-line-text"]').text()
+
+    const listButton = wrapper.find('[aria-label="List view"]')
+    await listButton.trigger('click')
+    await nextTick()
+
+    const rows = wrapper.findAll('[data-testid="view-list-row"]')
+    expect(rows.some(r => r.text().includes('BadLine;;notayear'))).toBe(false)
+
+    const listRawText = wrapper.find('[data-testid="parse-error-row"] [data-testid="raw-line-text"]').text()
+    expect(listRawText).toBe(gridRawText)
+    expect(wrapper.findAll('[data-testid="parse-error-row"]')).toHaveLength(1)
   })
 })

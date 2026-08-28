@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { CheckCircle2, XCircle } from 'lucide-vue-next'
 import FormErrorBanner from '@/components/FormErrorBanner.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import ViewToggle from '@/components/ViewToggle.vue'
 import type { BulkImportBatchDetail, BulkImportLineResult, BulkImportProgress } from '@/composables/useBulkImport'
+import type { TmdbSearchResult } from '@/composables/useMovies'
 
 const BULK_IMPORT_VIEW_MODE_KEY = 'bulk-import-view-mode'
 
 const route = useRoute()
 const batchId = route.params.batchId as string
 
-const { subscribeToProgress, getBatchDetail } = useBulkImport()
+const { subscribeToProgress, getBatchDetail, resolveLine } = useBulkImport()
+const { searchTmdb } = useMovies()
 
 const progress = ref<BulkImportProgress | null>(null)
 const batch = ref<BulkImportBatchDetail | null>(null)
@@ -92,6 +94,74 @@ function statusLabel(status: string): string {
 function movieLinkTarget(line: BulkImportLineResult): string | null {
   return line.status === 'SAVED' && line.movieId ? `/movies/${line.movieId}` : null
 }
+
+// D-08/D-11: AMBIGUOUS/NOT_FOUND lines get an inline search-and-pick resolve widget;
+// PARSE_ERROR/SAVED lines never do.
+function isResolvable(line: BulkImportLineResult): boolean {
+  return line.status === 'AMBIGUOUS' || line.status === 'NOT_FOUND'
+}
+
+interface ResolveWidgetState {
+  expanded: boolean
+  searching: boolean
+  results: TmdbSearchResult[]
+  resolvingTmdbId: number | null
+  error: string | null
+}
+
+// Per-line widget state, keyed by line.id — persists across a D-09 refetch since the
+// resolved line keeps the same id (updated in place, never a new row).
+const resolveState = reactive<Record<string, ResolveWidgetState>>({})
+
+function getResolveState(line: BulkImportLineResult): ResolveWidgetState {
+  if (!resolveState[line.id]) {
+    resolveState[line.id] = {
+      expanded: false,
+      searching: false,
+      results: [],
+      resolvingTmdbId: null,
+      error: null,
+    }
+  }
+  return resolveState[line.id]!
+}
+
+// D-08: a FRESH TMDB search prefilled with the line's title every time the widget opens —
+// this codebase never persists AMBIGUOUS candidates server-side, so there is nothing stale
+// to reuse.
+async function toggleResolve(line: BulkImportLineResult) {
+  const state = getResolveState(line)
+  state.expanded = !state.expanded
+  if (!state.expanded) return
+
+  state.error = null
+  state.searching = true
+  state.results = []
+  try {
+    state.results = await searchTmdb(line.title)
+  } catch {
+    state.error = 'Search failed. Please try again.'
+  } finally {
+    state.searching = false
+  }
+}
+
+// D-09: on success, refetch the full batch via the existing loadDetail() — never a local
+// patch of line.status/movieId/tmdbId.
+async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchResult) {
+  const state = getResolveState(line)
+  state.resolvingTmdbId = candidate.tmdbId
+  state.error = null
+  try {
+    await resolveLine(batchId, line.id, candidate.tmdbId, candidate.posterPath)
+    await loadDetail()
+    state.expanded = false
+  } catch {
+    state.error = 'Could not resolve — please try again.'
+  } finally {
+    state.resolvingTmdbId = null
+  }
+}
 </script>
 
 <template>
@@ -167,6 +237,54 @@ function movieLinkTarget(line: BulkImportLineResult): string | null {
 
             <p class="pt-2 text-sm font-medium text-foreground truncate">{{ line.title }}</p>
             <p class="text-xs text-muted-foreground">{{ statusLabel(line.status) }}</p>
+
+            <div v-if="isResolvable(line)" class="mt-2">
+              <button
+                type="button"
+                data-testid="resolve-toggle"
+                class="text-xs text-primary hover:underline"
+                @click="toggleResolve(line)"
+              >
+                {{ getResolveState(line).expanded ? 'Cancel' : 'Resolve' }}
+              </button>
+
+              <div v-if="getResolveState(line).expanded" class="mt-2 space-y-2">
+                <div
+                  v-if="getResolveState(line).searching"
+                  class="flex items-center gap-2 text-xs text-muted-foreground"
+                >
+                  <SpinnerIcon class="w-4 h-4" />
+                  <span>Searching...</span>
+                </div>
+                <FormErrorBanner v-if="getResolveState(line).error" :message="getResolveState(line).error" />
+                <div
+                  v-if="!getResolveState(line).searching && getResolveState(line).results.length"
+                  class="grid grid-cols-3 gap-1"
+                >
+                  <button
+                    v-for="candidate in getResolveState(line).results"
+                    :key="candidate.tmdbId"
+                    type="button"
+                    data-testid="resolve-candidate"
+                    class="relative"
+                    :disabled="getResolveState(line).resolvingTmdbId !== null"
+                    @click="pickCandidate(line, candidate)"
+                  >
+                    <img
+                      :src="posterUrl(candidate.posterPath)"
+                      :alt="candidate.title"
+                      class="w-full aspect-[2/3] object-cover bg-card border border-border"
+                    >
+                    <div
+                      v-if="getResolveState(line).resolvingTmdbId === candidate.tmdbId"
+                      class="absolute inset-0 bg-background/70 flex items-center justify-center"
+                    >
+                      <SpinnerIcon class="w-4 h-4" />
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
           </template>
         </component>
       </div>
@@ -213,6 +331,54 @@ function movieLinkTarget(line: BulkImportLineResult): string | null {
                 <CheckCircle2 v-if="line.status === 'SAVED'" class="w-4 h-4 text-foreground" />
                 <XCircle v-else class="w-4 h-4 text-foreground" />
                 <span class="text-xs text-muted-foreground">{{ statusLabel(line.status) }}</span>
+              </div>
+
+              <div v-if="isResolvable(line)">
+                <button
+                  type="button"
+                  data-testid="resolve-toggle"
+                  class="text-xs text-primary hover:underline"
+                  @click="toggleResolve(line)"
+                >
+                  {{ getResolveState(line).expanded ? 'Cancel' : 'Resolve' }}
+                </button>
+
+                <div v-if="getResolveState(line).expanded" class="mt-2 space-y-2">
+                  <div
+                    v-if="getResolveState(line).searching"
+                    class="flex items-center gap-2 text-xs text-muted-foreground"
+                  >
+                    <SpinnerIcon class="w-4 h-4" />
+                    <span>Searching...</span>
+                  </div>
+                  <FormErrorBanner v-if="getResolveState(line).error" :message="getResolveState(line).error" />
+                  <div
+                    v-if="!getResolveState(line).searching && getResolveState(line).results.length"
+                    class="flex flex-wrap gap-1"
+                  >
+                    <button
+                      v-for="candidate in getResolveState(line).results"
+                      :key="candidate.tmdbId"
+                      type="button"
+                      data-testid="resolve-candidate"
+                      class="relative"
+                      :disabled="getResolveState(line).resolvingTmdbId !== null"
+                      @click="pickCandidate(line, candidate)"
+                    >
+                      <img
+                        :src="posterUrl(candidate.posterPath)"
+                        :alt="candidate.title"
+                        class="w-10 aspect-[2/3] object-cover bg-card border border-border"
+                      >
+                      <div
+                        v-if="getResolveState(line).resolvingTmdbId === candidate.tmdbId"
+                        class="absolute inset-0 bg-background/70 flex items-center justify-center"
+                      >
+                        <SpinnerIcon class="w-4 h-4" />
+                      </div>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </template>

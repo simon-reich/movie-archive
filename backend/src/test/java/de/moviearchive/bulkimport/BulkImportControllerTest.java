@@ -567,6 +567,199 @@ class BulkImportControllerTest extends AbstractWireMockTest {
                 .andExpect(status().isNotFound());
     }
 
+    // -------------------------------------------------------------------------
+    // 15-02: POST /movies/bulk-import/batches/{batchId}/lines/{lineId}/resolve
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldResolveAmbiguousLine_savingMovieAndUpdatingLineStatus() throws Exception {
+        createActiveUser("resolve@example.com");
+        User user = userRepository.findByEmail("resolve@example.com").orElseThrow();
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("resolve@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/robin-hood-ambiguous-search.json"))));
+
+        String uploadResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Robin Hood;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(uploadResponseBody).get("batchId").asText();
+
+        BulkImportLine line = pollForLineByTitle("Robin Hood", 5000);
+        assertThat(line).isNotNull();
+        assertThat(line.getStatus()).isEqualTo(BulkImportLineStatus.AMBIGUOUS);
+        drainBulkImportExecutor(10000);
+
+        mockMvc.perform(MockMvcRequestBuilders.post(
+                        "/movies/bulk-import/batches/{batchId}/lines/{lineId}/resolve", batchId, line.getId())
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tmdbId\": 1002, \"posterPath\": \"/robinhood2.jpg\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.movieId").isNotEmpty());
+
+        BulkImportLine resolved = bulkImportLineRepository.findById(line.getId()).orElseThrow();
+        assertThat(resolved.getStatus()).isEqualTo(BulkImportLineStatus.SAVED);
+        assertThat(resolved.getTmdbId()).isEqualTo(1002);
+
+        Movie savedMovie = movieRepository.findByUserIdAndTmdbId(user.getId(), 1002).orElseThrow();
+        assertThat(savedMovie).isNotNull();
+    }
+
+    @Test
+    void shouldReturn404_whenResolvingLineFromDifferentBatch() throws Exception {
+        createActiveUser("resolve-crossbatch@example.com");
+        User user = userRepository.findByEmail("resolve-crossbatch@example.com").orElseThrow();
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("resolve-crossbatch@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/robin-hood-ambiguous-search.json"))));
+
+        // Batch A
+        String batchAResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Robin Hood;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchAId = objectMapper.readTree(batchAResponseBody).get("batchId").asText();
+        BulkImportLine lineInBatchA = pollForLineByTitle("Robin Hood", 5000);
+        assertThat(lineInBatchA).isNotNull();
+        drainBulkImportExecutor(10000);
+
+        // Batch B — same user, same title, creates a second (distinct) line row via a fresh upload.
+        bulkImportLineRepository.deleteAll();
+        String batchBResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Robin Hood;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchBId = objectMapper.readTree(batchBResponseBody).get("batchId").asText();
+        BulkImportLine lineInBatchB = pollForLineByTitle("Robin Hood", 5000);
+        assertThat(lineInBatchB).isNotNull();
+        drainBulkImportExecutor(10000);
+        assertThat(batchAId).isNotEqualTo(batchBId);
+
+        // lineInBatchB's id is not associated with batchAId — resolving against batchAId 404s.
+        mockMvc.perform(MockMvcRequestBuilders.post(
+                        "/movies/bulk-import/batches/{batchId}/lines/{lineId}/resolve",
+                        batchAId, lineInBatchB.getId())
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tmdbId\": 1002, \"posterPath\": null}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturn403_whenDifferentUserResolvesLine() throws Exception {
+        User owner = createActiveUser("resolve-owner@example.com");
+        saveTmdbKey(owner, "valid-tmdb-key");
+        String ownerToken = loginAndGetToken("resolve-owner@example.com");
+
+        createActiveUser("resolve-intruder@example.com");
+        String intruderToken = loginAndGetToken("resolve-intruder@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/robin-hood-ambiguous-search.json"))));
+
+        String uploadResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Robin Hood;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", ownerToken))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(uploadResponseBody).get("batchId").asText();
+        BulkImportLine line = pollForLineByTitle("Robin Hood", 5000);
+        assertThat(line).isNotNull();
+        drainBulkImportExecutor(10000);
+
+        mockMvc.perform(MockMvcRequestBuilders.post(
+                        "/movies/bulk-import/batches/{batchId}/lines/{lineId}/resolve", batchId, line.getId())
+                        .header("Authorization", intruderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tmdbId\": 1002, \"posterPath\": null}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Access denied."));
+    }
+
+    @Test
+    void shouldReturn404_whenResolvingUnknownLineId() throws Exception {
+        createActiveUser("resolve-unknownline@example.com");
+        User user = userRepository.findByEmail("resolve-unknownline@example.com").orElseThrow();
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("resolve-unknownline@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/robin-hood-ambiguous-search.json"))));
+
+        String uploadResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Robin Hood;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(uploadResponseBody).get("batchId").asText();
+        drainBulkImportExecutor(10000);
+
+        mockMvc.perform(MockMvcRequestBuilders.post(
+                        "/movies/bulk-import/batches/{batchId}/lines/{lineId}/resolve",
+                        batchId, UUID.randomUUID())
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tmdbId\": 1002, \"posterPath\": null}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturn400_whenResolveTmdbIdNotPositive() throws Exception {
+        createActiveUser("resolve-invalidtmdbid@example.com");
+        User user = userRepository.findByEmail("resolve-invalidtmdbid@example.com").orElseThrow();
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("resolve-invalidtmdbid@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/robin-hood-ambiguous-search.json"))));
+
+        String uploadResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.txt", "text/plain",
+                                "Robin Hood;;2010".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(uploadResponseBody).get("batchId").asText();
+        BulkImportLine line = pollForLineByTitle("Robin Hood", 5000);
+        assertThat(line).isNotNull();
+        drainBulkImportExecutor(10000);
+
+        mockMvc.perform(MockMvcRequestBuilders.post(
+                        "/movies/bulk-import/batches/{batchId}/lines/{lineId}/resolve", batchId, line.getId())
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tmdbId\": 0, \"posterPath\": null}"))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void shouldSkipReupload_whenLineAlreadySaved() throws Exception {
         createActiveUser("reupload@example.com");

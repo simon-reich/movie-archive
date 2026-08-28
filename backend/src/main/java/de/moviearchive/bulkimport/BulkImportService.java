@@ -3,6 +3,7 @@ package de.moviearchive.bulkimport;
 import com.fasterxml.jackson.databind.JsonNode;
 import de.moviearchive.bulkimport.ImportLineParser.ParsedLine;
 import de.moviearchive.bulkimport.dto.MatchedLine;
+import de.moviearchive.bulkimport.dto.ResolveLineRequest;
 import de.moviearchive.enrichment.EnrichmentService;
 import de.moviearchive.enrichment.TmdbClient;
 import de.moviearchive.enrichment.WikipediaClient;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -197,6 +199,34 @@ public class BulkImportService {
                     movieId, tmdbId, e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * D-08/D-09/D-10: resolves an AMBIGUOUS/NOT_FOUND line to a manually-picked TMDB
+     * candidate — saves the movie via the existing idempotent pipeline and updates THIS
+     * specific line row to SAVED so the batch report reflects the resolution. lineId is
+     * looked up scoped to batchId (T-15-01's IDOR mitigation) — a lineId belonging to a
+     * different batch (even one owned by the same user) throws NoSuchElementException, which
+     * the controller's existing handleNotFound() turns into 404.
+     *
+     * Does NOT call enrichmentService.enrich() here (CR-01 — see MovieController.saveMovie()
+     * and processLine()/runImport() above for the established sequencing this mirrors): the
+     * caller must fire enrichment only after this method's transaction has committed.
+     */
+    @Transactional
+    public MovieInitiateResult resolveLine(String email, UUID batchId, UUID lineId, ResolveLineRequest request) {
+        BulkImportLine line = bulkImportLineRepository.findByIdAndBatchId(lineId, batchId)
+                .orElseThrow(() -> new NoSuchElementException("Line not found: " + lineId));
+
+        MovieInitiateResult result = movieService.initiate(email, request.tmdbId());
+
+        line.setStatus(BulkImportLineStatus.SAVED);
+        line.setTmdbId(request.tmdbId());
+        line.setPosterPath(request.posterPath());
+        line.setUpdatedAt(Instant.now());
+        bulkImportLineRepository.save(line);
+
+        return result;
     }
 
     /**

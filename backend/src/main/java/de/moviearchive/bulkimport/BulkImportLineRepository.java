@@ -69,4 +69,11 @@ public interface BulkImportLineRepository extends JpaRepository<BulkImportLine, 
      */
     @Query("SELECT b.status, COUNT(b) FROM BulkImportLine b WHERE b.batch.id = :batchId GROUP BY b.status")
     List<Object[]> countByBatchIdGroupByStatus(@Param("batchId") UUID batchId);
+
+    /**
+     * D-08/T-15-01: the actual IDOR mitigation for the inline resolve endpoint — proves the
+     * line belongs to THIS batch, not merely that a line with that id exists somewhere (even
+     * one owned by the same user, in a different batch).
+     */
+    Optional<BulkImportLine> findByIdAndBatchId(UUID id, UUID batchId);
 }

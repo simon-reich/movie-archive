@@ -3,12 +3,16 @@ package de.moviearchive.bulkimport;
 import de.moviearchive.bulkimport.dto.BulkImportBatchDetail;
 import de.moviearchive.bulkimport.dto.BulkImportBatchSummary;
 import de.moviearchive.bulkimport.dto.BulkImportLineResult;
+import de.moviearchive.bulkimport.dto.ResolveLineRequest;
+import de.moviearchive.enrichment.EnrichmentService;
 import de.moviearchive.movie.Movie;
 import de.moviearchive.movie.MovieRepository;
 import de.moviearchive.movie.MovieService;
 import de.moviearchive.movie.NoTmdbKeyException;
+import de.moviearchive.movie.dto.MovieInitiateResult;
 import de.moviearchive.user.User;
 import de.moviearchive.user.UserRepository;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.TaskRejectedException;
@@ -21,6 +25,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -57,6 +62,7 @@ public class BulkImportController {
     private final BulkImportLineRepository bulkImportLineRepository;
     private final BulkImportProgressService progressService;
     private final MovieRepository movieRepository;
+    private final EnrichmentService enrichmentService;
 
     // WR-02: the global bulkImportExecutor is sized to a single running + single queued slot
     // (AsyncConfig.java), so an unbounded upload can tie up the only import slot for hours at
@@ -68,7 +74,7 @@ public class BulkImportController {
             BulkImportService bulkImportService, MovieService movieService, ImportLineParser importLineParser,
             UserRepository userRepository, BulkImportBatchRepository bulkImportBatchRepository,
             BulkImportLineRepository bulkImportLineRepository, BulkImportProgressService progressService,
-            MovieRepository movieRepository) {
+            MovieRepository movieRepository, EnrichmentService enrichmentService) {
         this.bulkImportService = bulkImportService;
         this.movieService = movieService;
         this.importLineParser = importLineParser;
@@ -77,6 +83,7 @@ public class BulkImportController {
         this.bulkImportLineRepository = bulkImportLineRepository;
         this.progressService = progressService;
         this.movieRepository = movieRepository;
+        this.enrichmentService = enrichmentService;
     }
 
     @PostMapping(value = "/bulk-import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -197,6 +204,27 @@ public class BulkImportController {
                 .toList();
         return ResponseEntity.ok(
                 new BulkImportBatchDetail(batch.getId(), batch.getCreatedAt(), batch.getTotalLines(), lines));
+    }
+
+    /**
+     * POST /movies/bulk-import/batches/{batchId}/lines/{lineId}/resolve — D-08/D-09/D-10
+     * inline resolution of an AMBIGUOUS/NOT_FOUND line to a manually-picked TMDB candidate.
+     * Ownership-scoped on BOTH batchId (loadOwnedBatch(), 403/404) AND lineId
+     * (BulkImportService.resolveLine() -> findByIdAndBatchId(), 404 via the existing
+     * handleNotFound() handler — T-15-01: a lineId from a different batch, even one owned by
+     * the same user, resolves to 404, not merely "line not found in general"). Mirrors
+     * MovieController.saveMovie()'s enrich-after-commit sequencing (CR-01) exactly.
+     */
+    @PostMapping("/bulk-import/batches/{batchId}/lines/{lineId}/resolve")
+    public ResponseEntity<Map<String, String>> resolveLine(
+            @PathVariable UUID batchId, @PathVariable UUID lineId,
+            @Valid @RequestBody ResolveLineRequest request, Authentication auth) {
+        loadOwnedBatch(auth, batchId);
+        MovieInitiateResult result = bulkImportService.resolveLine(auth.getName(), batchId, lineId, request);
+        if (result.isNew()) {
+            enrichmentService.enrich(result.id());
+        }
+        return ResponseEntity.ok(Map.of("movieId", result.id().toString()));
     }
 
     /**

@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 15-bulk-import-page-completion-view-toggle-movie-links-real-csv
-source: [15-VERIFICATION.md, 15-04-SUMMARY.md]
+source: [15-VERIFICATION.md, 15-04-SUMMARY.md, 15-05-SUMMARY.md]
 started: 2026-08-28T14:25:58Z
-updated: 2026-08-28T21:20:00Z
+updated: 2026-08-28T21:40:00Z
 ---
 
 ## Current Test
@@ -20,11 +20,11 @@ result: pass
 expected: Open a real bulk-import batch with mixed statuses (SAVED/AMBIGUOUS/NOT_FOUND/PARSE_ERROR). Click a SAVED card → navigates to /movies/{id}. Results are grouped into four sections in order: Saved → Ambiguous → Not found → Parse error, each its own section. PARSE_ERROR lines render as a row (not a poster card) with the full, untruncated raw line text.
 result: pass
 
-### 3. End-to-end inline resolve against the real TMDB API — resolve widget full-width (re-test after 15-04 fix)
-expected: Expand the resolve widget on a real AMBIGUOUS or NOT_FOUND line. The candidate picker now spans the full page/container width (not squeezed into one card's column), with recognizably-sized poster thumbnails. Run a live TMDB search, pick a candidate, confirm the batch report immediately shows SAVED with a working movie link.
+### 3. Resolve widget candidates now show title + year (re-test after 15-05 fix)
+expected: Expand the resolve widget on a real AMBIGUOUS or NOT_FOUND line. Each candidate poster now has its title and year (when known) visible as text underneath, so the correct film can be identified even when posters look similar.
 result: issue
-reported: "Ja, soweit funktioniert das eigentlich, allerdings werden halt auch nur Poster angezeigt, was nicht ausreicht. Wir brauchen darunter auch den Titel und das Jahr. Sonst kann das schwer und manchmal maybe unmöglich werden, den richtigen Fim auszusuchen"
-severity: major
+reported: "Ja, schon besser. Problem ist, dass längere Titel nicht ganz dargestellt werden und damit auch die Jahreszahl verloren geht. Also, da muss es irgendwie einen Zeilenumbruch geben, sodass der Titel komplett dargestellt wird, nicht mit Punkt abgekürzt wird. So dass der komplette titel und dann auch noch die Jahreszahlen zu sehen ist."
+severity: minor
 
 ### 4. Real-world regression import of saubere_filmliste.txt (D-17)
 expected: Run a real bulk import against saubere_filmliste.txt (repo root, untracked, 1139 lines, semicolon format) using the live app stack (TMDB key, DB, SSE progress) and confirm every line resolves to the identical per-line outcome it would have produced before this phase — a no-op regression check.
@@ -87,7 +87,9 @@ blocked: 0
 
 - gap_id: G-15-4
   truth: "AMBIGUOUS or NOT_FOUND line can be resolved in-place: expand, fresh TMDB search prefilled with title, pick candidate, save (D-08) — candidate must be identifiable enough to pick correctly"
-  status: failed
+  status: resolved
+  resolved_by: 15-05-PLAN.md
+  resolved_at: 2026-08-28
   reason: |
     User reported (re-test after 15-04's full-width fix for G-15-3): the resolve widget now works and posters are appropriately sized, BUT each candidate shows ONLY its poster image — no title or year underneath. Verbatim: "Ja, soweit funktioniert das eigentlich, allerdings werden halt auch nur Poster angezeigt, was nicht ausreicht. Wir brauchen darunter auch den Titel und das Jahr. Sonst kann das schwer und manchmal maybe unmöglich werden, den richtigen Fim auszusuchen" (poster alone is not enough — need title + year displayed under each candidate, otherwise picking the correct film can become difficult or sometimes impossible, e.g. same poster reused across different regional releases, remakes, or sequels with similar art).
   severity: major
@@ -101,3 +103,13 @@ blocked: 0
   missing:
     - "Add a visible text label (title + year, e.g. \"Movie Title (1999)\") below/over each candidate poster in both grid and list resolve-candidate blocks, using the already-available candidate.title / candidate.year fields — no backend or composable changes needed."
   debug_session: ""
+
+- gap_id: G-15-5
+  truth: "Resolve-widget candidate label (added by 15-05 for G-15-4) must show the COMPLETE title and year, not a truncated title with the year cut off"
+  status: failed
+  reason: |
+    User reported (re-test after 15-05's title/year label fix): the new label is an improvement, but long titles get clipped (presumably CSS text-overflow: ellipsis / truncate on a single line), which pushes the year off-screen or hides it entirely. Verbatim: "Ja, schon besser. Problem ist, dass längere Titel nicht ganz dargestellt werden und damit auch die Jahreszahl verloren geht. Also, da muss es irgendwie einen Zeilenumbruch geben, sodass der Titel komplett dargestellt wird, nicht mit Punkt abgekürzt wird. So dass der komplette titel und dann auch noch die Jahreszahlen zu sehen ist." (Need line-wrap instead of ellipsis-truncation so the full title AND the year are both always visible — no single-line clipping.)
+  severity: minor
+  test: 3
+  artifacts: []  # Filled by diagnosis
+  missing: []    # Filled by diagnosis

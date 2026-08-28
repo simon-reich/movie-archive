@@ -86,6 +86,7 @@ Key decisions relevant to v1.1:
 - 2026-08-24-support-real-csv-parsing-for-bulk-import — Support real CSV parsing for bulk import (and matching CSV export) [minor]
 - 2026-08-27-distinguish-stopped-vs-completed-in-progress-ui — Distinguish "stopped early" from "fully completed" in the wiki-reload progress UI (WR-02 from 14-REVIEW.md; deferred ProgressState schema change) [minor]
 - 2026-08-27-authorizationdeniedexception-on-sse-emitter-complete — AuthorizationDeniedException logged on SseEmitter.complete() async re-dispatch; pre-existing pattern shared with bulk-import's progress endpoint, appears to be log noise only (response already committed) but needs proper root-causing [minor]
+- 2026-08-28-create-api-contract-doc-for-future-flutter-port — Create a dedicated API-contract doc (endpoints, payload/SSE shapes, auth rules, rate-limit/pacing timing) to prep for a future Flutter frontend reusing the existing backend as-is; not urgent, no Flutter work started yet [minor]
 
 ### Blockers/Concerns
 

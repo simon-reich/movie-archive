@@ -175,7 +175,14 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 15-01-PLAN.md — Batch-detail page completion: DTO id/movieId/rawLine extension, whole-card movie links, PARSE_ERROR raw-line display, grid/list view toggle (D-01–D-07, D-11 display half, tracer)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 15-02-PLAN.md — Inline ambiguous/not-found resolution: new ownership-scoped resolve endpoint + search-and-pick widget (D-08–D-10, D-11 confirmed boundary)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 15-03-PLAN.md — Real CSV parsing: Apache Commons CSV, file-level format detection, optional header-row skip, legacy semicolon format unchanged (D-12–D-17)

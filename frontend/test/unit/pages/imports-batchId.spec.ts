@@ -42,6 +42,26 @@ const MOCK_DETAIL_WITH_PARSE_ERROR: BulkImportBatchDetail = {
   ],
 }
 
+// happy-dom's test environment does not provide a real localStorage global — stub an
+// in-memory implementation so the page's onMounted() read/write calls don't throw.
+function createLocalStorageStub(): Storage {
+  const store = new Map<string, string>()
+  return {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+    removeItem: (key: string) => {
+      store.delete(key)
+    },
+    clear: () => store.clear(),
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size
+    },
+  } as Storage
+}
+
 async function mountPage() {
   const { default: BatchDetailPage } = await import('@/pages/imports/[batchId].vue')
   return mount(BatchDetailPage, {
@@ -62,6 +82,7 @@ describe('/imports/[batchId] page', () => {
       capturedOnProgress = onProgress
       return mockUnsubscribe
     })
+    vi.stubGlobal('localStorage', createLocalStorageStub())
   })
 
   it('shows a connecting state before the first progress event arrives', async () => {
@@ -161,5 +182,46 @@ describe('/imports/[batchId] page', () => {
     const rawLineText = wrapper.find('[data-testid="raw-line-text"]')
     expect(rawLineText.exists()).toBe(true)
     expect(rawLineText.text()).toBe('BadLine;;notayear')
+  })
+
+  it('renders grid view by default when no localStorage entry is present', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 2, total: 2, complete: true })
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.findAll('[data-testid="result-card"]')).toHaveLength(2)
+    expect(wrapper.findAll('[data-testid="view-list-row"]')).toHaveLength(0)
+  })
+
+  it('switches to list view when the ViewToggle list button is clicked', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 2, total: 2, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const listButton = wrapper.find('[aria-label="List view"]')
+    expect(listButton.exists()).toBe(true)
+    await listButton.trigger('click')
+    await nextTick()
+
+    const rows = wrapper.findAll('[data-testid="view-list-row"]')
+    expect(rows).toHaveLength(MOCK_DETAIL.lines.length)
+    expect(rows[0]!.text()).toContain('Saved')
+    expect(rows[1]!.text()).toContain('Not found')
+  })
+
+  it('renders list view immediately when localStorage has bulk-import-view-mode=list', async () => {
+    localStorage.setItem('bulk-import-view-mode', 'list')
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL)
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 2, total: 2, complete: true })
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.findAll('[data-testid="view-list-row"]')).toHaveLength(MOCK_DETAIL.lines.length)
+    expect(wrapper.findAll('[data-testid="result-card"]')).toHaveLength(0)
   })
 })

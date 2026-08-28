@@ -952,4 +952,133 @@ class BulkImportControllerTest extends AbstractWireMockTest {
     static void overridePacingDelay(DynamicPropertyRegistry registry) {
         registry.add("bulk-import.pacing-delay-ms", () -> "2000");
     }
+
+    // -------------------------------------------------------------------------
+    // 15-03: comma-delimited CSV format (D-12/D-13/D-14/D-15/D-16)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldParseCommaDelimitedCsv_andSaveUniqueMatch() throws Exception {
+        User user = createActiveUser("csv-basic@example.com");
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("csv-basic@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+        wireMock.stubFor(get(urlPathMatching("/3/movie/\\d+"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-detail.json"))));
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "films.csv", "text/csv",
+                "Inception,,2010".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(file)
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted());
+
+        BulkImportLine line = pollForLineByTitle("Inception", 5000);
+        assertThat(line).isNotNull();
+        assertThat(line.getStatus()).isEqualTo(BulkImportLineStatus.SAVED);
+        assertThat(line.getTmdbId()).isEqualTo(27205);
+    }
+
+    @Test
+    void shouldSkipHeaderRow_whenFirstCsvLineHasNonNumericYear() throws Exception {
+        User user = createActiveUser("csv-header@example.com");
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("csv-header@example.com");
+
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+        wireMock.stubFor(get(urlPathMatching("/3/movie/\\d+"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-detail.json"))));
+
+        byte[] content = "Title,OriginalTitle,Year\nInception,,2010".getBytes(StandardCharsets.UTF_8);
+        String uploadResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.csv", "text/csv", content))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(uploadResponseBody).get("batchId").asText();
+
+        BulkImportLine line = pollForLineByTitle("Inception", 5000);
+        assertThat(line).isNotNull();
+        drainBulkImportExecutor(10000);
+
+        String detailResponseBody = mockMvc.perform(MockMvcRequestBuilders.get(
+                        "/movies/bulk-import/batches/{batchId}", batchId)
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode detail = objectMapper.readTree(detailResponseBody);
+        // The header row produced zero rows — exactly one BulkImportLine row exists for the batch.
+        assertThat(detail.get("lines").size()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldMarkParseError_forCsvLineWithWrongFieldCount() throws Exception {
+        createActiveUser("csv-wrongfields@example.com");
+        User user = userRepository.findByEmail("csv-wrongfields@example.com").orElseThrow();
+        saveTmdbKey(user, "valid-tmdb-key");
+        String token = loginAndGetToken("csv-wrongfields@example.com");
+
+        // Mix a valid CSV line with the wrong-field-count line — G-10-1's pre-flight guard
+        // rejects a wholly-unparseable batch synchronously, so an all-invalid upload never
+        // reaches the async pipeline this test exercises.
+        wireMock.stubFor(get(urlPathMatching("/3/search/movie"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-search.json"))));
+        wireMock.stubFor(get(urlPathMatching("/3/movie/\\d+"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(loadFixture("fixtures/tmdb/inception-detail.json"))));
+
+        String badRawLine = "Title,2010";
+        byte[] content = ("Inception,,2010\n" + badRawLine).getBytes(StandardCharsets.UTF_8);
+        String uploadResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
+                        .file(new MockMultipartFile("file", "films.csv", "text/csv", content))
+                        .header("Authorization", token))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String batchId = objectMapper.readTree(uploadResponseBody).get("batchId").asText();
+
+        // Wait for the batch to settle (title=null on a field-count-mismatch line, so poll by
+        // the known-good sibling line instead — mirrors shouldExposeRawLine_forParseErrorLines).
+        BulkImportLine savedLine = pollForLineByTitle("Inception", 5000);
+        assertThat(savedLine).isNotNull();
+        drainBulkImportExecutor(10000);
+
+        String detailResponseBody = mockMvc.perform(MockMvcRequestBuilders.get(
+                        "/movies/bulk-import/batches/{batchId}", batchId)
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode detail = objectMapper.readTree(detailResponseBody);
+        JsonNode lines = detail.get("lines");
+
+        JsonNode parseErrorLine = null;
+        for (JsonNode line : lines) {
+            if ("PARSE_ERROR".equals(line.get("status").asText())) {
+                parseErrorLine = line;
+            }
+        }
+        assertThat(parseErrorLine).isNotNull();
+        assertThat(parseErrorLine.get("rawLine").asText()).isEqualTo(badRawLine);
+    }
 }

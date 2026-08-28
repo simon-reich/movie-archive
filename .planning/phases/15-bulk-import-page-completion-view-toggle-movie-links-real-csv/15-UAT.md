@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 15-bulk-import-page-completion-view-toggle-movie-links-real-csv
-source: [15-VERIFICATION.md, 15-04-SUMMARY.md, 15-05-SUMMARY.md]
+source: [15-VERIFICATION.md, 15-04-SUMMARY.md, 15-05-SUMMARY.md, 15-06-SUMMARY.md]
 started: 2026-08-28T14:25:58Z
-updated: 2026-08-28T21:45:00Z
+updated: 2026-08-28T22:05:00Z
 ---
 
 ## Current Test
@@ -20,11 +20,9 @@ result: pass
 expected: Open a real bulk-import batch with mixed statuses (SAVED/AMBIGUOUS/NOT_FOUND/PARSE_ERROR). Click a SAVED card → navigates to /movies/{id}. Results are grouped into four sections in order: Saved → Ambiguous → Not found → Parse error, each its own section. PARSE_ERROR lines render as a row (not a poster card) with the full, untruncated raw line text.
 result: pass
 
-### 3. Resolve widget candidates now show title + year (re-test after 15-05 fix)
-expected: Expand the resolve widget on a real AMBIGUOUS or NOT_FOUND line. Each candidate poster now has its title and year (when known) visible as text underneath, so the correct film can be identified even when posters look similar.
-result: issue
-reported: "Ja, schon besser. Problem ist, dass längere Titel nicht ganz dargestellt werden und damit auch die Jahreszahl verloren geht. Also, da muss es irgendwie einen Zeilenumbruch geben, sodass der Titel komplett dargestellt wird, nicht mit Punkt abgekürzt wird. So dass der komplette titel und dann auch noch die Jahreszahlen zu sehen ist."
-severity: minor
+### 3. Resolve widget candidate labels wrap instead of truncating (re-test after 15-06 fix)
+expected: Expand the resolve widget on an AMBIGUOUS/NOT_FOUND line with a long-titled candidate. The full title wraps onto multiple lines (no "…" clipping) and the year remains visible after it.
+result: pass
 
 ### 4. Real-world regression import of saubere_filmliste.txt (D-17)
 expected: Run a real bulk import against saubere_filmliste.txt (repo root, untracked, 1139 lines, semicolon format) using the live app stack (TMDB key, DB, SSE progress) and confirm every line resolves to the identical per-line outcome it would have produced before this phase — a no-op regression check.
@@ -33,8 +31,8 @@ result: pass
 ## Summary
 
 total: 4
-passed: 3
-issues: 1
+passed: 4
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
@@ -106,7 +104,9 @@ blocked: 0
 
 - gap_id: G-15-5
   truth: "Resolve-widget candidate label (added by 15-05 for G-15-4) must show the COMPLETE title and year, not a truncated title with the year cut off"
-  status: failed
+  status: resolved
+  resolved_by: 15-06-PLAN.md
+  resolved_at: 2026-08-28
   reason: |
     User reported (re-test after 15-05's title/year label fix): the new label is an improvement, but long titles get clipped (presumably CSS text-overflow: ellipsis / truncate on a single line), which pushes the year off-screen or hides it entirely. Verbatim: "Ja, schon besser. Problem ist, dass längere Titel nicht ganz dargestellt werden und damit auch die Jahreszahl verloren geht. Also, da muss es irgendwie einen Zeilenumbruch geben, sodass der Titel komplett dargestellt wird, nicht mit Punkt abgekürzt wird. So dass der komplette titel und dann auch noch die Jahreszahlen zu sehen ist." (Need line-wrap instead of ellipsis-truncation so the full title AND the year are both always visible — no single-line clipping.)
   severity: minor

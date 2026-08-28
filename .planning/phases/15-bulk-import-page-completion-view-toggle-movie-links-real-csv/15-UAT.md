@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 15-bulk-import-page-completion-view-toggle-movie-links-real-csv
 source: [15-VERIFICATION.md, 15-04-SUMMARY.md]
 started: 2026-08-28T14:25:58Z
-updated: 2026-08-28T21:15:00Z
+updated: 2026-08-28T21:20:00Z
 ---
 
 ## Current Test
@@ -92,5 +92,12 @@ blocked: 0
     User reported (re-test after 15-04's full-width fix for G-15-3): the resolve widget now works and posters are appropriately sized, BUT each candidate shows ONLY its poster image — no title or year underneath. Verbatim: "Ja, soweit funktioniert das eigentlich, allerdings werden halt auch nur Poster angezeigt, was nicht ausreicht. Wir brauchen darunter auch den Titel und das Jahr. Sonst kann das schwer und manchmal maybe unmöglich werden, den richtigen Fim auszusuchen" (poster alone is not enough — need title + year displayed under each candidate, otherwise picking the correct film can become difficult or sometimes impossible, e.g. same poster reused across different regional releases, remakes, or sequels with similar art).
   severity: major
   test: 3
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
+  root_cause: "frontend/pages/imports/[batchId].vue's resolve-candidate buttons (grid ~lines 291-309, list ~lines 388-404) render only <img :src=\"posterUrl(candidate.posterPath)\" :alt=\"candidate.title\">. candidate is typed as TmdbSearchResult (frontend/composables/useMovies.ts), which already carries `title: string` and `year: number | null` — the data is available on every candidate, it is simply never rendered as visible text; `title` is only ever used as the img `alt` attribute, and `year` is not referenced at all in either candidate block."
+  artifacts:
+    - path: "frontend/pages/imports/[batchId].vue"
+      issue: "Grid-view candidate button (~lines 291-309) and list-view candidate button (~lines 388-404) render only the poster <img>, no title/year text node."
+    - path: "frontend/composables/useMovies.ts"
+      issue: "No code issue — TmdbSearchResult.title/.year already exist and are populated; this is confirmation the data is available, not a data-layer gap."
+  missing:
+    - "Add a visible text label (title + year, e.g. \"Movie Title (1999)\") below/over each candidate poster in both grid and list resolve-candidate blocks, using the already-available candidate.title / candidate.year fields — no backend or composable changes needed."
+  debug_session: ""

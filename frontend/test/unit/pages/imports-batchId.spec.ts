@@ -422,4 +422,75 @@ describe('/imports/[batchId] page', () => {
     expect(listRawText).toBe(gridRawText)
     expect(wrapper.findAll('[data-testid="parse-error-row"]')).toHaveLength(1)
   })
+
+  // ── G-15-3: resolve widget's candidate picker breaks out to full container width ──
+
+  it('renders the expanded resolve panel as a sibling of result-card, not a descendant, in grid view', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
+    mockSearchTmdb.mockResolvedValueOnce([
+      { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
+    ])
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    await wrapper.find('[data-testid="resolve-toggle"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const card = wrapper.find('[data-testid="result-card"]')
+    expect(card.find('[data-testid="resolve-panel"]').exists()).toBe(false)
+
+    const panel = wrapper.find('[data-testid="resolve-panel"]')
+    expect(panel.exists()).toBe(true)
+    expect(panel.classes()).toContain('col-span-full')
+  })
+
+  it('renders the expanded resolve panel as a sibling of view-list-row, not a descendant, in list view', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
+    mockSearchTmdb.mockResolvedValueOnce([
+      { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
+    ])
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const listButton = wrapper.find('[aria-label="List view"]')
+    await listButton.trigger('click')
+    await nextTick()
+
+    await wrapper.find('[data-testid="resolve-toggle"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const row = wrapper.find('[data-testid="view-list-row"]')
+    expect(row.find('[data-testid="resolve-panel"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="resolve-panel"]').exists()).toBe(true)
+  })
+
+  it('sizes candidate posters to fill their now-wider grid cell, not the old fixed 40px list thumbnail', async () => {
+    mockGetBatchDetail.mockResolvedValueOnce(MOCK_DETAIL_AMBIGUOUS)
+    mockSearchTmdb.mockResolvedValueOnce([
+      { tmdbId: 1002, title: 'Robin Hood', year: 2010, posterPath: '/robinhood2.jpg' },
+    ])
+    const wrapper = await mountPage()
+    await capturedOnProgress?.({ processed: 1, total: 1, complete: true })
+    await nextTick()
+    await nextTick()
+
+    const listButton = wrapper.find('[aria-label="List view"]')
+    await listButton.trigger('click')
+    await nextTick()
+
+    await wrapper.find('[data-testid="resolve-toggle"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const candidateImg = wrapper.find('[data-testid="resolve-candidate"] img')
+    expect(candidateImg.exists()).toBe(true)
+    expect(candidateImg.classes()).toContain('w-full')
+    expect(candidateImg.classes()).not.toContain('w-10')
+  })
 })

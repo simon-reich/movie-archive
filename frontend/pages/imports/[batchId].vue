@@ -265,45 +265,52 @@ async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchRe
               >
                 {{ getResolveState(line).expanded ? 'Cancel' : 'Resolve' }}
               </button>
-
-              <div v-if="getResolveState(line).expanded" class="mt-2 space-y-2">
-                <div
-                  v-if="getResolveState(line).searching"
-                  class="flex items-center gap-2 text-xs text-muted-foreground"
-                >
-                  <SpinnerIcon class="w-4 h-4" />
-                  <span>Searching...</span>
-                </div>
-                <FormErrorBanner v-if="getResolveState(line).error" :message="getResolveState(line).error" />
-                <div
-                  v-if="!getResolveState(line).searching && getResolveState(line).results.length"
-                  class="grid grid-cols-3 gap-1"
-                >
-                  <button
-                    v-for="candidate in getResolveState(line).results"
-                    :key="candidate.tmdbId"
-                    type="button"
-                    data-testid="resolve-candidate"
-                    class="relative"
-                    :disabled="getResolveState(line).resolvingTmdbId !== null"
-                    @click="pickCandidate(line, candidate)"
-                  >
-                    <img
-                      :src="posterUrl(candidate.posterPath)"
-                      :alt="candidate.title"
-                      class="w-full aspect-[2/3] object-cover bg-card border border-border"
-                    >
-                    <div
-                      v-if="getResolveState(line).resolvingTmdbId === candidate.tmdbId"
-                      class="absolute inset-0 bg-background/70 flex items-center justify-center"
-                    >
-                      <SpinnerIcon class="w-4 h-4" />
-                    </div>
-                  </button>
-                </div>
-              </div>
             </div>
           </component>
+
+          <!-- G-15-3: the expanded candidate picker is a sibling of result-card, not a
+               descendant of it, so it can break out to col-span-full full-width instead
+               of inheriting the single grid cell's narrow width. -->
+          <div
+            v-if="isResolvable(line) && getResolveState(line).expanded"
+            data-testid="resolve-panel"
+            class="col-span-full bg-card border border-border p-4 space-y-2"
+          >
+            <div
+              v-if="getResolveState(line).searching"
+              class="flex items-center gap-2 text-xs text-muted-foreground"
+            >
+              <SpinnerIcon class="w-4 h-4" />
+              <span>Searching...</span>
+            </div>
+            <FormErrorBanner v-if="getResolveState(line).error" :message="getResolveState(line).error" />
+            <div
+              v-if="!getResolveState(line).searching && getResolveState(line).results.length"
+              class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2"
+            >
+              <button
+                v-for="candidate in getResolveState(line).results"
+                :key="candidate.tmdbId"
+                type="button"
+                data-testid="resolve-candidate"
+                class="relative"
+                :disabled="getResolveState(line).resolvingTmdbId !== null"
+                @click="pickCandidate(line, candidate)"
+              >
+                <img
+                  :src="posterUrl(candidate.posterPath)"
+                  :alt="candidate.title"
+                  class="w-full aspect-[2/3] object-cover bg-card border border-border"
+                >
+                <div
+                  v-if="getResolveState(line).resolvingTmdbId === candidate.tmdbId"
+                  class="absolute inset-0 bg-background/70 flex items-center justify-center"
+                >
+                  <SpinnerIcon class="w-4 h-4" />
+                </div>
+              </button>
+            </div>
+          </div>
         </template>
       </div>
 
@@ -352,46 +359,54 @@ async function pickCandidate(line: BulkImportLineResult, candidate: TmdbSearchRe
                 >
                   {{ getResolveState(line).expanded ? 'Cancel' : 'Resolve' }}
                 </button>
-
-                <div v-if="getResolveState(line).expanded" class="mt-2 space-y-2">
-                  <div
-                    v-if="getResolveState(line).searching"
-                    class="flex items-center gap-2 text-xs text-muted-foreground"
-                  >
-                    <SpinnerIcon class="w-4 h-4" />
-                    <span>Searching...</span>
-                  </div>
-                  <FormErrorBanner v-if="getResolveState(line).error" :message="getResolveState(line).error" />
-                  <div
-                    v-if="!getResolveState(line).searching && getResolveState(line).results.length"
-                    class="flex flex-wrap gap-1"
-                  >
-                    <button
-                      v-for="candidate in getResolveState(line).results"
-                      :key="candidate.tmdbId"
-                      type="button"
-                      data-testid="resolve-candidate"
-                      class="relative"
-                      :disabled="getResolveState(line).resolvingTmdbId !== null"
-                      @click="pickCandidate(line, candidate)"
-                    >
-                      <img
-                        :src="posterUrl(candidate.posterPath)"
-                        :alt="candidate.title"
-                        class="w-10 aspect-[2/3] object-cover bg-card border border-border"
-                      >
-                      <div
-                        v-if="getResolveState(line).resolvingTmdbId === candidate.tmdbId"
-                        class="absolute inset-0 bg-background/70 flex items-center justify-center"
-                      >
-                        <SpinnerIcon class="w-4 h-4" />
-                      </div>
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           </component>
+
+          <!-- G-15-3: the expanded candidate picker is a sibling of view-list-row, not a
+               descendant of it, so it already spans the full row width (the divide-y list
+               container is single-column) instead of being squeezed into the row's narrow
+               text column. -->
+          <div
+            v-if="isResolvable(line) && getResolveState(line).expanded"
+            data-testid="resolve-panel"
+            class="bg-card border border-border p-4 space-y-2"
+          >
+            <div
+              v-if="getResolveState(line).searching"
+              class="flex items-center gap-2 text-xs text-muted-foreground"
+            >
+              <SpinnerIcon class="w-4 h-4" />
+              <span>Searching...</span>
+            </div>
+            <FormErrorBanner v-if="getResolveState(line).error" :message="getResolveState(line).error" />
+            <div
+              v-if="!getResolveState(line).searching && getResolveState(line).results.length"
+              class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2"
+            >
+              <button
+                v-for="candidate in getResolveState(line).results"
+                :key="candidate.tmdbId"
+                type="button"
+                data-testid="resolve-candidate"
+                class="relative"
+                :disabled="getResolveState(line).resolvingTmdbId !== null"
+                @click="pickCandidate(line, candidate)"
+              >
+                <img
+                  :src="posterUrl(candidate.posterPath)"
+                  :alt="candidate.title"
+                  class="w-full aspect-[2/3] object-cover bg-card border border-border"
+                >
+                <div
+                  v-if="getResolveState(line).resolvingTmdbId === candidate.tmdbId"
+                  class="absolute inset-0 bg-background/70 flex items-center justify-center"
+                >
+                  <SpinnerIcon class="w-4 h-4" />
+                </div>
+              </button>
+            </div>
+          </div>
         </template>
       </div>
 

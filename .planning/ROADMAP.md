@@ -172,7 +172,7 @@ Plans:
 **Goal:** Close out the two loose bulk-import todos left over from Phases 10-11: the batch detail page needs a view toggle, movie links, and inline ambiguous-match resolution (todo from 2026-08-25), and bulk-import parsing needs to move from the strict `Title;OriginalTitle;Year` format to real CSV parsing with proper quoting (todo from 2026-08-24, was v2 candidate SET-06, pulled forward into this milestone at the user's request so v1.1 closes with the import feature actually finished rather than partially so).
 **Requirements**: carries forward the deferred SET-06 CSV-import requirement plus the 2026-08-25 UAT-adjacent todo; no formal REQUIREMENTS.md IDs yet, to be refined in 15-CONTEXT.md
 **Depends on:** Phase 11 (Bulk Import Feedback UI) — independent of Phase 14's wiki-enrichment work, no shared files
-**Plans:** 6 plans
+**Plans:** 6/6 plans executed
 
 Plans:
 **Wave 1**
@@ -191,4 +191,4 @@ Plans:
 
 - [x] 15-04-PLAN.md — Gap closure: fix NuxtLink navigation (resolveComponent), PARSE_ERROR always-row display, four-section status grouping, resolve-widget full-width breakout (G-15-2, G-15-3)
 - [x] 15-05-PLAN.md — Gap closure: render candidate title + year as visible text in both resolve-candidate blocks (G-15-4)
-- [ ] 15-06-PLAN.md — Gap closure: drop `truncate` from resolve-candidate-label so long titles wrap instead of clipping the year (G-15-5)
+- [x] 15-06-PLAN.md — Gap closure: drop `truncate` from resolve-candidate-label so long titles wrap instead of clipping the year (G-15-5)

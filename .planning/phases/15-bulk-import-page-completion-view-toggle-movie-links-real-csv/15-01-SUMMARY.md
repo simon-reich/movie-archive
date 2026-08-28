@@ -198,3 +198,12 @@ None - no external service configuration required.
 ---
 *Phase: 15-bulk-import-page-completion-view-toggle-movie-links-real-csv*
 *Completed: 2026-08-28*
+
+## Self-Check: PASSED
+
+- `backend/src/main/java/de/moviearchive/bulkimport/dto/BulkImportLineResult.java` — FOUND on disk
+- Commit `5e8a34e` (Task 1) — FOUND in `git log --oneline --all`
+- Commit `78a7232` (Task 2) — FOUND in `git log --oneline --all`
+- All 4 backend acceptance-criteria tests pass (`BulkImportControllerTest`, 15/15 total)
+- All frontend acceptance-criteria tests pass (`imports-batchId.spec.ts`, 12/12; full suite 190/190)
+- `pnpm typecheck` clean; `pnpm lint` clean for all files this plan modified (1 pre-existing, out-of-scope lint error in an untouched file logged to `deferred-items.md`)

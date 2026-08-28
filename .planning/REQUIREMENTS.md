@@ -24,6 +24,9 @@ Requirements for the v1.1 milestone. Each maps to roadmap phases.
 - [x] **IMPORT-05**: User sieht während des laufenden Imports einen Live-Fortschritt (verarbeitet / gesamt)
 - [x] **IMPORT-06**: Nach Abschluss zeigt eine Ergebnisübersicht pro Zeile: Titel, Poster (falls gefunden), Status (gespeichert / mehrdeutig / nicht gefunden / Parse-Fehler)
 - [x] **IMPORT-07**: Erneutes Hochladen derselben Liste überspringt bereits gespeicherte Filme (keine Duplikate, keine erneuten TMDB-Calls für bereits erledigte Zeilen)
+- [x] **IMPORT-08**: Batch-Detail-Seite bietet einen Grid/List-View-Toggle (localStorage-persistiert), SAVED-Zeilen sind vollständig klickbar zur Film-Detailseite, PARSE_ERROR-Zeilen zeigen den vollständigen, unabgeschnittenen Rohstring als eigene Zeile — vier nach Status gruppierte Sektionen (Saved → Ambiguous → Not found → Parse error)
+- [x] **IMPORT-09** (vorgezogen aus IMPORT-V2-01): Manuelle Auflösung mehrdeutiger/nicht gefundener Treffer direkt in der Ergebnisübersicht — Kandidat per frischem TMDB-Search auswählen statt externer Override-Datei
+- [x] **IMPORT-10** (vorgezogen aus SET-06, Spaltenumfang wie bestehendes Format): Echtes komma-getrenntes CSV-Parsing (RFC4180-Quoting) als zweites unterstütztes Import-Format für Titel/OriginalTitel/Jahr, mit automatischem Header-Zeilen-Überspringen; Semikolon-Format bleibt unverändert
 
 ## Future Requirements
 
@@ -31,7 +34,7 @@ Deferred to a later milestone. Tracked but not in current roadmap.
 
 ### Bulk Import
 
-- **IMPORT-V2-01**: Manuelle Auflösung mehrdeutiger Treffer direkt in der Ergebnisübersicht (Kandidat auswählen statt externer Override-Datei)
+- **SET-06-EXT**: CSV-Import mit zusätzlichen Spalten über Titel/OriginalTitel/Jahr hinaus (IMPORT-10 lieferte den bestehenden 3-Spalten-Umfang in v1.1; nur eine Spalten-Erweiterung bleibt offen)
 
 ## Out of Scope
 
@@ -42,7 +45,7 @@ Explicitly excluded from v1.1. Documented to prevent scope creep.
 | Automatisches Best-Match-Raten bei mehrdeutigen Treffern | User hat sich explizit für "immer manuell prüfen" entschieden — Risiko falscher Filme im Index |
 | Permanentes "endgültig nicht gefunden"-Flag für Wikipedia | Wikipedia-Seiten entstehen über Zeit neu; Cooldown-Zeitstempel statt Dauerhaft-Flag gewählt |
 | Batch-Reload/Retry für OMDB | OMDB-Enrichment ist nicht betroffen (523/526 Filme haben Daten) — nur Wikipedia zeigt das Problem |
-| CSV-Import (strukturiertes Format mit mehr Feldern) | Bestehende Filmliste ist reines Titel+Jahr-Textformat; CSV-Import bleibt v2-Kandidat (SET-06) |
+| CSV-Export aller Filmdaten (SET-05) | Kein Export-Feature in v1.1; nur Import wurde vorgezogen (IMPORT-10) |
 
 ## Traceability
 
@@ -62,13 +65,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | IMPORT-05 | Phase 11 | Complete |
 | IMPORT-06 | Phase 11 | Complete |
 | IMPORT-07 | Phase 10 | Complete |
+| IMPORT-08 | Phase 15 | Complete |
+| IMPORT-09 | Phase 15 | Complete |
+| IMPORT-10 | Phase 15 | Complete |
 
 **Coverage:**
 
-- v1.1 requirements: 12 total
-- Mapped to phases: 12/12 ✓
+- v1.1 requirements: 15 total
+- Mapped to phases: 15/15 ✓
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-08-22*
-*Last updated: 2026-08-22 after ROADMAP.md creation (Phases 8–11)*
+*Last updated: 2026-08-28 after Phase 15 (v1.1 milestone complete)*

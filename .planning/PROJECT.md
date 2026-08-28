@@ -8,7 +8,7 @@ Personal web app to build a searchable film archive. Movies are fetched via TMDB
 
 Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso schnell wiederfinden lassen. Beides zusammen macht den Wert, keines davon allein reicht.
 
-## Current Milestone: v1.1 Enrichment Reliability & Bulk Import
+## Current Milestone: v1.1 Enrichment Reliability & Bulk Import — ✓ COMPLETE (2026-08-28, 8/8 Phasen)
 
 **Goal:** Enrichment-Lücken sichtbar und behebbar machen — automatisiert/bulk und manuell pro Film — und Bulk-Import als vollwertiges In-App-Feature mit Nachvollziehbarkeit.
 
@@ -72,15 +72,19 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 - ✓ D-14-02: Cooldown (`wikiLastAttemptedAt`) wird nur bei genuinem, erfolgreich ausgeführtem Versuch (Success oder bestätigtes Not-Found) gesetzt, nicht bei technischem/Rate-Limit-Fehler — Phase 14
 - ✓ D-14-03: Batch-Reload Progress-UI — Live-SSE-Stream mit Anzahl, Live-Fortschritt pro Film, Rolling-Average-ETA — Phase 14
 - ✓ D-14-04: Stop-Control zum sauberen Unterbrechen eines laufenden Batch-Reload-Runs (kein dediziertes Resume nötig, nutzt bestehende Cooldown-Eligibility-Query) — Phase 14
+- ✓ D-01–D-07, D-11 (display half): Grid/List-View-Toggle mit localStorage-Persistenz, SAVED-Zeilen komplett klickbar zur Detailseite, PARSE_ERROR-Zeilen zeigen den vollen Rohstring — Phase 15
+- ✓ D-08–D-10, D-11 (resolve boundary): Inline-Auflösung mehrdeutiger/nicht-gefundener Treffer direkt in der Ergebnisübersicht (frischer TMDB-Search on-expand, neuer ownership-geprüfter Resolve-Endpoint, Full-Refetch nach Speichern) — löst IMPORT-V2-01 ein — Phase 15
+- ✓ D-12–D-17: Echtes komma-getrenntes CSV-Parsing (RFC4180-Quoting via Apache Commons CSV) als zweites unterstütztes Import-Format für die bestehenden drei Spalten (Titel/OriginalTitel/Jahr); Semikolon-Format bleibt unverändert; optionale Header-Zeile wird automatisch übersprungen — löst SET-06 für den bestehenden Spaltenumfang ein (kein CSV-Export, keine zusätzlichen Spalten) — Phase 15
+- ✓ Live-UAT (2026-08-28) fand und fixte 3 reale Bugs, die gemockte Tests nicht zeigen konnten: SAVED-Karten navigierten nicht (Nuxt registriert `NuxtLink` nur bei literalem Tag, nicht bei `:is`-String-Binding — Vitest-Stub maskierte das), Resolve-Widget-Kandidaten waren ins schmale Grid-Zellen-Layout gequetscht, und die neuen Kandidaten-Labels (Titel+Jahr) wurden bei langen Titeln per Ellipsis abgeschnitten statt umzubrechen — Phase 15
 
 ### Active
 
-(keine offenen v1.1-Requirements — Phase 15 bricht die letzten zwei losen Bulk-Import-Todos ab, bevor v1.1 geschlossen werden kann)
+(keine offenen v1.1-Requirements — v1.1 ist mit Phase 15 vollständig)
 
 ### v2 candidates (deferred, not in v1.1)
 
 - [ ] SET-05: CSV-Export aller Filmdaten — deferred from v1 (UI placeholder vorhanden)
-- [ ] SET-06: CSV-Import aus Datei — deferred from v1 (UI placeholder vorhanden)
+- [ ] SET-06-EXT: CSV-Import mit zusätzlichen Spalten über Titel/OriginalTitel/Jahr hinaus — der bestehende 3-Spalten-Umfang wurde in Phase 15 geliefert (siehe Validated); nur eine Erweiterung des Spaltenumfangs bleibt v2-Kandidat
 - [ ] AUTH-V2-01: OAuth-Login (Google)
 - [ ] FEAT-V2-01: Letterboxd CSV-Import
 - [ ] FEAT-V2-02: Statistik-Dashboard (Genres, Jahrzehnte, Watched-Fortschritt)
@@ -111,6 +115,8 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 
 **v1.1 Phase-14-Nachlese (abgeschlossen 2026-08-28):** Live-UAT gegen echte Daten (368-382 eligible Filme) fand fünf reale Bugs, die gemockte Tests nicht reproduzieren konnten: der Stop-Button erschien nicht während der Wikidata-Prefetch-Phase; der SPARQL-Prefetch für den gesamten eligible-Satz feuerte alle Chunks in einem Rate-Limit-tripenden Burst statt verteilt mit der Movie-Verarbeitung zu interleaven; die ETA-Berechnung war massiv zu niedrig (fehlendes Pacing-Delay in der Dauer-Messung); der Stop-Button gab kein Feedback während der echten Wartezeit; und ein `disabled`-Prop-Typfehler wurde vom Frontend-Typecheck live während des Tests gefangen. Alle fünf wurden noch in dieser Session gefixt. Zusätzlich: Live-A/B-Test von `wiki.retry.pacing-delay-ms` (20s vs. 15s) auf echten Daten zeigte 20s als sauberen Wert (nur 1 harmloser 1s-Backoff über 7 Filme) gegenüber 15s (häufige 9-23s-Backoffs) — neuer Default ist 20s (war 30s).
 
+**v1.1 Phase 15 — Milestone-Abschluss (abgeschlossen 2026-08-28):** Schloss die zwei letzten losen Bulk-Import-Todos (View-Toggle/Movie-Links/Inline-Resolve, echtes CSV-Parsing) ab, die aus Phase 10/11 offen geblieben waren, und zog SET-06 (CSV-Import) sowie das Kernanliegen von IMPORT-V2-01 (manuelle Auflösung mehrdeutiger Treffer) auf Nutzerwunsch aus dem v2-Backlog vor, damit v1.1 mit fertigem Import-Feature schließt statt teilweise. Live-UAT gegen echte Browser-Sessions fand 3 reale Bugs, die die gemockten Vitest-Suiten nicht zeigen konnten: ein Nuxt-3-Compiler-Limit (`resolveDynamicComponent` registriert `NuxtLink` nur bei literalem `<NuxtLink>`-Tag, nicht bei String-Binding über `:is` — der bestehende `global.stubs`-Testdouble maskierte genau diese Lücke), das Resolve-Widget war ins schmale Grid-Zellen-Layout gequetscht statt volle Breite zu nutzen, und die neu ergänzten Kandidaten-Labels (Titel+Jahr) wurden bei langen Titeln per CSS-`truncate` abgeschnitten statt umzubrechen. Alle drei in derselben Session über drei kleine Gap-Closure-Pläne (15-04/05/06) gefixt und erneut live bestätigt. Außerdem im Rahmen des Milestones per Quick-Task (260828-qh2) behoben: Bulk-Import übersprang bislang standardmäßig den Wikipedia-Schritt (nur noch TMDB+OMDB beim Import; `WikiReloadService.batchReload()` holt Wiki-Daten paced im Nachgang nach), da ein 1000-Film-Import sonst wegen Wikipedia-Pacing einen ganzen Tag gedauert hätte. Offen und bewusst nicht in v1.1 gefixt: ein vorbestehender, aus Phase 10 stammender Cross-Batch-Zeilen-Reassignment-Bug in `BulkImportService.findExistingRow()` (dedupliziert nur nach User+Titel+Jahr, nicht nach `batchId`) — als eigenständiger Bugfix-Todo festgehalten, betrifft keinen v1.1-Requirement.
+
 ## Constraints
 
 - **Tech Stack:** Spring Boot 3 + Java 25 + Nuxt 3 — keine Änderungen am Stack
@@ -140,13 +146,15 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 | Tailwind viewport breakpoints für Star Rating | Container queries scheiterten an flex shrink-to-fit sizing | ✓ Good — Phase 7 |
 | useHead html background für overscroll | Browser nutzen \<html\> background für top-overscroll gutter | ✓ Good — Phase 7 |
 | Cooldown-Zeitstempel statt permanentem "not found"-Flag für Wiki-Lookup | Wikipedia-Seiten entstehen über Zeit neu; permanenter Skip würde das dauerhaft verpassen | ✓ Good — Phase 8 |
-| Bulk-Import strikt `Title;OriginalTitle;Year` (Original Title optional leer) | Einfacher, testbarer Parser ohne echtes CSV-Quoting; UAT deckte auf, dass das Format ohne UI-Hinweis nicht selbsterklärend war | ⚠ Teilweise — Phase 10: Format-Hinweis + Pre-Flight-400 bei komplett unparsbaren Uploads nachgezogen; echtes CSV-Parsing bleibt v2-Kandidat (SET-06) |
+| Bulk-Import strikt `Title;OriginalTitle;Year` (Original Title optional leer) | Einfacher, testbarer Parser ohne echtes CSV-Quoting; UAT deckte auf, dass das Format ohne UI-Hinweis nicht selbsterklärend war | ✓ Good — Phase 10: Format-Hinweis + Pre-Flight-400; Phase 15: komma-getrenntes CSV (RFC4180-Quoting) als zweites Format ergänzt, Semikolon-Parser unverändert |
 | Wikidata SPARQL statt REST (CirrusSearch + Sitelinks) für Wikipedia-Lookup | REST-Suche traf Wikidata's anonymen Rate-Limiter nach 2-3 Filmen unabhängig vom Pacing (absolutes per-minute Quota, kein Spacing-Problem); SPARQL VALUES-Klausel löst bis zu 50 IMDb-IDs pro Request auf | ✓ Good — Phase 13, live gegen query.wikidata.org verifiziert |
 | Chunking-Logik lebt in `WikipediaClient.resolveViaWikidataSparql` statt bei jedem Caller | `WikiReloadService`/`BulkImportService` können beliebig große IMDb-ID-Listen übergeben, ohne die Chunk-Size-Konstante zu kennen — hält das "one client, one method"-Pattern intakt | ✓ Good — Phase 13 |
 | Wikidata-Prefetch chunk-weise interleaved mit Movie-Verarbeitung statt gesamten eligible-Satz upfront aufzulösen | Upfront-Auflösung feuerte alle SPARQL-Chunk-Requests (z.B. 8 für 382 Filme) innerhalb von Sekunden hintereinander und trat Wikidata's Rate-Limiter fast sofort — live in UAT gefunden | ✓ Good — Phase 14, live verifiziert |
 | ETA-Berechnung inkludiert `pacingDelayMs`, nicht nur die reine Fetch-Call-Dauer | Ohne Pacing-Delay war die ETA massiv zu niedrig (z.B. 40min statt real ~190min+ bei 8/380 verarbeiteten Filmen) — der Pacing-Sleep dominiert die reale Pro-Film-Kadenz unter Normalbedingungen | ✓ Good — Phase 14, live gefunden und verifiziert |
 | Stop-Button bleibt in "Stopping..."-Zustand bis das echte Complete-SSE-Event ankommt, nicht nur bis der POST-Request zurückkehrt | POST löst in Millisekunden auf, der echte Halt kann aber bis zu `pacingDelayMs` länger dauern — ohne diesen Fix fühlte sich ein Stop-Klick an, als würde nichts passieren | ✓ Good — Phase 14, User-Feedback live in UAT |
 | `wiki.retry.pacing-delay-ms` Default 30s → 20s | Live-A/B-Test auf echten Daten: 20s zeigte nur 1 harmlosen 1s-Backoff über 7 Filme, 15s zeigte häufige 9-23s-Backoffs — 20s ist der bessere Kompromiss aus Durchsatz und Rate-Limit-Sicherheit | ✓ Good — Phase 14, live A/B-getestet |
+| `NuxtLink` via `resolveComponent('NuxtLink')` statt `:is="'NuxtLink'"`-String-Ternary | Nuxt 3 registriert eingebaute Komponenten nur bei literalem Tag im Template-AST einer Datei — ein String innerhalb einer Ternary wird nie erkannt (dokumentiertes Nuxt-3-Limit); resultierte in einem inerten `<nuxtlink>`-Element ohne Navigation, das der bestehende `global.stubs`-Testdouble maskierte | ✓ Good — Phase 15, live in UAT gefunden |
+| Bulk-Import überspringt Wikipedia standardmäßig, nur noch TMDB+OMDB beim initialen Import | Wikipedia-Pacing (Rate-Limit-Schutz aus Phase 12-14) hätte einen 1000-Film-Import auf bis zu einen Tag verlangsamt; `WikiReloadService.batchReload()` (bereits vorhanden) holt fehlende Wiki-Daten paced im Nachgang nach — kein neuer Mechanismus nötig | ✓ Good — Quick-Task 260828-qh2 |
 
 ## Design System
 
@@ -170,4 +178,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-28 after Phase 14*
+*Last updated: 2026-08-28 after Phase 15 (v1.1 milestone complete)*

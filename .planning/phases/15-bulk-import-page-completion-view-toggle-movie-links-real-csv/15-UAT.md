@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 15-bulk-import-page-completion-view-toggle-movie-links-real-csv
-source: [15-VERIFICATION.md]
+source: [15-VERIFICATION.md, 15-04-SUMMARY.md]
 started: 2026-08-28T14:25:58Z
-updated: 2026-08-28T20:25:00Z
+updated: 2026-08-28T21:15:00Z
 ---
 
 ## Current Test
@@ -16,16 +16,14 @@ updated: 2026-08-28T20:25:00Z
 expected: View mode persists across a genuine full-page reload, not just a re-mounted component with pre-seeded localStorage.
 result: pass
 
-### 2. SAVED-card navigation + PARSE_ERROR visual distinctiveness in a real browser
-expected: Open a real bulk-import batch with mixed statuses (SAVED/AMBIGUOUS/NOT_FOUND/PARSE_ERROR). Click a SAVED card → navigates to /movies/{id}. PARSE_ERROR reads as a clearly distinct category (not just another status icon).
-result: issue
-reported: "Saved Cards verlinken nicht zur Detailpage. Das gibt nichts, wo man draufklicken kann und dann weitergeleitet wird. Ich weiß nicht, was Distinct Category bei Part Error heißen soll, aber die Ansicht von Path Error ist furchtbar: Wir haben da auch diese Postercard oder sowas, Der wirkliche String ist zum Teil beschnitten und nicht einsehbar dadurch, Wobei das natürlich das Wichtige ist bei einem Pass Error, dass man sehen kann, wo der Fehler dort liegt. Pass Arrows sollen nicht als Poster angezeigt werden, sondern als Zeile. Generell sollte auf jeden Fall sortiert werden nach erst saved, also completed movies, Wo alles geklappt hat, Dann sollen die Ambiguous kommen. Neue Zeile. Dann fangen die Ambiguous an. Die können ruhig auch als Poster sein. Dann neue Zeile, kommen die Path Errors, aber dort einfach nur String als Zeile mit einem Icon davor oder so, aber gelistet, die brauchen keine Poster, da müssen wir vor allem den kompletten String sehen, der falsch formatiert ist."
-severity: major
+### 2. SAVED-card navigation + PARSE_ERROR visual distinctiveness + 4-section grouping (re-test after 15-04 fix)
+expected: Open a real bulk-import batch with mixed statuses (SAVED/AMBIGUOUS/NOT_FOUND/PARSE_ERROR). Click a SAVED card → navigates to /movies/{id}. Results are grouped into four sections in order: Saved → Ambiguous → Not found → Parse error, each its own section. PARSE_ERROR lines render as a row (not a poster card) with the full, untruncated raw line text.
+result: pass
 
-### 3. End-to-end inline resolve against the real TMDB API
-expected: Expand the resolve widget on a real AMBIGUOUS or NOT_FOUND line, run a live TMDB search, pick a candidate, and confirm the batch report immediately shows SAVED with a working movie link.
+### 3. End-to-end inline resolve against the real TMDB API — resolve widget full-width (re-test after 15-04 fix)
+expected: Expand the resolve widget on a real AMBIGUOUS or NOT_FOUND line. The candidate picker now spans the full page/container width (not squeezed into one card's column), with recognizably-sized poster thumbnails. Run a live TMDB search, pick a candidate, confirm the batch report immediately shows SAVED with a working movie link.
 result: issue
-reported: "Da ist leider die Anzeige viel zu klein, der Poster. Man erkennt die Filme nicht. Also ist es gut, dass es inline passiert, Aber das Gritt und damit die Anzeige der Poster muss viel größer sein. Zurzeit wird hier auch nur in das Column gequetscht von dem Poster, was zu resolven ist. Das muss über die volle Breite gehen."
+reported: "Ja, soweit funktioniert das eigentlich, allerdings werden halt auch nur Poster angezeigt, was nicht ausreicht. Wir brauchen darunter auch den Titel und das Jahr. Sonst kann das schwer und manchmal maybe unmöglich werden, den richtigen Fim auszusuchen"
 severity: major
 
 ### 4. Real-world regression import of saubere_filmliste.txt (D-17)
@@ -35,8 +33,8 @@ result: pass
 ## Summary
 
 total: 4
-passed: 2
-issues: 2
+passed: 3
+issues: 1
 pending: 0
 skipped: 0
 blocked: 0
@@ -45,7 +43,9 @@ blocked: 0
 
 - gap_id: G-15-2
   truth: "SAVED bulk-import line's card/row is entirely clickable and navigates to /movies/{movieId} (D-05); PARSE_ERROR lines are visually distinct from AMBIGUOUS/NOT_FOUND (D-11 display half)"
-  status: failed
+  status: resolved
+  resolved_by: 15-04-PLAN.md
+  resolved_at: 2026-08-28
   reason: |
     User reported: SAVED cards do not link to the movie detail page at all — nothing clickable, no navigation happens.
     PARSE_ERROR is rendered as a poster card, which truncates the raw line text so the actual malformed string (the whole point of a PARSE_ERROR) isn't fully visible.
@@ -68,7 +68,9 @@ blocked: 0
 
 - gap_id: G-15-3
   truth: "AMBIGUOUS or NOT_FOUND line can be resolved in-place: expand, fresh TMDB search prefilled with title, pick candidate, save (D-08)"
-  status: failed
+  status: resolved
+  resolved_by: 15-04-PLAN.md
+  resolved_at: 2026-08-28
   reason: |
     User reported: the resolve widget works functionally (inline expand behavior is good), but the candidate poster thumbnails are rendered far too small — user cannot actually recognize/distinguish the movies from the tiny posters, which defeats the purpose of a visual pick-a-candidate UI.
     Root cause per user's own diagnosis: the candidate grid is currently squeezed into the width of a single column (of whatever grid/list the parent line sits in), rather than spanning the full available width of the page/container. Fix: the expanded resolve widget's candidate grid must break out to full container width, with correspondingly larger poster thumbnails.
@@ -82,3 +84,13 @@ blocked: 0
     - "Restructure the expanded resolve widget to render as a full-width block independent of the triggering card/row's width — e.g. a sibling element positioned via col-span-full immediately after its row in grid view (CSS Grid supports a full-width item mid-grid), or a dedicated full-width slot/overlay below the entire results list/grid (keyed by which line is currently expanded)."
     - "Drop the fixed w-10 / grid-cols-3 sub-constraints on candidate posters once the container is full-width, so poster thumbnails render meaningfully larger."
   debug_session: ".planning/debug/resolve-widget-narrow-grid.md"
+
+- gap_id: G-15-4
+  truth: "AMBIGUOUS or NOT_FOUND line can be resolved in-place: expand, fresh TMDB search prefilled with title, pick candidate, save (D-08) — candidate must be identifiable enough to pick correctly"
+  status: failed
+  reason: |
+    User reported (re-test after 15-04's full-width fix for G-15-3): the resolve widget now works and posters are appropriately sized, BUT each candidate shows ONLY its poster image — no title or year underneath. Verbatim: "Ja, soweit funktioniert das eigentlich, allerdings werden halt auch nur Poster angezeigt, was nicht ausreicht. Wir brauchen darunter auch den Titel und das Jahr. Sonst kann das schwer und manchmal maybe unmöglich werden, den richtigen Fim auszusuchen" (poster alone is not enough — need title + year displayed under each candidate, otherwise picking the correct film can become difficult or sometimes impossible, e.g. same poster reused across different regional releases, remakes, or sequels with similar art).
+  severity: major
+  test: 3
+  artifacts: []  # Filled by diagnosis
+  missing: []    # Filled by diagnosis

@@ -95,8 +95,16 @@ services:
       ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:?ENCRYPTION_MASTER_KEY is required}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
-      TEST_USER_EMAIL: ${TEST_USER_EMAIL:-}
-      TEST_USER_PASSWORD: ${TEST_USER_PASSWORD:-}
+      # No-value passthrough: Compose only sets these in the container when the host shell
+      # actually has them exported, and omits the key entirely otherwise.
+      # Do NOT switch back to `KEY: ${KEY:-}` — that always injects the key with an
+      # empty-string value when unset on the host, which shadows application-test.properties'
+      # own `${TEST_USER_EMAIL:e2e@moviearchive.test}` default (Spring only falls back to the
+      # `:default` when the property is absent, not when it resolves to ''), silently seeding
+      # the E2E test user with email='' / password='' and breaking every login attempt (see
+      # .planning/debug/resolved/e2e-login-redirect-flake.md).
+      TEST_USER_EMAIL:
+      TEST_USER_PASSWORD:
       TEST_TMDB_KEY: ${TEST_TMDB_KEY:-}
     depends_on:
       postgres:

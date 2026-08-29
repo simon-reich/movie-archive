@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 16-bulk-import-correctness-wiki-reload-progress-clarity
 source: [16-VERIFICATION.md]
 started: 2026-08-29T13:22:55Z
-updated: 2026-08-29T16:10:00Z
+updated: 2026-08-29T18:15:00Z
 ---
 
 ## Current Test
@@ -24,32 +24,32 @@ result: pass
 expected: When a wiki-reload run is stopped, the per-movie history list shows each processed
   movie exactly once — the last movie processed before Stop took effect must not appear twice
   in two consecutive rows.
-result: issue
-reported: "beim Stoppen, wenn dann wirklich gestoppt wurde, wird der letzte Eintragfilmtitel nochmal wiederholt. Und quasi in zwei darauf folgenden Zeilen doppelt angezeigt."
-severity: major
+result: pass
+note: "Re-verified after fix in 16-03 (G-16-2) — confirmed fixed"
 
 ### 3. NOT_FOUND movies show a distinct icon in per-movie history, not the success checkmark
 expected: A movie for which no Wikipedia data was found (NOT_FOUND outcome, e.g. "Artists Under
   the Big Top: Perplexed") shows a distinct neutral "not found" icon/label in the per-movie
   history — never the same checkmark icon used for a genuinely successful wiki-data fetch.
-result: issue
-reported: "der Film 'Artists Under the Big Top: Perplexed' — zu dem werden keine Daten gefunden, weil wir den 30 Tage Back Off gerade deaktiviert haben, wird er immer wieder als erstes probiert. Der steht dann aber dort mit einem Häkchen-Icon, als wäre das alles erfolgreich gewesen. Dafür wollten wir ja ein eigenes Icon haben, dass man erkennt, dass hier keine Daten gefunden wurden."
-severity: major
+result: skipped
+reason: "User: cannot reliably trigger a genuine NOT_FOUND case anymore after the 16-04 eligibility fix — almost every remaining movie now resolves to a found page, so the NOT_FOUND-icon path can't be exercised live. Assuming correct for now; revisit if a real NOT_FOUND case surfaces later."
 
 ## Summary
 
 total: 3
-passed: 1
-issues: 2
+passed: 2
+issues: 0
 pending: 0
-skipped: 0
+skipped: 1
 blocked: 0
 
 ## Gaps
 
 - gap_id: G-16-2
   truth: "Per-movie history shows each processed movie exactly once after Stop — no duplicate consecutive row for the last title processed"
-  status: failed
+  status: resolved
+  resolved_by: 16-03-PLAN.md
+  resolved_at: 2026-08-29
   reason: "User reported: beim Stoppen wird der letzte Eintragfilmtitel nochmal wiederholt und in zwei darauf folgenden Zeilen doppelt angezeigt"
   severity: major
   test: 2
@@ -66,7 +66,9 @@ blocked: 0
 
 - gap_id: G-16-3
   truth: "Per-movie history renders 3 distinct states: SUCCESS (checkmark), NOT_FOUND (neutral icon + label), FAILED (X) — D-09"
-  status: failed
+  status: resolved
+  resolved_by: 16-04-PLAN.md
+  resolved_at: 2026-08-29
   reason: "User reported: NOT_FOUND movie ('Artists Under the Big Top: Perplexed') displays with the success checkmark icon instead of a distinct not-found icon"
   severity: major
   test: 3

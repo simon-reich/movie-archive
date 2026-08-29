@@ -76,4 +76,10 @@ jobs:
 
       - name: Stop Docker Compose
         if: always()
+        env:
+          DB_PASSWORD: e2e-test-db-password
+          JWT_SECRET: e2e-jwt-secret-minimum-32-chars!!
+          ENCRYPTION_MASTER_KEY: e2e-master-key-exactly-32chars!
+          SPRING_PROFILES_ACTIVE: test
+          TEST_TMDB_KEY: ${{ secrets.TEST_TMDB_KEY }}
         run: docker compose --profile app down -v

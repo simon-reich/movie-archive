@@ -257,6 +257,22 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     expect(wrapper.text()).toContain('Completed 3 / 3')
   })
 
+  it('shows completion feedback for a genuinely-completed run with zero eligible movies (WR-03)', async () => {
+    // A run that starts with an empty eligible list immediately calls complete(userId),
+    // producing processed=0/total=0/complete=true/stopped=false — structurally identical to
+    // the synthetic "never started" placeholder except for `stopped`. The panel must still
+    // surface this real terminal state instead of hiding it behind the old total > 0 guard.
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 0, total: 0, complete: true, lastMovieTitle: null, lastMovieStatus: null, etaSeconds: 0, stopped: false,
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="wiki-reload-progress"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Completed 0 / 0')
+  })
+
   it('renders "No Wikipedia article found" for a NOT_FOUND history entry instead of the checkmark/X icon framing', async () => {
     // D-09: the per-movie history must distinguish "no Wikipedia article exists" (expected,
     // not an error) from a genuine fetch FAILED, instead of collapsing both into the X icon.

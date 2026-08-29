@@ -49,6 +49,12 @@ const wikiReloadMessage = ref<string | null>(null)
 const wikiProgress = ref<WikiReloadProgress | null>(null)
 const wikiMovieHistory = ref<{ title: string; status: string }[]>([])
 const wikiStopping = ref(false)
+// WR-03: tracks whether a real run (start/progress/terminal-complete) has ever been observed,
+// as opposed to the synthetic `stopped: true, total: 0` placeholder register() sends when no
+// run has ever started. Needed because a genuinely-completed run with zero eligible movies also
+// reports total === 0 — structurally identical to the placeholder except for `stopped` — so the
+// visibility guard can no longer rely on `total > 0` alone without also hiding that real outcome.
+const wikiHasEverRun = ref(false)
 let unsubscribeWikiProgress: (() => void) | null = null
 
 const wikiProgressPercent = computed(() => {
@@ -129,6 +135,12 @@ onMounted(async () => {
     const userId = await getCurrentUserId()
     unsubscribeWikiProgress = subscribeToWikiReloadProgress(userId, (p) => {
       wikiProgress.value = p
+      // WR-03: a real run is either actively progressing (total > 0) or has genuinely
+      // completed (complete && !stopped) — the synthetic never-started placeholder is always
+      // `stopped: true` with `total === 0`, so it never satisfies this condition.
+      if (p.total > 0 || (p.complete && !p.stopped)) {
+        wikiHasEverRun.value = true
+      }
       if (p.lastMovieTitle) {
         wikiMovieHistory.value.push({ title: p.lastMovieTitle, status: p.lastMovieStatus ?? 'FAILED' })
       }
@@ -507,10 +519,12 @@ async function handleChangePassword() {
         D-06: visible while a run is active AND after either terminal state (stopped or
         genuinely finished) so both "Stopped at X / Y" and "Completed X / Y" are actually
         readable — hides only for the zero-progress synthetic placeholder register() sends
-        before any real run has ever started (total === 0), preserving the original
-        "nothing to show yet" behavior on first page load.
+        before any real run has ever started. WR-03: a genuinely-completed run with zero
+        eligible movies also reports total === 0, so `wikiHasEverRun` (set only for a real
+        progress/terminal-complete event, never the synthetic placeholder — see onMounted
+        above) is the discriminator instead of `total > 0` alone.
       -->
-      <div v-if="wikiProgress && wikiProgress.total > 0" data-testid="wiki-reload-progress" class="mt-4 space-y-2">
+      <div v-if="wikiProgress && wikiHasEverRun" data-testid="wiki-reload-progress" class="mt-4 space-y-2">
         <p class="text-sm" :class="wikiProgress.complete && wikiProgress.stopped ? 'text-amber-600' : 'text-foreground'">{{ wikiStatusLabel }}</p>
         <p v-if="wikiEtaLabel" class="text-sm text-muted-foreground">{{ wikiEtaLabel }}</p>
         <div class="w-full h-2 bg-card border border-border">

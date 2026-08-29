@@ -43,11 +43,12 @@ is considered fully verified.
 test-only fix (no production code changed): the review explicitly flagged this as a possibly
 intentional side effect of the "trust title over year" decision (D-10/D-11) that needed
 confirmation rather than an unambiguous bug, and its own suggested fix was the test itself.
-**Status: fixed: requires human verification** — a developer must confirm that AMBIGUOUS
-(rather than NOT_FOUND) is the intended outcome for "multiple results, none matching the
-requested year." The test now makes this behavior explicit and enforceable either way; if the
-intended behavior turns out to be NOT_FOUND instead, both the test and the corresponding
-branch in `BulkImportService.processLine()` (lines ~264-281) need a follow-up change together.
+**Status: confirmed (2026-08-29)** — Human confirmed AMBIGUOUS is the intended outcome for
+"multiple results, none matching the requested year, no originalTitle signal to narrow with":
+it is consistent with the D-04 invariant (never auto-guess) — multiple candidates without a
+decisive year or title signal must go to the user for manual resolution rather than being
+silently discarded as NOT_FOUND. No production code change needed; the regression test added
+above enforces this as the correct, intentional behavior going forward.
 
 ### WR-02: Four now-dead repository finder methods left behind after the CR-01 batch-scoping refactor
 

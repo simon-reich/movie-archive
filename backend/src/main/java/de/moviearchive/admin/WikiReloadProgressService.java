@@ -59,9 +59,19 @@ public class WikiReloadProgressService {
      * against a single-outlier-movie skewing the estimate (RESEARCH.md Open Question 2). */
     private static final int ETA_WINDOW_SIZE = 5;
 
-    /** SSE JSON payload shape — Jackson serializes records natively, no extra annotation needed. */
+    /**
+     * SSE JSON payload shape — Jackson serializes records natively, no extra annotation needed.
+     *
+     * <p>{@code stopped} (WR-02, deferred from Phase 14, closed in Phase 16): distinguishes a run
+     * that ended because {@link #requestStop(UUID)} was called from a run that genuinely reached
+     * its last eligible movie. Trailing field placement is deliberate — 14-REVIEW.md originally
+     * sketched inserting it mid-record, but Jackson serializes records positionally by field name
+     * (not position), so appending at the end avoids reordering every existing construction
+     * site's argument meaning for no benefit.
+     */
     public record ProgressState(int processed, int total, boolean complete,
-                                 String lastMovieTitle, String lastMovieStatus, long etaSeconds) {
+                                 String lastMovieTitle, String lastMovieStatus, long etaSeconds,
+                                 boolean stopped) {
     }
 
     /**
@@ -81,7 +91,7 @@ public class WikiReloadProgressService {
         if (state != null) {
             sendEvent(emitter, userId, state.complete() ? "complete" : "progress", state);
         } else {
-            ProgressState synthesized = new ProgressState(0, 0, true, null, null, 0L);
+            ProgressState synthesized = new ProgressState(0, 0, true, null, null, 0L, true);
             sendEvent(emitter, userId, "complete", synthesized);
         }
     }
@@ -100,7 +110,7 @@ public class WikiReloadProgressService {
      * ETA rolling average.
      */
     public void start(UUID userId, int total) {
-        ProgressState state = new ProgressState(0, total, false, null, null, 0L);
+        ProgressState state = new ProgressState(0, total, false, null, null, 0L, false);
         lastKnown.put(userId, state);
         broadcast(userId, "progress", state);
     }
@@ -131,7 +141,7 @@ public class WikiReloadProgressService {
         long etaSeconds = Math.round(average * (total - processed) / 1000.0);
 
         ProgressState state = new ProgressState(
-                processed, total, false, lastMovieTitle, lastMovieStatus, etaSeconds);
+                processed, total, false, lastMovieTitle, lastMovieStatus, etaSeconds, false);
         lastKnown.put(userId, state);
         broadcast(userId, "progress", state);
         return state;
@@ -160,15 +170,24 @@ public class WikiReloadProgressService {
      * sendEvent()/removeEmitter()), never by a run merely finishing. lastKnown is likewise kept
      * (not evicted) so a genuine reconnect after a completed run replays the real terminal state
      * instead of a synthesized placeholder.
+     *
+     * <p>Bug fix (WR-02, deferred from Phase 14, closed in Phase 16): this method used to always
+     * report {@code processed == total} and never surfaced whether the run was genuinely
+     * finished or ended early via {@link #requestStop(UUID)} — a stopped run's terminal panel
+     * misleadingly looked 100% complete before vanishing. Now reads {@link
+     * #isStopRequested(UUID)} BEFORE {@code stopFlags.remove(userId)} below (reading after would
+     * always observe a cleared flag, silently reintroducing this exact bug) and reports the real
+     * last-published {@code processed} count instead of always {@code total}.
      */
     public void complete(UUID userId) {
         ProgressState prior = lastKnown.get(userId);
         int total = prior != null ? prior.total() : 0;
+        boolean stopped = isStopRequested(userId);
         ProgressState state = new ProgressState(
-                total, total, true,
+                prior != null ? prior.processed() : total, total, true,
                 prior != null ? prior.lastMovieTitle() : null,
                 prior != null ? prior.lastMovieStatus() : null,
-                0L);
+                0L, stopped);
         lastKnown.put(userId, state);
 
         broadcast(userId, "complete", state);

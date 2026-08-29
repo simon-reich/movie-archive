@@ -98,11 +98,15 @@ class WikiReloadProgressServiceTest {
 
         var states = captor.getAllValues().stream().map(this::capturedState).toList();
         assertThat(states.get(0)).isEqualTo(
-                new WikiReloadProgressService.ProgressState(1, 10, false, "Inception", "SUCCESS", 9L));
+                new WikiReloadProgressService.ProgressState(1, 10, false, "Inception", "SUCCESS", 9L, false));
         assertThat(states.get(1)).isEqualTo(
-                new WikiReloadProgressService.ProgressState(2, 10, false, "Whiplash", "NOT_FOUND", 8L));
+                new WikiReloadProgressService.ProgressState(2, 10, false, "Whiplash", "NOT_FOUND", 8L, false));
+        // complete() now reports the real last-published processed count (2, from the publish()
+        // call above), not always `total` — this test's complete() call is not preceded by a
+        // requestStop(), so stopped is false, but processed correctly reflects that only 2 of 10
+        // were actually published before complete() was invoked (WR-02 fix, Phase 16).
         assertThat(states.get(2)).isEqualTo(
-                new WikiReloadProgressService.ProgressState(10, 10, true, "Whiplash", "NOT_FOUND", 0L));
+                new WikiReloadProgressService.ProgressState(2, 10, true, "Whiplash", "NOT_FOUND", 0L, false));
     }
 
     @Test
@@ -126,7 +130,10 @@ class WikiReloadProgressServiceTest {
         verify(secondEmitter, times(1)).send(captor.capture());
 
         WikiReloadProgressService.ProgressState state = capturedState(captor.getValue());
-        assertThat(state.processed()).isEqualTo(10);
+        // complete() now reports the real last-published processed count (2), not always
+        // `total` — WR-02 fix, Phase 16 (see the parallel note in
+        // publishThenRegisterThenPublishThenComplete_sendsThreeEvents_andKeepsEmitterOpen).
+        assertThat(state.processed()).isEqualTo(2);
         assertThat(state.total()).isEqualTo(10);
         assertThat(state.complete()).isTrue();
         assertThat(state.lastMovieTitle()).isEqualTo("Whiplash");
@@ -179,6 +186,27 @@ class WikiReloadProgressServiceTest {
         WikiReloadProgressService.ProgressState afterFirstMovie =
                 progressService.publish(userId, 1, 382, "Movie A", "SUCCESS", 1000L);
         assertThat(afterFirstMovie.etaSeconds()).isEqualTo(381L);
+    }
+
+    @Test
+    void requestStop_thenComplete_reportsStoppedTrueAndRealProcessedCount() throws Exception {
+        SseEmitter emitter = mock(SseEmitter.class);
+        UUID userId = UUID.randomUUID();
+
+        progressService.register(userId, emitter);
+        progressService.publish(userId, 3, 10, "Movie C", "SUCCESS", 1000L);
+        progressService.requestStop(userId);
+
+        progressService.complete(userId);
+
+        ArgumentCaptor<SseEmitter.SseEventBuilder> captor =
+                ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        verify(emitter, times(3)).send(captor.capture());
+
+        WikiReloadProgressService.ProgressState state =
+                capturedState(captor.getAllValues().get(captor.getAllValues().size() - 1));
+        assertThat(state.processed()).isEqualTo(3); // NOT 10 (the total)
+        assertThat(state.stopped()).isTrue();
     }
 
     @Test

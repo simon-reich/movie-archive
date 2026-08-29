@@ -8,6 +8,7 @@ export interface WikiReloadProgress {
   lastMovieTitle: string | null
   lastMovieStatus: string | null
   etaSeconds: number
+  stopped: boolean
 }
 
 export function useSettings() {

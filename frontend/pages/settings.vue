@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { CheckCircle2, XCircle } from 'lucide-vue-next'
+import { CheckCircle2, XCircle, MinusCircle } from 'lucide-vue-next'
 import FormField from '@/components/FormField.vue'
 import InputText from '@/components/InputText.vue'
 import ButtonPrimary from '@/components/ButtonPrimary.vue'
@@ -63,6 +63,17 @@ const wikiEtaLabel = computed(() => {
   if (!etaSeconds) return ''
   if (etaSeconds >= 60) return `~${Math.ceil(etaSeconds / 60)} min remaining`
   return `~${etaSeconds}s remaining`
+})
+
+// D-05 (WR-02, deferred from Phase 14, closed in Phase 16): distinguishes a run that ended
+// because Stop was clicked from one that genuinely reached its last eligible movie — without
+// this, a stopped run's terminal panel showed the exact same "X / Y processed" text a fully
+// finished run does, misleadingly implying 100% completion.
+const wikiStatusLabel = computed(() => {
+  if (!wikiProgress.value) return ''
+  const { processed, total } = wikiProgress.value
+  if (!wikiProgress.value.complete) return `${processed} / ${total} processed`
+  return wikiProgress.value.stopped ? `Stopped at ${processed} / ${total}` : `Completed ${processed} / ${total}`
 })
 
 // Reset inline success state when input value changes (D-06)
@@ -492,8 +503,15 @@ async function handleChangePassword() {
       </div>
       <p v-if="wikiReloadMessage" class="text-sm text-foreground mt-2">{{ wikiReloadMessage }}</p>
 
-      <div v-if="wikiProgress && !wikiProgress.complete" data-testid="wiki-reload-progress" class="mt-4 space-y-2">
-        <p class="text-sm text-foreground">{{ wikiProgress.processed }} / {{ wikiProgress.total }} processed</p>
+      <!--
+        D-06: visible while a run is active AND after either terminal state (stopped or
+        genuinely finished) so both "Stopped at X / Y" and "Completed X / Y" are actually
+        readable — hides only for the zero-progress synthetic placeholder register() sends
+        before any real run has ever started (total === 0), preserving the original
+        "nothing to show yet" behavior on first page load.
+      -->
+      <div v-if="wikiProgress && wikiProgress.total > 0" data-testid="wiki-reload-progress" class="mt-4 space-y-2">
+        <p class="text-sm" :class="wikiProgress.complete && wikiProgress.stopped ? 'text-amber-600' : 'text-foreground'">{{ wikiStatusLabel }}</p>
         <p v-if="wikiEtaLabel" class="text-sm text-muted-foreground">{{ wikiEtaLabel }}</p>
         <div class="w-full h-2 bg-card border border-border">
           <div class="h-full bg-primary" :style="{ width: `${wikiProgressPercent}%` }" />
@@ -505,8 +523,10 @@ async function handleChangePassword() {
             class="flex items-center gap-2 text-sm text-foreground"
           >
             <CheckCircle2 v-if="entry.status === 'SUCCESS'" class="w-4 h-4 shrink-0" />
+            <MinusCircle v-else-if="entry.status === 'NOT_FOUND'" class="w-4 h-4 shrink-0 text-muted-foreground" />
             <XCircle v-else class="w-4 h-4 shrink-0" />
             <span>{{ entry.title }}</span>
+            <span v-if="entry.status === 'NOT_FOUND'" class="text-muted-foreground">No Wikipedia article found</span>
           </li>
         </ul>
       </div>

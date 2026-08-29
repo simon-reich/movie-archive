@@ -141,7 +141,11 @@ onMounted(async () => {
       if (p.total > 0 || (p.complete && !p.stopped)) {
         wikiHasEverRun.value = true
       }
-      if (p.lastMovieTitle) {
+      // The terminal "complete" event deliberately echoes the immediately-preceding "progress"
+      // event's lastMovieTitle/lastMovieStatus (WikiReloadProgressService.complete()'s
+      // last-known-state bookkeeping) — it is not a newly-processed movie, so it must never be
+      // pushed into history a second time (G-16-2).
+      if (p.lastMovieTitle && !p.complete) {
         wikiMovieHistory.value.push({ title: p.lastMovieTitle, status: p.lastMovieStatus ?? 'FAILED' })
       }
       // The stop click only sends the request — the run keeps processing until its next

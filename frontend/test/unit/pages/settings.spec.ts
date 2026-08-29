@@ -286,4 +286,43 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     expect(wrapper.text()).toContain('No Wikipedia article found')
     expect(wrapper.text()).toContain('Whiplash')
   })
+
+  it('does not duplicate the last movie row when a genuine finish echoes it in the terminal complete event (G-16-2)', async () => {
+    // WikiReloadProgressService.complete() deliberately echoes the immediately-preceding
+    // "progress" event's lastMovieTitle/lastMovieStatus into the terminal "complete" event —
+    // that echo must not be pushed into history a second time.
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 3, total: 3, complete: false, lastMovieTitle: 'Parasite', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
+    })
+    await nextTick()
+
+    await capturedOnProgress?.({
+      processed: 3, total: 3, complete: true, lastMovieTitle: 'Parasite', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
+    })
+    await nextTick()
+
+    expect(wrapper.findAll('li')).toHaveLength(1)
+    expect(wrapper.text().match(/Parasite/g)?.length).toBe(1)
+  })
+
+  it('does not duplicate the last movie row when a Stop echoes it in the terminal complete event (G-16-2, UAT Test 2)', async () => {
+    // Same echo mechanism as the genuine-finish case, but the terminal event's `stopped` field
+    // is true — the duplicate-suppression guard must not be conditional on `stopped`.
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 3, total: 3, complete: false, lastMovieTitle: 'Parasite', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
+    })
+    await nextTick()
+
+    await capturedOnProgress?.({
+      processed: 3, total: 3, complete: true, lastMovieTitle: 'Parasite', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: true,
+    })
+    await nextTick()
+
+    expect(wrapper.findAll('li')).toHaveLength(1)
+    expect(wrapper.text().match(/Parasite/g)?.length).toBe(1)
+  })
 })

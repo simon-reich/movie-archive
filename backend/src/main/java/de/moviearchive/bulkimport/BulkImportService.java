@@ -208,10 +208,14 @@ public class BulkImportService {
 
         String normalizedTitle = normalize(parsed.title());
 
-        // D-08/D-10: skip entirely (no TMDB call, no write) if already SAVED.
+        // D-08/D-10: skip entirely (no TMDB call, no write) if already SAVED IN THIS BATCH.
+        // CR-01/D-02/D-03: batch-scoped — a title/year SAVED in a DIFFERENT (older) batch must
+        // fall through to the full match+save pipeline below, since each batch is an independent
+        // snapshot. movieService.initiate()'s existing tmdbId-idempotency (unchanged) guarantees
+        // no duplicate Movie row when this batch's line lands on the same TMDB match.
         Optional<BulkImportLine> existingSaved = bulkImportLineRepository
-                .findByUserIdAndNormalizedTitleAndYearAndStatus(
-                        user.getId(), normalizedTitle, parsed.year(), BulkImportLineStatus.SAVED);
+                .findByUserIdAndBatchIdAndNormalizedTitleAndYearAndStatus(
+                        user.getId(), batchId, normalizedTitle, parsed.year(), BulkImportLineStatus.SAVED);
         if (existingSaved.isPresent()) {
             log.info("Bulk import: skipping already-saved line title={} year={}", parsed.title(), parsed.year());
             return Optional.empty();
@@ -230,20 +234,38 @@ public class BulkImportService {
             upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, null, batch);
             return Optional.empty();
         }
-        List<TmdbSearchResultItem> yearMatches = results.stream()
-                .filter(r -> r.year() != null && r.year().equals(parsed.year()))
-                .toList();
-
-        if (yearMatches.isEmpty()) {
+        // 16-01 multi-stage matching rework (2026-08-29 user decision): trusts a unique title
+        // hit over year, instead of filtering to year-matches first and NOT_FOUND-ing a single
+        // year-mismatched result.
+        if (results.isEmpty()) {
+            // D-12: a genuine zero-result search — the only case that maps to NOT_FOUND now.
             upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, null, batch);
             return Optional.empty();
         }
 
-        if (yearMatches.size() == 1) {
-            return saveAndUpsert(user, email, parsed, yearMatches.get(0), batch);
+        if (results.size() == 1) {
+            // D-10: a single overall result is already unambiguous — take it directly,
+            // regardless of year mismatch.
+            return saveAndUpsert(user, email, parsed, results.get(0), batch);
         }
 
-        // D-06: still ambiguous after year filter — try original-title narrowing.
+        // D-11: multiple results — narrow first via an exact case-insensitive
+        // title-OR-originalTitle-plus-year match before falling back to original-title-only
+        // narrowing. Guard originalTitle() null before calling equalsIgnoreCase on it.
+        List<TmdbSearchResultItem> exactMatches = results.stream()
+                .filter(r -> (parsed.title().equalsIgnoreCase(r.title())
+                        || (r.originalTitle() != null && parsed.title().equalsIgnoreCase(r.originalTitle())))
+                        && r.year() != null && r.year().equals(parsed.year()))
+                .toList();
+        if (exactMatches.size() == 1) {
+            return saveAndUpsert(user, email, parsed, exactMatches.get(0), batch);
+        }
+
+        // D-10 fallback: still ambiguous after exact title+year narrowing — try original-title
+        // narrowing against the year-matching subset (structurally unchanged from before).
+        List<TmdbSearchResultItem> yearMatches = results.stream()
+                .filter(r -> r.year() != null && r.year().equals(parsed.year()))
+                .toList();
         if (parsed.originalTitle() != null && !parsed.originalTitle().isBlank()) {
             List<TmdbSearchResultItem> narrowed = yearMatches.stream()
                     .filter(r -> r.originalTitle() != null
@@ -280,7 +302,7 @@ public class BulkImportService {
      */
     private void upsertLine(User user, ParsedLine parsed, BulkImportLineStatus status, Integer tmdbId,
             String posterPath, BulkImportBatch batch) {
-        BulkImportLine row = findExistingRow(user.getId(), parsed)
+        BulkImportLine row = findExistingRow(user.getId(), batch.getId(), parsed)
                 .orElseGet(() -> new BulkImportLine(user, parsed.rawLine()));
         row.setTitle(cap(parsed.title()));
         row.setOriginalTitle(cap(parsed.originalTitle()));
@@ -294,20 +316,29 @@ public class BulkImportService {
         log.info("Bulk import: upserted line title={} year={} status={}", parsed.title(), parsed.year(), status);
     }
 
-    private Optional<BulkImportLine> findExistingRow(UUID userId, ParsedLine parsed) {
+    /**
+     * CR-01/D-01: batch-scoped — every lookup here is scoped to BOTH userId and batchId (never
+     * batchId alone), mirroring the existing findByIdAndBatchId/loadOwnedBatch() defense-in-depth
+     * convention, so a re-upload only ever finds/updates a row belonging to THIS batch. Without
+     * this scoping, an overlapping title/year across two different batches silently reassigned
+     * an older batch's row to the new batch (CR-01, 15-REVIEW.md).
+     */
+    private Optional<BulkImportLine> findExistingRow(UUID userId, UUID batchId, ParsedLine parsed) {
         if (parsed.year() != null) {
             Optional<BulkImportLine> byTitleAndYear = bulkImportLineRepository
-                    .findByUserIdAndNormalizedTitleAndYear(userId, normalize(parsed.title()), parsed.year());
+                    .findByUserIdAndBatchIdAndNormalizedTitleAndYear(
+                            userId, batchId, normalize(parsed.title()), parsed.year());
             if (byTitleAndYear.isPresent()) {
                 return byTitleAndYear;
             }
             // WR-03: this line now parses, but it may previously have been a PARSE_ERROR row
             // (always persisted with year=null) sharing the same title — probe for it so the
             // re-upload updates that row in place instead of orphaning it as a duplicate.
-            return bulkImportLineRepository.findByUserIdAndNormalizedTitleAndYearIsNull(
-                    userId, normalize(parsed.title()));
+            return bulkImportLineRepository.findByUserIdAndBatchIdAndNormalizedTitleAndYearIsNull(
+                    userId, batchId, normalize(parsed.title()));
         }
-        return bulkImportLineRepository.findByUserIdAndRawLineAndYearIsNull(userId, parsed.rawLine());
+        return bulkImportLineRepository.findByUserIdAndBatchIdAndRawLineAndYearIsNull(
+                userId, batchId, parsed.rawLine());
     }
 
     private String normalize(String title) {

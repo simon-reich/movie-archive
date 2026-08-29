@@ -56,6 +56,52 @@ public interface BulkImportLineRepository extends JpaRepository<BulkImportLine, 
             @Param("normalizedTitle") String normalizedTitle);
 
     /**
+     * CR-01 (16-01): batch-scoped sibling of {@link #findByUserIdAndNormalizedTitleAndYearAndStatus}
+     * — the {@code existingSaved} dedup fast-path in {@code BulkImportService.processLine()} must
+     * never treat a title/year SAVED in a DIFFERENT batch as already handled (D-02/D-03), so this
+     * query adds {@code b.batch.id = :batchId} to the same WHERE clause.
+     */
+    @Query("SELECT b FROM BulkImportLine b WHERE b.user.id = :userId AND b.batch.id = :batchId "
+            + "AND lower(b.title) = :normalizedTitle AND b.year = :year AND b.status = :status")
+    Optional<BulkImportLine> findByUserIdAndBatchIdAndNormalizedTitleAndYearAndStatus(
+            @Param("userId") UUID userId,
+            @Param("batchId") UUID batchId,
+            @Param("normalizedTitle") String normalizedTitle,
+            @Param("year") Integer year,
+            @Param("status") BulkImportLineStatus status);
+
+    /**
+     * CR-01 (16-01): batch-scoped sibling of {@link #findByUserIdAndNormalizedTitleAndYear} —
+     * used by {@code findExistingRow()} so a re-upload only ever finds/updates a row belonging to
+     * THIS batch, never silently reassigning a different batch's row (D-01).
+     */
+    @Query("SELECT b FROM BulkImportLine b WHERE b.user.id = :userId AND b.batch.id = :batchId "
+            + "AND lower(b.title) = :normalizedTitle AND b.year = :year")
+    Optional<BulkImportLine> findByUserIdAndBatchIdAndNormalizedTitleAndYear(
+            @Param("userId") UUID userId,
+            @Param("batchId") UUID batchId,
+            @Param("normalizedTitle") String normalizedTitle,
+            @Param("year") Integer year);
+
+    /**
+     * CR-01 (16-01): batch-scoped sibling of {@link #findByUserIdAndNormalizedTitleAndYearIsNull}
+     * — the WR-03 stale-PARSE_ERROR probe, but scoped to THIS batch only (D-01).
+     */
+    @Query("SELECT b FROM BulkImportLine b WHERE b.user.id = :userId AND b.batch.id = :batchId "
+            + "AND lower(b.title) = :normalizedTitle AND b.year IS NULL")
+    Optional<BulkImportLine> findByUserIdAndBatchIdAndNormalizedTitleAndYearIsNull(
+            @Param("userId") UUID userId,
+            @Param("batchId") UUID batchId,
+            @Param("normalizedTitle") String normalizedTitle);
+
+    /**
+     * CR-01 (16-01): batch-scoped sibling of {@link #findByUserIdAndRawLineAndYearIsNull} — derived
+     * query, matching the existing method's style (D-01).
+     */
+    Optional<BulkImportLine> findByUserIdAndBatchIdAndRawLineAndYearIsNull(
+            UUID userId, UUID batchId, String rawLine);
+
+    /**
      * D-03: batch-detail page — every line belonging to a batch, ordered for stable
      * display. Derived query resolves the nested `batch.id` property.
      */

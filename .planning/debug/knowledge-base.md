@@ -74,3 +74,19 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 - **Recurrence guard:** New driving test `secondRun_afterComplete_broadcastsToStillRegisteredEmitter_noReReg` in `WikiReloadProgressServiceTest.java` performs one `register()` call followed by two full start/publish/complete run cycles, asserting all 7 events reach the one persistent emitter and it is never closed — directly covering this class of regression. The two previously-buggy-pinning tests were rewritten to assert the corrected behavior instead of the bug.
 
 ---
+
+## e2e-login-redirect-flake — Docker Compose empty-string env passthrough shadows Spring property default, seeding E2E test user with email=''
+
+- **Date:** 2026-08-29
+- **Error patterns:** toHaveURL timeout, Invalid email or password, 401, BadCredentialsException, login redirect, E2E happy-path, Playwright, docker compose env, TEST_USER_EMAIL, TEST_USER_PASSWORD, empty string default, Spring placeholder default
+- **Root cause(s):** config: `docker-compose.yml` passed `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` to the backend container using map-style `KEY: ${KEY:-}` substitution, which forces the container env var present-but-empty whenever the invoking shell (the GH Actions "Start full Docker Compose stack" step) doesn't set it — which it never did. Spring's `${KEY:default}` placeholder only applies the default when the property is entirely absent, not when it resolves to `''`, so `application-test.properties`' `test.user.email=${TEST_USER_EMAIL:e2e@moviearchive.test}` resolved to `''`, and `TestSetupController` seeded the E2E user with `email=''`/`password=bcrypt('')` while the Playwright spec correctly submitted the real hardcoded credentials — a lookup miss, 401 on every attempt, deterministically.
+- **Fix:** Changed `docker-compose.yml`'s `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` entries from map-style `KEY: ${KEY:-}` (always-present, empty default) to list-style passthrough `- KEY` (Compose omits the key entirely — not empty — when the host shell doesn't set it), letting `application-test.properties`' own non-empty defaults be the single source of truth.
+- **Files changed:** docker-compose.yml
+- **Why not caught:** No gate existed for this class — the empty-default line was added and committed during local v1.1 development but never exercised against a real GitHub Actions run (SPRING_PROFILES_ACTIVE=test dockerized stack) until the first real push to `origin/main`; no CI job had ever run this workflow end-to-end before.
+- **Recurrence guard:** Live CI confirmation (run 33270852363) that login now succeeds and the test progresses past the redirect into the downstream "add film" step. No local test harness exists for `docker-compose.yml`'s variable-resolution semantics (not source code); the KB entry itself is the recurrence guard for this specific `${VAR:-}` vs `- VAR` Compose passthrough pattern — check env-var passthrough style in `docker-compose.yml` whenever a Spring-side `${ENV:default}` placeholder is unexpectedly empty in a containerized environment.
+
+**Related, separately-tracked issues surfaced by this session's fix (out of scope for this KB entry):**
+- Missing `TEST_TMDB_KEY` GitHub repo secret blocks the E2E "add film" step (no fallback default in `application-test.properties` for that key, unlike the user email/password) — tracked at `.planning/todos/pending/2026-08-29-configure-test-tmdb-key-github-secret.md`, owner-only fix.
+- Cosmetic "Stop Docker Compose" cleanup step missing env vars (`DB_PASSWORD is missing a value` warning on teardown) — fixed independently in `.github/workflows/e2e-ci.yml` (commit e9cac14).
+
+---

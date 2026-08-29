@@ -4,11 +4,11 @@ milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 16
 status: ready_to_plan
-stopped_at: Phase 16 added (bulk-import dedup fix, wiki-reload stop-vs-complete clarity, multi-stage TMDB matching) — v1.1 not yet closed
-last_updated: "2026-08-29T00:00:00.000Z"
+stopped_at: Phase 16 context gathered
+last_updated: "2026-08-29T09:30:47.176Z"
 last_activity: 2026-08-29
 last_activity_desc: Added Phase 16 to v1.1 before milestone close
-state_head: 6d0d240
+state_head: 2c21d56f6005c790b4d7967035654dc4fafcfea1
 progress:
   total_phases: 9
   completed_phases: 8
@@ -109,7 +109,7 @@ None.
 
 ## Session Continuity
 
-**Resume file:** .planning/phases/15-bulk-import-page-completion-view-toggle-movie-links-real-csv/15-CONTEXT.md
+**Resume file:** .planning/phases/16-bulk-import-correctness-wiki-reload-progress-clarity/16-CONTEXT.md
 
-Last session: 2026-08-28T12:30:00.000Z
-Stopped at: Phase 15 complete — all phases complete
+Last session: 2026-08-29T09:30:46.493Z
+Stopped at: Phase 16 context gathered

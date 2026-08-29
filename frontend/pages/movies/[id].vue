@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { TrashIcon, PlusCircleIcon } from 'lucide-vue-next'
+import { TrashIcon } from 'lucide-vue-next'
 import { useMovieDetail } from '@/composables/useMovieDetail'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import StarRating from '@/components/StarRating.vue'

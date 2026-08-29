@@ -3,16 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 16
-status: ready_to_plan
+current_phase_name: bulk-import-correctness-wiki-reload-progress-clarity
+status: executing
 stopped_at: Phase 16 context gathered
-last_updated: "2026-08-29T09:30:47.176Z"
+last_updated: "2026-08-29T09:59:22.033Z"
 last_activity: 2026-08-29
 last_activity_desc: Added Phase 16 to v1.1 before milestone close
-state_head: 2c21d56f6005c790b4d7967035654dc4fafcfea1
+state_head: 1cf43f1f8ec37f62e30d6c4897cf6396f67b0ded
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 24
+  total_plans: 26
   completed_plans: 24
   percent: 89
 ---
@@ -28,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 ## Current Position
 
-Phase: 16
+Phase: 16 (bulk-import-correctness-wiki-reload-progress-clarity) — READY TO EXECUTE
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-08-29 — Phase 16 added
 
 Progress: 8/9 phases complete (89%) — Phase 16 (bulk-import dedup fix, wiki-reload stop-vs-complete clarity, multi-stage TMDB matching) is the last phase before v1.1 can close

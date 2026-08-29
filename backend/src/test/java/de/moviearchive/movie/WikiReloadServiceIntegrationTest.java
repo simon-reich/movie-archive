@@ -281,16 +281,20 @@ class WikiReloadServiceIntegrationTest extends AbstractOpenSearchTest {
     }
 
     /**
-     * Regression test: a movie with wikiUrl already set (a page was resolved during the
-     * original save) but wikiPlot/wikiCritics both still null (no matching content
-     * section on that page) MUST be picked up by batch-reload. Eligibility was previously
-     * keyed on "wikiUrl IS NULL" alone, which permanently excluded this exact state —
-     * the movie could never be retried by batch-reload no matter how many times it ran,
-     * even though the movie detail page's own v-if="wikipediaPlot || wikipediaCritics"
-     * treats it identically to a fully-missing film.
+     * Regression test (G-16-3): a movie with wikiUrl already set (a page was resolved,
+     * either during the original save or a prior wiki-reload run) must NEVER be re-selected
+     * by batch-reload again, regardless of whether wikiPlot/wikiCritics content was ever
+     * extracted from that page. Eligibility used to be keyed on "wikiPlot IS NULL AND
+     * wikiCritics IS NULL", which permanently re-selected this exact state on every single
+     * run forever — re-fetching the same unchanged real article deterministically reproduces
+     * the same (empty) plot/critics result every time, while WikiRetryOutcome.SUCCESS (the
+     * value the per-movie history checkmark renders) legitimately reports success on every
+     * one of those wasted re-fetches, since a page WAS located. This asserts both the
+     * repository-level exclusion (primary, deterministic check) and that batchReload() never
+     * even attempts to re-fetch such a movie (no async timing involved in either).
      */
     @Test
-    void shouldRetryMovies_withUrlSetButNoContent() throws Exception {
+    void shouldNotRetryMovies_withUrlAlreadySet_regardlessOfContent() throws Exception {
         User user = createUser("wiki-url-no-content@example.com");
         String indexName = "movies-" + user.getId();
         deleteIndexIfExists(indexName);
@@ -301,13 +305,20 @@ class WikiReloadServiceIntegrationTest extends AbstractOpenSearchTest {
         assertThat(trapped.getWikiPlot()).isNull();
         assertThat(trapped.getWikiCritics()).isNull();
 
+        assertThat(movieRepository.findEligibleForWikiReload(user.getId(), Instant.now()))
+                .extracting(Movie::getId)
+                .doesNotContain(trapped.getId());
+
         wikiReloadService.batchReload(user.getId());
 
-        pollUntilIndexed(5000, trapped.getId());
+        // Matches the existing "confirm nothing happened" wait pattern used elsewhere in this
+        // codebase (e.g. WikiReloadControllerTest.java lines 416/451/492) — no polling target
+        // applies here since nothing should ever be written for this movie.
+        Thread.sleep(500);
 
         Movie reloaded = movieRepository.findById(trapped.getId()).orElseThrow();
-        assertThat(reloaded.getWikiLastAttemptedAt()).isNotNull();
-        assertThat(reloaded.getWikiPlot()).isNotNull();
+        assertThat(reloaded.getWikiLastAttemptedAt()).isNull();
+        assertThat(reloaded.getWikiPlot()).isNull();
     }
 
     /**

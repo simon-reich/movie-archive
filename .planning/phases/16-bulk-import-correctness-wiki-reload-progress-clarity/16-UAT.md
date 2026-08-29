@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 16-bulk-import-correctness-wiki-reload-progress-clarity
 source: [16-VERIFICATION.md]
 started: 2026-08-29T13:22:55Z
-updated: 2026-08-29T15:45:00Z
+updated: 2026-08-29T16:10:00Z
 ---
 
 ## Current Test
@@ -53,8 +53,16 @@ blocked: 0
   reason: "User reported: beim Stoppen wird der letzte Eintragfilmtitel nochmal wiederholt und in zwei darauf folgenden Zeilen doppelt angezeigt"
   severity: major
   test: 2
-  artifacts: []
-  missing: []
+  root_cause: "Two cooperating defects. (1) Backend: WikiReloadProgressService.complete() echoes prior.lastMovieTitle()/lastMovieStatus() into the terminal SSE event instead of nulling them — the terminal event always re-describes the same movie the last progress event already described, on every run end (not just Stop). (2) Frontend: settings.vue's SSE handler pushes a wikiMovieHistory row whenever p.lastMovieTitle is truthy, with no !p.complete guard, and useSettings.ts routes both progress and complete events through the same onProgress callback — so the last movie gets pushed twice."
+  artifacts:
+    - path: "backend/src/main/java/de/moviearchive/admin/WikiReloadProgressService.java"
+      issue: "complete() echoes prior.lastMovieTitle()/lastMovieStatus() into the terminal event instead of clearing them"
+    - path: "frontend/pages/settings.vue"
+      issue: "wikiMovieHistory.value.push(...) has no !p.complete guard, so the terminal event's echoed title/status pushes a duplicate row"
+  missing:
+    - "Guard the history push in settings.vue with `if (p.lastMovieTitle && !p.complete)` — every processed movie is already reported via its own progress event before the terminal event fires"
+    - "Add a regression test in settings.spec.ts firing a realistic progress→complete sequence for the same movie, asserting wikiMovieHistory length stays at 1"
+  debug_session: ".planning/debug/16-history-duplicate-on-stop.md"
 
 - gap_id: G-16-3
   truth: "Per-movie history renders 3 distinct states: SUCCESS (checkmark), NOT_FOUND (neutral icon + label), FAILED (X) — D-09"
@@ -62,5 +70,15 @@ blocked: 0
   reason: "User reported: NOT_FOUND movie ('Artists Under the Big Top: Perplexed') displays with the success checkmark icon instead of a distinct not-found icon"
   severity: major
   test: 3
-  artifacts: []
-  missing: []
+  root_cause: "NOT a NOT_FOUND-icon rendering bug — the reported movie's real backend status is SUCCESS (Wikipedia page genuinely found), so the checkmark is technically accurate to what was computed. The actual defect is a pre-existing (older than Phase 16) conflict between two independent 'found' definitions: MovieRepository.findEligibleForWikiReload treats a movie as retry-eligible until wiki_plot OR wiki_critics is non-null (content-extraction-based), while WikiReloadService.WikiRetryOutcome.SUCCESS only requires WikipediaClient.fetch() to locate a page at all (existence-based). A found page whose article structure has no section named exactly Plot/Critical response/Reception (WikipediaClient.findSectionIndex()'s fixed allowlist) never satisfies definition #1, so it is retried forever while definition #2 correctly reports SUCCESS every time — confirmed live: 41/305 movies in the dataset share this exact shape (wiki_url set, wiki_plot and wiki_critics both null)."
+  artifacts:
+    - path: "backend/src/main/java/de/moviearchive/movie/MovieRepository.java"
+      issue: "findEligibleForWikiReload's WHERE clause keys retry-eligibility on wiki_plot IS NULL AND wiki_critics IS NULL instead of wiki_url IS NULL — a genuinely-found page with unextractable content sections is retried forever"
+    - path: "backend/src/main/java/de/moviearchive/enrichment/WikiReloadService.java"
+      issue: "WikiRetryOutcome/doRetryWikipedia() classifies SUCCESS purely on page existence, independent of whether Plot/Critics content was extracted — correct in isolation, but inconsistent with the repository's stricter retry-eligibility definition"
+    - path: "backend/src/main/java/de/moviearchive/enrichment/WikipediaClient.java"
+      issue: "findSectionIndex()'s fixed Plot/Critical-response section-name allowlist is a contributing factor — genuinely-found articles with differently-named or absent sections never populate wiki_plot/wiki_critics"
+  missing:
+    - "Reconcile the two 'found' definitions: stop treating a movie with an existing wiki_url as retry-eligible-forever once a page has been found — retrying only helps articles that were never located at all"
+    - "Product decision needed: either (a) key retry-eligibility off wiki_url IS NULL instead of wiki_plot/wiki_critics, and/or (b) introduce a distinct history/status state for 'page found, content incomplete' so the checkmark isn't shown for a partial result, and/or (c) broaden WikipediaClient's section-name recognition (e.g. fall back to lead-paragraph text as plot)"
+  debug_session: ".planning/debug/16-notfound-icon-shows-checkmark.md"

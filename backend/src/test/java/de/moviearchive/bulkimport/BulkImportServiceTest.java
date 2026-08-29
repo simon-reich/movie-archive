@@ -186,6 +186,27 @@ class BulkImportServiceTest {
     }
 
     @Test
+    void shouldMarkAmbiguous_whenMultipleResultsNoneMatchRequestedYear() {
+        // WR-01: before the 16-01 matching rework, "multiple results, zero of them match the
+        // requested year" mapped to NOT_FOUND (yearMatches.isEmpty() short-circuit). That branch
+        // no longer exists — this case now falls through exactMatches (empty, no year matches at
+        // all) and the originalTitle-narrowed yearMatches fallback (also empty) to land on
+        // AMBIGUOUS, presenting the user a candidate list none of which actually match their
+        // year. This test pins down that this is the actual (if previously undocumented and
+        // untested) current behavior.
+        when(tmdbClient.search("Old Movie", TMDB_KEY)).thenReturn(List.of(
+                item(1, "Old Movie", "Old Movie", 1950),
+                item(2, "Old Movie", "Old Movie", 1965)));
+
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Old Movie;;2010", UUID.randomUUID(), false);
+
+        verify(movieService, never()).initiate(anyString(), anyInt());
+        ArgumentCaptor<BulkImportLine> captor = ArgumentCaptor.forClass(BulkImportLine.class);
+        verify(bulkImportLineRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(BulkImportLineStatus.AMBIGUOUS);
+    }
+
+    @Test
     void shouldSave_whenExactlyOneYearMatchingCandidate() {
         when(tmdbClient.search("Inception", TMDB_KEY))
                 .thenReturn(List.of(item(27205, "Inception", "Inception", 2010)));

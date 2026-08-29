@@ -197,6 +197,26 @@ public class WikiReloadProgressService {
     }
 
     /**
+     * Test-support only: completes every currently-registered emitter for userId, simulating a
+     * genuine client disconnect — the only mechanism that actually completes a wiki-reload SSE
+     * emitter's underlying async servlet request in production (see {@link #complete(UUID)}'s
+     * javadoc: that method intentionally stopped calling {@code emitter.complete()} as of the
+     * wiki-reload-progress-blind-window fix, 2026-08-28, so it can no longer be used to trigger a
+     * real ASYNC servlet redispatch). Package-private — used by {@code WikiReloadControllerTest}
+     * to exercise the AuthorizationDeniedException-on-async-redispatch regression (debug session
+     * sse-auth-denied-on-complete.md) without depending on {@link #complete(UUID)}'s current
+     * (deliberately emitter-preserving) behavior.
+     */
+    void completeAllEmittersForTest(UUID userId) {
+        List<SseEmitter> userEmitters = emitters.get(userId);
+        if (userEmitters != null) {
+            for (SseEmitter emitter : userEmitters) {
+                emitter.complete();
+            }
+        }
+    }
+
+    /**
      * Resets userId's stop flag to false. MUST be called by batchReload() at the very top of
      * the method, before the per-movie loop, so a fresh Start after a prior Stop never inherits
      * a stale true flag (RESEARCH.md Pitfall 4).

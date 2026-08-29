@@ -16,6 +16,11 @@ jobs:
   ci:
     name: Lint · Test · Coverage · Build
     runs-on: ubuntu-latest
+    # Safety net: without this, a genuinely hung test (e.g. a MockMvc asyncDispatch() waiting on
+    # an async completion that never fires) can block the job indefinitely — GitHub Actions' own
+    # default job timeout is 360 minutes, far too long to notice or recover from automatically.
+    # See debug session backend-ci-tests-hang.md.
+    timeout-minutes: 20
 
     steps:
       - name: Checkout

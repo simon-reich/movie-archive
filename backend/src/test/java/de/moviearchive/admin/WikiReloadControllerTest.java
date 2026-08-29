@@ -311,15 +311,28 @@ class WikiReloadControllerTest extends AbstractOpenSearchTest {
 
     /**
      * Regression test for the AuthorizationDeniedException-on-SSE-completion bug (debug session
-     * sse-auth-denied-on-complete.md). WikiReloadProgressService.complete(userId) calls
-     * emitter.complete() from a background thread (mirroring the real batchReload() async
-     * flow) — this triggers Tomcat's ASYNC servlet redispatch. Before the fix
+     * sse-auth-denied-on-complete.md). Completing the registered emitter from a background
+     * thread (mirroring a real client disconnect / container-driven async completion) triggers
+     * Tomcat's ASYNC servlet redispatch. Before the original fix
      * (spring.security.filter.dispatcher-types), that redispatch re-ran the full Spring
      * Security filter chain against an empty SecurityContext (JwtAuthFilter, a
      * OncePerRequestFilter, does not re-run on ASYNC dispatch) and AuthorizationFilter denied
      * it, throwing AuthorizationDeniedException even though the SSE "complete" event had
      * already been sent to the client. MockMvc's asyncDispatch(MvcResult) is the standard way
      * to simulate that exact container redispatch through the real filter chain.
+     *
+     * <p>Note (backend-ci-tests-hang debug session, 2026-08-29): this test used to trigger the
+     * redispatch via {@code wikiReloadProgressService.complete(userId)}. The
+     * wiki-reload-progress-blind-window fix (2026-08-28) intentionally removed that method's
+     * {@code emitter.complete()} call (the SSE connection must survive across multiple future
+     * runs — see its javadoc), which silently made {@code complete(userId)} unable to trigger a
+     * real async completion at all. Calling it here left {@code asyncDispatch(mvcResult)}
+     * waiting on a {@code CountDownLatch} that could never count down, hanging this test — and
+     * therefore the entire single-threaded Gradle test run — forever. Now uses
+     * {@code completeAllEmittersForTest(userId)}, which completes the actual emitter directly
+     * (simulating the real client-disconnect path that still completes it in production),
+     * restoring this test's original regression coverage without depending on
+     * {@code complete(userId)}'s current (deliberately emitter-preserving) behavior.
      */
     @Test
     void shouldNotDenyAuthorization_onAsyncRedispatch_afterEmitterComplete() throws Exception {
@@ -332,9 +345,10 @@ class WikiReloadControllerTest extends AbstractOpenSearchTest {
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
-        // Simulates the real batchReload() async flow calling emitter.complete() from a
-        // background executor thread, well after this request's controller method returned.
-        wikiReloadProgressService.complete(user.getId());
+        // Simulates a real client disconnect completing the emitter, well after this request's
+        // controller method returned — the only mechanism that still completes this SSE
+        // connection's underlying async request in production.
+        wikiReloadProgressService.completeAllEmittersForTest(user.getId());
 
         mockMvc.perform(asyncDispatch(mvcResult))
                 .andExpect(status().isOk());

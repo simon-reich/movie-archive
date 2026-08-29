@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 16
-current_phase_name: bulk-import-correctness-wiki-reload-progress-clarity
+current_phase_name: Bulk Import Correctness & Wiki-Reload Progress Clarity
 status: executing
-stopped_at: Phase 16 context gathered
-last_updated: "2026-08-29T09:59:22.033Z"
+stopped_at: Phase 16 gap-closure plans 03/04 executed — verification stale, re-run verify-work
+last_updated: "2026-08-29T17:55:00.000Z"
 last_activity: 2026-08-29
-last_activity_desc: Added Phase 16 to v1.1 before milestone close
-state_head: 1cf43f1f8ec37f62e30d6c4897cf6396f67b0ded
+last_activity_desc: Phase 16 gap-closure plans (G-16-2, G-16-3) executed and merged
+state_head: 9a4eb9f952a11b7522635097ecb104afc5cebfcf
 progress:
   total_phases: 9
   completed_phases: 8
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 ## Current Position
 
-Phase: 16 (bulk-import-correctness-wiki-reload-progress-clarity) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-08-29 — Phase 16 added
+Phase: 16 (Bulk Import Correctness & Wiki-Reload Progress Clarity) — EXECUTING
+Plan: 4 of 4 (all plans have summaries; gap-closure plans 16-03/16-04 merged to main)
+Status: Executing Phase 16 — verification stale, re-run /gsd-verify-work 16 before transition
+Last activity: 2026-08-29 — Gap-closure plans 16-03 (G-16-2) and 16-04 (G-16-3) executed in parallel worktrees and merged
 
 Progress: 8/9 phases complete (89%) — Phase 16 (bulk-import dedup fix, wiki-reload stop-vs-complete clarity, multi-stage TMDB matching) is the last phase before v1.1 can close
 

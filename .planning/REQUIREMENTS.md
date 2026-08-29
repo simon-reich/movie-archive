@@ -86,41 +86,39 @@ Explicitly excluded from v2.0. Documented to prevent scope creep.
 
 ## Traceability
 
-Filled during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| IMPORT-11 | TBD | Pending |
-| IMPORT-12 | TBD | Pending |
-| IMPORT-13 | TBD | Pending |
-| SRCH-05 | TBD | Pending |
-| SRCH-06 | TBD | Pending |
-| SRCH-07 | TBD | Pending |
-| DETAIL-06 | TBD | Pending |
-| DETAIL-07 | TBD | Pending |
-| DETAIL-08 | TBD | Pending |
-| DETAIL-09 | TBD | Pending |
-| RATE-01 | TBD | Pending |
-| RATE-02 | TBD | Pending |
-| WIKI-01 | TBD | Pending |
-| WIKI-02 | TBD | Pending |
-| WIKI-03 | TBD | Pending |
-| HUB-01 | TBD | Pending |
-| HUB-02 | TBD | Pending |
-| HUB-03 | TBD | Pending |
-| HUB-04 | TBD | Pending |
-| HUB-05 | TBD | Pending |
-| SET-05 | TBD | Pending |
-| SET-07 | TBD | Pending |
-| LIST-01 | TBD | Pending |
-| LIST-02 | TBD | Pending |
-| LIST-03 | TBD | Pending |
+| IMPORT-11 | Phase 17 | Pending |
+| IMPORT-12 | Phase 17 | Pending |
+| IMPORT-13 | Phase 17 | Pending |
+| SRCH-05 | Phase 18 | Pending |
+| SRCH-06 | Phase 18 | Pending |
+| SRCH-07 | Phase 18 | Pending |
+| DETAIL-06 | Phase 19 | Pending |
+| DETAIL-07 | Phase 19 | Pending |
+| DETAIL-08 | Phase 19 | Pending |
+| DETAIL-09 | Phase 19 | Pending |
+| RATE-01 | Phase 19 | Pending |
+| RATE-02 | Phase 19 | Pending |
+| WIKI-01 | Phase 19 | Pending |
+| WIKI-02 | Phase 19 | Pending |
+| WIKI-03 | Phase 19 | Pending |
+| HUB-01 | Phase 20 | Pending |
+| HUB-02 | Phase 20 | Pending |
+| HUB-03 | Phase 20 | Pending |
+| HUB-04 | Phase 20 | Pending |
+| HUB-05 | Phase 20 | Pending |
+| SET-05 | Phase 21 | Pending |
+| SET-07 | Phase 21 | Pending |
+| LIST-01 | Phase 22 | Pending |
+| LIST-02 | Phase 22 | Pending |
+| LIST-03 | Phase 22 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 25 total
-- Mapped to phases: 0 (roadmap not yet created)
-- Unmapped: 25 ⚠️ (expected — filled by roadmapper next)
+- Mapped to phases: 25 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-08-29*
-*Last updated: 2026-08-29 after initial definition*
+*Last updated: 2026-08-29 after ROADMAP.md creation (6 phases, 17–22)*

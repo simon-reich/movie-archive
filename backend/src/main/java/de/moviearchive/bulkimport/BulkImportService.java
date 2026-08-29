@@ -91,59 +91,73 @@ public class BulkImportService {
             String email, String tmdbKey, List<String> rawLines, UUID batchId, boolean isCsvFormat) {
         log.info("Bulk import starting email={} lines={} batchId={}", email, rawLines.size(), batchId);
 
-        // Pass 1: match + save every line. Bulk-imported movies skip the Wikipedia step
-        // entirely (Pass 2 below), so there is no longer any need to pre-resolve each line's
-        // imdbId up front before Pass 2 fires.
-        List<UUID> matchedMovieIds = new ArrayList<>();
-        for (int i = 0; i < rawLines.size(); i++) {
-            try {
-                // CR-01: processLine()'s @Transactional method returns before we get here, so
-                // its transaction has already committed — safe to fire the TMDB detail call
-                // now. Calling it from inside processLine() (while its own transaction is still
-                // open) raced against the not-yet-committed INSERT.
-                self.processLine(email, tmdbKey, rawLines.get(i), batchId, isCsvFormat)
-                        .ifPresent(matched -> matchedMovieIds.add(matched.movieId()));
-            } catch (Exception e) {
-                log.warn("Bulk import: unexpected error for line index={}: {}", i, e.getMessage());
-            }
-            progressService.publish(batchId, i + 1, rawLines.size());
-            if (i < rawLines.size() - 1) {
+        // WR-04: progressService.complete(batchId) must run exactly once, no matter how this
+        // method exits (normal completion OR an interrupted Thread.sleep in either pass) — a
+        // bare early `return` inside the interrupted-sleep branches used to skip it entirely,
+        // leaving any SSE subscriber frozen on the last publish()'d state forever. Both
+        // interrupted branches now `break` their loop instead of returning, so control always
+        // reaches this `finally`.
+        try {
+            // Pass 1: match + save every line. Bulk-imported movies skip the Wikipedia step
+            // entirely (Pass 2 below), so there is no longer any need to pre-resolve each line's
+            // imdbId up front before Pass 2 fires.
+            List<UUID> matchedMovieIds = new ArrayList<>();
+            boolean interrupted = false;
+            for (int i = 0; i < rawLines.size(); i++) {
                 try {
-                    Thread.sleep(pacingDelayMs);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Bulk import interrupted for email={} at index={}", email, i);
-                    return;
+                    // CR-01: processLine()'s @Transactional method returns before we get here, so
+                    // its transaction has already committed — safe to fire the TMDB detail call
+                    // now. Calling it from inside processLine() (while its own transaction is still
+                    // open) raced against the not-yet-committed INSERT.
+                    self.processLine(email, tmdbKey, rawLines.get(i), batchId, isCsvFormat)
+                            .ifPresent(matched -> matchedMovieIds.add(matched.movieId()));
+                } catch (Exception e) {
+                    log.warn("Bulk import: unexpected error for line index={}: {}", i, e.getMessage());
+                }
+                progressService.publish(batchId, i + 1, rawLines.size());
+                if (i < rawLines.size() - 1) {
+                    try {
+                        Thread.sleep(pacingDelayMs);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Bulk import interrupted for email={} at index={}", email, i);
+                        interrupted = true;
+                        break;
+                    }
                 }
             }
-        }
 
-        // Pass 2: enrich every matched line with skipWikipedia=true — bulk-imported movies get
-        // TMDB + OMDB data only here; WikiReloadService.batchReload() backfills their Wikipedia
-        // data later, paced and outside this synchronous dispatch loop. Paced like Pass 1 (and
-        // wrapped per-call) so dispatch never bursts past enrichmentExecutor's bounded capacity
-        // (core=2/max=5/queue=50) — an unpaced tight loop over a realistic match count throws
-        // an uncaught rejection that aborts the batch and skips progressService.complete().
-        for (int i = 0; i < matchedMovieIds.size(); i++) {
-            UUID movieId = matchedMovieIds.get(i);
-            try {
-                enrichmentService.enrich(movieId, true);
-            } catch (Exception e) {
-                log.warn("Bulk import: enrichment dispatch failed for movieId={}: {}", movieId, e.getMessage());
-            }
-            if (i < matchedMovieIds.size() - 1) {
-                try {
-                    Thread.sleep(pacingDelayMs);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Bulk import interrupted for email={} during Pass 2 at index={}", email, i);
-                    return;
+            // Pass 2: enrich every matched line with skipWikipedia=true — bulk-imported movies get
+            // TMDB + OMDB data only here; WikiReloadService.batchReload() backfills their Wikipedia
+            // data later, paced and outside this synchronous dispatch loop. Paced like Pass 1 (and
+            // wrapped per-call) so dispatch never bursts past enrichmentExecutor's bounded capacity
+            // (core=2/max=5/queue=50) — an unpaced tight loop over a realistic match count throws
+            // an uncaught rejection that aborts the batch and skips progressService.complete().
+            // Skipped entirely if Pass 1 was interrupted (interrupted flag already re-armed above).
+            if (!interrupted) {
+                for (int i = 0; i < matchedMovieIds.size(); i++) {
+                    UUID movieId = matchedMovieIds.get(i);
+                    try {
+                        enrichmentService.enrich(movieId, true);
+                    } catch (Exception e) {
+                        log.warn("Bulk import: enrichment dispatch failed for movieId={}: {}", movieId, e.getMessage());
+                    }
+                    if (i < matchedMovieIds.size() - 1) {
+                        try {
+                            Thread.sleep(pacingDelayMs);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Bulk import interrupted for email={} during Pass 2 at index={}", email, i);
+                            break;
+                        }
+                    }
                 }
             }
-        }
 
-        progressService.complete(batchId);
-        log.info("Bulk import complete email={} processed={}", email, rawLines.size());
+            log.info("Bulk import complete email={} processed={}", email, rawLines.size());
+        } finally {
+            progressService.complete(batchId);
+        }
     }
 
     /**

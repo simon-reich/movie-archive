@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -277,6 +278,31 @@ class BulkImportServiceTest {
 
         verify(enrichmentService, times(2)).enrich(any(UUID.class), eq(true));
         verify(enrichmentService, never()).enrich(any(UUID.class));
+    }
+
+    @Test
+    void shouldCallComplete_evenWhenPass1SleepIsInterrupted() {
+        // WR-04 regression: an interrupted Thread.sleep during Pass 1 pacing used to `return`
+        // immediately, skipping progressService.complete(batchId) entirely and leaving any SSE
+        // subscriber frozen on the last publish()'d state forever. Pre-interrupting the test
+        // thread before runImport() makes Thread.sleep() throw InterruptedException on its very
+        // first call (Thread.sleep checks the interrupt flag regardless of the requested delay),
+        // deterministically exercising the interrupted-mid-Pass-1 path without any real waiting.
+        UUID batchId = UUID.randomUUID();
+        when(tmdbClient.search(anyString(), eq(TMDB_KEY))).thenReturn(List.of());
+
+        Thread.currentThread().interrupt();
+        try {
+            bulkImportService.runImport(EMAIL, TMDB_KEY,
+                    List.of("Movie A;;2020", "Movie B;;2021"), batchId, false);
+        } finally {
+            Thread.interrupted(); // clear the flag so it never leaks into a later test
+        }
+
+        verify(progressService).complete(batchId);
+        // Pass 2 must never run once Pass 1 was interrupted — nothing was matched anyway
+        // (tmdbClient returns no results here), but this pins down the "abandon Pass 2" behavior.
+        verify(enrichmentService, never()).enrich(any(UUID.class), anyBoolean());
     }
 
     @Test

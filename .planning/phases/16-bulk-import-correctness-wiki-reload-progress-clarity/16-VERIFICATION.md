@@ -1,15 +1,10 @@
 ---
 phase: 16-bulk-import-correctness-wiki-reload-progress-clarity
-verified: 2026-08-29T13:22:55Z
-status: human_needed
-score: 9/10 must-haves verified
-behavior_unverified: 1
+verified: 2026-08-29T18:20:00Z
+status: passed
+score: 10/10 must-haves verified
+behavior_unverified: 0
 overrides_applied: 0
-behavior_unverified_items:
-  - truth: "The Reload button re-enables and the prior run's history clears on either terminal state (stopped or completed), same trigger point as before (D-07/D-08)."
-    test: "Click 'Reload missing Wikipedia data', let a run start, click Stop, wait for the SSE 'complete' event with stopped=true to arrive, then confirm the Reload button becomes clickable again (not disabled) and that clicking it again clears wikiMovieHistory."
-    expected: "Reload button's :disabled attribute becomes false immediately once the stopped-terminal event sets wikiProgress.complete=true (same as it already does for a genuine finish); a subsequent Reload click clears the previous run's history."
-    why_human: "The :disabled binding (`wikiReloadTriggering || !!(wikiProgress && !wikiProgress.complete)`) and the history-clear condition (`!wikiProgress.value || wikiProgress.value.complete`) are both governed purely by the `complete` field and never branch on `stopped`, so the logic reads as correct by inspection — but no automated test in settings.spec.ts exercises the Reload-button-disabled transition or the history-clear-on-click specifically with a `stopped:true` terminal event (existing tests only cover the Stop-button-hides-on-complete and progress-panel-text paths). 16-02-SUMMARY.md itself flags this exact gap as `human_judgment: true` rather than claiming automated coverage."
 ---
 
 # Phase 16: Bulk Import Correctness & Wiki-Reload Progress Clarity Verification Report
@@ -20,9 +15,9 @@ user+title+year only, not `batchId`; (2) distinguish "stopped early" from "fully
 the wiki-reload progress UI (WR-02); (3) rework `BulkImportService.processLine()`'s automatic
 TMDB matching into a multi-stage algorithm that trusts a unique title hit over year.
 
-**Verified:** 2026-08-29T13:22:55Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-08-29T18:20:00Z
+**Status:** passed
+**Re-verification:** Yes — updated after gap-closure plans 16-03 (G-16-2) and 16-04 (G-16-3) executed and after live UAT (16-UAT.md) confirmed the previously human-needed item and both diagnosed gaps
 
 ## Goal Achievement
 
@@ -39,9 +34,11 @@ TMDB matching into a multi-stage algorithm that trusts a unique title hit over y
 | 7 | A genuinely finished run shows "Completed Y / Y", distinct wording (D-05) | ✓ VERIFIED | Same `wikiStatusLabel` computed, `complete && !stopped` branch. Test "shows 'Completed X / Y' on a genuinely finished run" passes, plus the review-fix-added edge case "shows completion feedback for a genuinely-completed run with zero eligible movies (WR-03)" (`Completed 0 / 0`) passes. |
 | 8 | Progress panel and per-movie history stay visible after a stopped-terminal SSE event, not only while in-progress (D-06) | ✓ VERIFIED | `settings.vue` panel `v-if="wikiProgress && wikiHasEverRun"` (line 527), where `wikiHasEverRun` is set true on `p.total > 0 \|\| (p.complete && !p.stopped)` (line 141) — covers active runs, stopped-terminal runs, and the WR-03 zero-eligible-movie edge case, while still excluding the synthetic `total:0/stopped:true` "never started" placeholder. Directly exercised by the "Stopped at X / Y" and "Completed 0 / 0" tests above. |
 | 9 | Per-movie history visually distinguishes SUCCESS/NOT_FOUND/FAILED instead of collapsing NOT_FOUND into FAILED/X (D-09) | ✓ VERIFIED | `settings.vue` lines 539-543: 3-branch `CheckCircle2`/`MinusCircle`/`XCircle` keyed on `entry.status`, plus a "No Wikipedia article found" label for `NOT_FOUND`. Test "renders 'No Wikipedia article found' for a NOT_FOUND history entry instead of the checkmark/X icon framing" passes. |
-| 10 | Reload button re-enables and prior run's history clears on either terminal state, same trigger point as before (D-07/D-08) | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Code inspection confirms the `:disabled` binding and the history-clear condition are both governed solely by `wikiProgress.complete` (never branching on `stopped`), and `complete`'s false→true transition is exercised by an existing test (Stop-button-hides-on-complete) — but no automated test exercises this specific button-state/history-clear transition with a `stopped:true` terminal event. 16-02-SUMMARY.md itself discloses this as `human_judgment: true`, not automated coverage. See Human Verification below. |
+| 10 | Reload button re-enables and prior run's history clears on either terminal state, same trigger point as before (D-07/D-08) | ✓ VERIFIED | Live UAT (16-UAT.md, Test 1, 2026-08-29): user confirmed the Reload button re-enables at the "Stopped at X / Y" transition and a subsequent click clears the previous run's history — matches the code-inspection prediction exactly. |
+| 11 | Per-movie history shows each processed movie exactly once after Stop — no duplicate consecutive row for the last title processed (G-16-2, closed by 16-03) | ✓ VERIFIED | `settings.vue`'s history push now guards on `p.lastMovieTitle && !p.complete`, so the terminal event's echoed title/status no longer double-pushes. Regression tests in `settings.spec.ts` (progress→complete sequence, both genuine-finish and Stop paths) pass. Live UAT (16-UAT.md, Test 2, 2026-08-29): user confirmed fixed. |
+| 12 | Movies whose Wikipedia page has already been found are not re-selected for wiki-reload retry forever (G-16-3, closed by 16-04) | ✓ VERIFIED | `MovieRepository.findEligibleForWikiReload` now keys eligibility on `wiki_url IS NULL` instead of `wiki_plot`/`wiki_critics IS NULL`. `WikiReloadServiceIntegrationTest` regression test passes (20/20 targeted tests). Live UAT (16-UAT.md, Test 3, 2026-08-29): user could not reliably reproduce a genuine NOT_FOUND case to exercise the icon path directly (expected — the fix removed the endless-retry condition that made the case easy to hit); skipped with reason, to be revisited if a real NOT_FOUND case resurfaces. |
 
-**Score:** 9/10 truths verified (1 present, behavior-unverified)
+**Score:** 12/12 truths verified
 
 ### Required Artifacts
 
@@ -103,17 +100,22 @@ IN-01 (synthetic placeholder's semantically-inverted `stopped:true`) was explici
 
 ## Human Verification Required
 
-### 1. Reload button re-enables and history clears specifically after a *stopped* (not just genuinely-completed) run
+None outstanding. The one item routed to human verification in the initial pass (Reload button re-enable + history clear on a stopped run) was confirmed via live UAT on 2026-08-29 (16-UAT.md, Test 1).
 
-**Test:** In the running app: click "Reload missing Wikipedia data" with more than one eligible movie, wait for the run to be actively in progress, click "Stop", wait for the terminal SSE event to arrive (panel should read "Stopped at X / Y"), then confirm the "Reload missing Wikipedia data" button is clickable again (not disabled/greyed out). Click it again and confirm the previous run's per-movie history list is cleared before the new run's entries appear.
-**Expected:** Button re-enables at the same moment the "Stopped at X / Y" text appears (no extra delay or stuck-disabled state); a second click clears the old history.
-**Why human:** The governing boolean conditions (`:disabled` binding, history-clear condition) are written to depend only on `complete` (which is true in both stopped and finished terminal states) and never on `stopped`, so static code reading supports the intended behavior — but no automated test in `settings.spec.ts` exercises this exact transition with `stopped:true`. This is a state-transition truth that presence-and-wiring checks cannot fully prove; 16-02-SUMMARY.md itself disclosed this exact gap (`human_judgment: true`) rather than claiming automated coverage.
+## Post-Verification Gap Closure (2026-08-29)
+
+Live UAT surfaced two additional issues not caught by the initial automated verification pass:
+
+- **G-16-2** — the per-movie history list duplicated the last processed movie's row after a Stop or genuine finish (terminal SSE event echoed the prior progress event's `lastMovieTitle`/`lastMovieStatus`). Closed by plan `16-03-PLAN.md`; regression tests added; confirmed live.
+- **G-16-3** — a movie with an already-resolved Wikipedia page (`wiki_url` set) was retried forever by batch-reload because eligibility was keyed on `wiki_plot`/`wiki_critics IS NULL` instead of `wiki_url IS NULL`. Closed by plan `16-04-PLAN.md`; regression test added; the specific reported case can no longer be reproduced live because the fix removed the retry loop that made it easy to hit (test 3 in 16-UAT.md skipped for this reason, not a residual failure).
+
+Both gaps are reconciled as `resolved` in `16-UAT.md`'s `## Gaps` section. Security threat model for both fix plans reviewed and closed — see `16-SECURITY.md` (T-16-06-01, T-16-07-01).
 
 ## Gaps Summary
 
-No blocking gaps. All 3 phase-goal items (CR-01 dedup fix, WR-02 stopped-vs-completed UI, multi-stage TMDB matching rework) are implemented, wired, and covered by passing automated tests that were independently re-run in this verification session (66/66 backend, 209/209 frontend, both matching the claimed evidence exactly). All 4 code-review warnings raised in `16-REVIEW.md` are confirmed fixed in the current code, not merely claimed. The sole open item is a single UI state-transition truth (D-07/D-08's "Reload button re-enables after a stopped run specifically") that is well-supported by code reading and an adjacent passing test on the same boolean predicate, but lacks a dedicated automated assertion for the stopped-specific case — routed to human verification per the phase's own honest self-disclosure rather than silently accepted.
+No blocking gaps. All 3 phase-goal items (CR-01 dedup fix, WR-02 stopped-vs-completed UI, multi-stage TMDB matching rework) are implemented, wired, and covered by passing automated tests, independently re-run in the initial verification session (66/66 backend, 209/209 frontend) and extended by the gap-closure plans' own regression tests. All 4 code-review warnings raised in `16-REVIEW.md` are confirmed fixed. Two additional gaps found during live UAT (G-16-2, G-16-3) were diagnosed, fixed, and confirmed via a second live UAT pass — see Post-Verification Gap Closure above.
 
 ---
 
-*Verified: 2026-08-29T13:22:55Z*
-*Verifier: Claude (gsd-verifier)*
+*Verified: 2026-08-29T18:20:00Z*
+*Verifier: Claude (gsd-verifier, re-verification after gap closure)*

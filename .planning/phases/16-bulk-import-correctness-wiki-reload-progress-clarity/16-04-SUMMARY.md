@@ -125,3 +125,11 @@ None - no external service configuration required.
 ---
 *Phase: 16-bulk-import-correctness-wiki-reload-progress-clarity*
 *Completed: 2026-08-29*
+
+## Self-Check: PASSED
+
+- FOUND: backend/src/main/java/de/moviearchive/movie/MovieRepository.java
+- FOUND: backend/src/test/java/de/moviearchive/movie/WikiReloadServiceIntegrationTest.java
+- FOUND: .planning/phases/16-bulk-import-correctness-wiki-reload-progress-clarity/16-04-SUMMARY.md
+- FOUND commit 303e322 (test: RED)
+- FOUND commit 905d6f8 (feat: GREEN)

@@ -78,15 +78,30 @@ class BulkImportServiceTest {
 
         lenient().when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
 
-        lenient().when(bulkImportBatchRepository.getReferenceById(any()))
-                .thenReturn(new BulkImportBatch(user, 1));
+        // CR-01 (16-01): echo back the requested batchId as the returned batch's id — without
+        // this, every call would share the same (null) batch id and the new batch-scoped tests
+        // below (shouldNotReuseRow_acrossDifferentBatchIds) couldn't distinguish batchIdA from
+        // batchIdB at the mock-interaction level.
+        lenient().when(bulkImportBatchRepository.getReferenceById(any())).thenAnswer(inv -> {
+            BulkImportBatch batch = new BulkImportBatch(user, 1);
+            batch.setId(inv.getArgument(0));
+            return batch;
+        });
 
-        lenient().when(bulkImportLineRepository.findByUserIdAndNormalizedTitleAndYearAndStatus(
-                        any(), any(), any(), eq(BulkImportLineStatus.SAVED)))
+        // CR-01 (16-01): stub the batch-scoped repository methods that findExistingRow()/the
+        // existingSaved fast-path now call, using any() for both userId and batchId — mirrors
+        // the pre-existing non-batch-scoped stubs this replaces.
+        lenient().when(bulkImportLineRepository.findByUserIdAndBatchIdAndNormalizedTitleAndYearAndStatus(
+                        any(), any(), any(), any(), eq(BulkImportLineStatus.SAVED)))
                 .thenReturn(Optional.empty());
-        lenient().when(bulkImportLineRepository.findByUserIdAndNormalizedTitleAndYear(any(), any(), any()))
+        lenient().when(bulkImportLineRepository.findByUserIdAndBatchIdAndNormalizedTitleAndYear(
+                        any(), any(), any(), any()))
                 .thenReturn(Optional.empty());
-        lenient().when(bulkImportLineRepository.findByUserIdAndRawLineAndYearIsNull(any(), any()))
+        lenient().when(bulkImportLineRepository.findByUserIdAndBatchIdAndNormalizedTitleAndYearIsNull(
+                        any(), any(), any()))
+                .thenReturn(Optional.empty());
+        lenient().when(bulkImportLineRepository.findByUserIdAndBatchIdAndRawLineAndYearIsNull(
+                        any(), any(), any()))
                 .thenReturn(Optional.empty());
         lenient().when(bulkImportLineRepository.save(any(BulkImportLine.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
@@ -205,5 +220,56 @@ class BulkImportServiceTest {
 
         verify(enrichmentService, times(2)).enrich(any(UUID.class), eq(true));
         verify(enrichmentService, never()).enrich(any(UUID.class));
+    }
+
+    @Test
+    void shouldNotReuseRow_acrossDifferentBatchIds() {
+        UUID batchIdA = UUID.randomUUID();
+        UUID batchIdB = UUID.randomUUID();
+        when(tmdbClient.search("Robin Hood", TMDB_KEY)).thenReturn(List.of(
+                item(1001, "Robin Hood", "Robin Hood", 2010),
+                item(1002, "Robin Hood", "Robin des Bois", 2010)));
+
+        // Both calls land in the AMBIGUOUS branch (no originalTitle to narrow), each triggering
+        // upsertLine() -> findExistingRow() -> the batch-scoped repository finder.
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;;2010", batchIdA, false);
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;;2010", batchIdB, false);
+
+        // CR-01: each call's findExistingRow lookup must carry its OWN batchId — proving no
+        // cross-batch row lookup occurs at the mock-interaction level.
+        verify(bulkImportLineRepository).findByUserIdAndBatchIdAndNormalizedTitleAndYear(
+                eq(user.getId()), eq(batchIdA), eq("robin hood"), eq(2010));
+        verify(bulkImportLineRepository).findByUserIdAndBatchIdAndNormalizedTitleAndYear(
+                eq(user.getId()), eq(batchIdB), eq("robin hood"), eq(2010));
+
+        ArgumentCaptor<UUID> batchIdCaptor = ArgumentCaptor.forClass(UUID.class);
+        verify(bulkImportLineRepository, times(2)).findByUserIdAndBatchIdAndNormalizedTitleAndYear(
+                eq(user.getId()), batchIdCaptor.capture(), eq("robin hood"), eq(2010));
+        assertThat(batchIdCaptor.getAllValues()).containsExactly(batchIdA, batchIdB);
+    }
+
+    @Test
+    void shouldReuseRow_onSameBatchReupload() {
+        UUID batchId = UUID.randomUUID();
+        when(tmdbClient.search("Robin Hood", TMDB_KEY)).thenReturn(List.of(
+                item(1001, "Robin Hood", "Robin Hood", 2010),
+                item(1002, "Robin Hood", "Robin des Bois", 2010)));
+
+        // Simulates the row the first call creates: absent on the first lookup, present
+        // (SAME batch, same normalized title/year) on the second.
+        BulkImportLine existingRow = new BulkImportLine(user, "Robin Hood;;2010");
+        when(bulkImportLineRepository.findByUserIdAndBatchIdAndNormalizedTitleAndYear(
+                        eq(user.getId()), eq(batchId), eq("robin hood"), eq(2010)))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(existingRow));
+
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;;2010", batchId, false);
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;;2010", batchId, false);
+
+        // The single-batch re-upload dedup path still functions after batch-scoping: the second
+        // call's save() is invoked with the SAME row instance, not a freshly-constructed one.
+        ArgumentCaptor<BulkImportLine> captor = ArgumentCaptor.forClass(BulkImportLine.class);
+        verify(bulkImportLineRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues().get(1)).isSameAs(existingRow);
     }
 }

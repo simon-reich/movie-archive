@@ -114,17 +114,74 @@ class BulkImportServiceTest {
     }
 
     @Test
-    void shouldRecordNotFound_whenZeroYearMatchingCandidates() {
+    void shouldSave_whenSingleResultRegardlessOfYearMismatch() {
+        // D-10: results.size() == 1 short-circuits before any year check — a single overall
+        // TMDB result is taken directly and saved even when its year (1999) doesn't match the
+        // requested year (2010).
         when(tmdbClient.search("Ghost Movie", TMDB_KEY))
                 .thenReturn(List.of(item(1, "Ghost Movie", "Ghost Movie", 1999)));
 
         bulkImportService.processLine(EMAIL, TMDB_KEY, "Ghost Movie;;2010", UUID.randomUUID(), false);
+
+        verify(movieService).initiate(EMAIL, 1);
+
+        ArgumentCaptor<BulkImportLine> captor = ArgumentCaptor.forClass(BulkImportLine.class);
+        verify(bulkImportLineRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(BulkImportLineStatus.SAVED);
+        assertThat(captor.getValue().getTmdbId()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldRecordNotFound_whenTmdbSearchReturnsZeroResults() {
+        // D-12: NOT_FOUND only fires on a genuine zero-result search now.
+        when(tmdbClient.search("Nonexistent Movie", TMDB_KEY)).thenReturn(List.of());
+
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Nonexistent Movie;;2010", UUID.randomUUID(), false);
 
         verify(movieService, never()).initiate(anyString(), anyInt());
 
         ArgumentCaptor<BulkImportLine> captor = ArgumentCaptor.forClass(BulkImportLine.class);
         verify(bulkImportLineRepository).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(BulkImportLineStatus.NOT_FOUND);
+    }
+
+    @Test
+    void shouldSave_whenMultipleResultsButExactlyOneExactTitleAndYearMatch() {
+        // D-11: three candidates, only one has BOTH title AND year exactly matching the parsed
+        // line — taken directly via the exact-match step, without needing original-title
+        // narrowing.
+        when(tmdbClient.search("Robin Hood", TMDB_KEY)).thenReturn(List.of(
+                item(1001, "Robin Hood", "Robin Hood", 1922),
+                item(1002, "Robin Hood", "Robin des Bois", 2010),
+                item(1003, "Robin Hood Jr", "Robin Hood Jr", 2010)));
+
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin Hood;;2010", UUID.randomUUID(), false);
+
+        verify(movieService).initiate(EMAIL, 1002);
+
+        ArgumentCaptor<BulkImportLine> captor = ArgumentCaptor.forClass(BulkImportLine.class);
+        verify(bulkImportLineRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(BulkImportLineStatus.SAVED);
+        assertThat(captor.getValue().getTmdbId()).isEqualTo(1002);
+    }
+
+    @Test
+    void shouldSave_whenParsedTitleMatchesCandidateOriginalTitleField() {
+        // D-11's "either field" clause: the parsed title matches a candidate's originalTitle()
+        // (not its title()), uniquely among multiple same-year candidates — taken via the
+        // exact-match step, not the later original-title-narrowing fallback.
+        when(tmdbClient.search("Robin des Bois", TMDB_KEY)).thenReturn(List.of(
+                item(1001, "Robin Hood", "Robin des Bois", 2010),
+                item(1002, "Robin Hood 2", "Robin Hood 2", 2010)));
+
+        bulkImportService.processLine(EMAIL, TMDB_KEY, "Robin des Bois;;2010", UUID.randomUUID(), false);
+
+        verify(movieService).initiate(EMAIL, 1001);
+
+        ArgumentCaptor<BulkImportLine> captor = ArgumentCaptor.forClass(BulkImportLine.class);
+        verify(bulkImportLineRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(BulkImportLineStatus.SAVED);
+        assertThat(captor.getValue().getTmdbId()).isEqualTo(1001);
     }
 
     @Test

@@ -234,20 +234,38 @@ public class BulkImportService {
             upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, null, batch);
             return Optional.empty();
         }
-        List<TmdbSearchResultItem> yearMatches = results.stream()
-                .filter(r -> r.year() != null && r.year().equals(parsed.year()))
-                .toList();
-
-        if (yearMatches.isEmpty()) {
+        // 16-01 multi-stage matching rework (2026-08-29 user decision): trusts a unique title
+        // hit over year, instead of filtering to year-matches first and NOT_FOUND-ing a single
+        // year-mismatched result.
+        if (results.isEmpty()) {
+            // D-12: a genuine zero-result search — the only case that maps to NOT_FOUND now.
             upsertLine(user, parsed, BulkImportLineStatus.NOT_FOUND, null, null, batch);
             return Optional.empty();
         }
 
-        if (yearMatches.size() == 1) {
-            return saveAndUpsert(user, email, parsed, yearMatches.get(0), batch);
+        if (results.size() == 1) {
+            // D-10: a single overall result is already unambiguous — take it directly,
+            // regardless of year mismatch.
+            return saveAndUpsert(user, email, parsed, results.get(0), batch);
         }
 
-        // D-06: still ambiguous after year filter — try original-title narrowing.
+        // D-11: multiple results — narrow first via an exact case-insensitive
+        // title-OR-originalTitle-plus-year match before falling back to original-title-only
+        // narrowing. Guard originalTitle() null before calling equalsIgnoreCase on it.
+        List<TmdbSearchResultItem> exactMatches = results.stream()
+                .filter(r -> (parsed.title().equalsIgnoreCase(r.title())
+                        || (r.originalTitle() != null && parsed.title().equalsIgnoreCase(r.originalTitle())))
+                        && r.year() != null && r.year().equals(parsed.year()))
+                .toList();
+        if (exactMatches.size() == 1) {
+            return saveAndUpsert(user, email, parsed, exactMatches.get(0), batch);
+        }
+
+        // D-10 fallback: still ambiguous after exact title+year narrowing — try original-title
+        // narrowing against the year-matching subset (structurally unchanged from before).
+        List<TmdbSearchResultItem> yearMatches = results.stream()
+                .filter(r -> r.year() != null && r.year().equals(parsed.year()))
+                .toList();
         if (parsed.originalTitle() != null && !parsed.originalTitle().isBlank()) {
             List<TmdbSearchResultItem> narrowed = yearMatches.stream()
                     .filter(r -> r.originalTitle() != null

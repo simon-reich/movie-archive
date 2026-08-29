@@ -135,7 +135,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     const wrapper = await mountPage()
 
     await capturedOnProgress?.({
-      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
     })
     await nextTick()
 
@@ -149,7 +149,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     expect(wrapper.find('[data-testid="wiki-stop-button"]').exists()).toBe(false)
 
     await capturedOnProgress?.({
-      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
     })
     await nextTick()
 
@@ -161,7 +161,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     const wrapper = await mountPage()
 
     await capturedOnProgress?.({
-      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
     })
     await nextTick()
 
@@ -179,7 +179,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     const wrapper = await mountPage()
 
     await capturedOnProgress?.({
-      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
     })
     await nextTick()
 
@@ -190,7 +190,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     expect(wrapper.find('[data-testid="wiki-stop-button"]').text()).toBe('Stopping...')
 
     await capturedOnProgress?.({
-      processed: 1, total: 3, complete: true, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
+      processed: 1, total: 3, complete: true, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
     })
     await nextTick()
 
@@ -201,7 +201,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     const wrapper = await mountPage()
 
     await capturedOnProgress?.({
-      processed: 2, total: 10, complete: false, lastMovieTitle: 'Interstellar', lastMovieStatus: 'SUCCESS', etaSeconds: 240,
+      processed: 2, total: 10, complete: false, lastMovieTitle: 'Interstellar', lastMovieStatus: 'SUCCESS', etaSeconds: 240, stopped: false,
     })
     await nextTick()
 
@@ -212,7 +212,7 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     const wrapper = await mountPage()
 
     await capturedOnProgress?.({
-      processed: 2, total: 10, complete: false, lastMovieTitle: 'Interstellar', lastMovieStatus: 'SUCCESS', etaSeconds: 45,
+      processed: 2, total: 10, complete: false, lastMovieTitle: 'Interstellar', lastMovieStatus: 'SUCCESS', etaSeconds: 45, stopped: false,
     })
     await nextTick()
 
@@ -223,11 +223,51 @@ describe('/settings page — wiki-reload progress UI (mounted)', () => {
     const wrapper = await mountPage()
 
     await capturedOnProgress?.({
-      processed: 2, total: 10, complete: false, lastMovieTitle: 'Interstellar', lastMovieStatus: 'SUCCESS', etaSeconds: 0,
+      processed: 2, total: 10, complete: false, lastMovieTitle: 'Interstellar', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
     })
     await nextTick()
 
     expect(wrapper.text()).not.toContain('min remaining')
     expect(wrapper.text()).not.toContain('s remaining')
+  })
+
+  it('keeps the progress panel visible and shows "Stopped at X / Y" on a stopped-terminal event', async () => {
+    // WR-02 (deferred from Phase 14, closed in Phase 16): a stopped run's terminal SSE event
+    // must not vanish behind the old !complete-only v-if guard, and its text must read
+    // differently from a genuine finish.
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 1, total: 3, complete: true, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: true,
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="wiki-reload-progress"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Stopped at 1 / 3')
+  })
+
+  it('shows "Completed X / Y" on a genuinely finished run', async () => {
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 3, total: 3, complete: true, lastMovieTitle: 'Inception', lastMovieStatus: 'SUCCESS', etaSeconds: 0, stopped: false,
+    })
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Completed 3 / 3')
+  })
+
+  it('renders "No Wikipedia article found" for a NOT_FOUND history entry instead of the checkmark/X icon framing', async () => {
+    // D-09: the per-movie history must distinguish "no Wikipedia article exists" (expected,
+    // not an error) from a genuine fetch FAILED, instead of collapsing both into the X icon.
+    const wrapper = await mountPage()
+
+    await capturedOnProgress?.({
+      processed: 1, total: 3, complete: false, lastMovieTitle: 'Whiplash', lastMovieStatus: 'NOT_FOUND', etaSeconds: 0, stopped: false,
+    })
+    await nextTick()
+
+    expect(wrapper.text()).toContain('No Wikipedia article found')
+    expect(wrapper.text()).toContain('Whiplash')
   })
 })

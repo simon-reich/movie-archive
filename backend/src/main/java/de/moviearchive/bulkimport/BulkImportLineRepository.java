@@ -11,52 +11,20 @@ import java.util.UUID;
 public interface BulkImportLineRepository extends JpaRepository<BulkImportLine, UUID> {
 
     /**
-     * D-08 pre-check: is there already a SAVED row for this normalized (title, year)?
-     * Always called with a non-null year. If present, the line is skipped entirely —
-     * no TMDB call, no write (D-08/D-10).
+     * WR-02: the four non-batch-scoped predecessors of the batch-scoped finders below
+     * ({@code findByUserIdAndNormalizedTitleAndYearAndStatus},
+     * {@code findByUserIdAndNormalizedTitleAndYear}, {@code findByUserIdAndRawLineAndYearIsNull},
+     * {@code findByUserIdAndNormalizedTitleAndYearIsNull}) were removed entirely rather than kept
+     * as dead code. They are the exact signatures whose absence-of-batch-scoping caused the CR-01
+     * cross-batch row-reassignment bug (15-REVIEW.md); leaving them in place — unused but
+     * compiling fine, with no {@code @Deprecated} warning — was a foot-gun for a future caller
+     * reaching for them by accident (e.g. copy-pasting a "find existing row" snippet) and silently
+     * reintroducing that bug with no compiler or test signal.
      */
-    @Query("SELECT b FROM BulkImportLine b WHERE b.user.id = :userId "
-            + "AND lower(b.title) = :normalizedTitle AND b.year = :year AND b.status = :status")
-    Optional<BulkImportLine> findByUserIdAndNormalizedTitleAndYearAndStatus(
-            @Param("userId") UUID userId,
-            @Param("normalizedTitle") String normalizedTitle,
-            @Param("year") Integer year,
-            @Param("status") BulkImportLineStatus status);
 
     /**
-     * Find-or-create lookup for lines with a parseable year, regardless of status —
-     * used to update the existing row in place on re-upload (D-13).
-     */
-    @Query("SELECT b FROM BulkImportLine b WHERE b.user.id = :userId "
-            + "AND lower(b.title) = :normalizedTitle AND b.year = :year")
-    Optional<BulkImportLine> findByUserIdAndNormalizedTitleAndYear(
-            @Param("userId") UUID userId,
-            @Param("normalizedTitle") String normalizedTitle,
-            @Param("year") Integer year);
-
-    /**
-     * Find-or-create lookup for lines whose year failed to parse — (title, year) is not
-     * a reliable identity when year is null (SQL NULL = NULL is UNKNOWN, not TRUE), so
-     * these rows are identified by their normalized raw line text instead.
-     */
-    Optional<BulkImportLine> findByUserIdAndRawLineAndYearIsNull(UUID userId, String rawLine);
-
-    /**
-     * WR-03: probes for a stale PARSE_ERROR row (year always null, per
-     * {@link ImportLineParser#parse}) sharing the same normalized title as a line that now
-     * parses successfully — e.g. "Title;;abcd" (PARSE_ERROR, year=null) fixed and re-uploaded
-     * as "Title;;2010". Without this probe, {@code findByUserIdAndNormalizedTitleAndYear}
-     * (year non-null) never matches the year=null row, so the re-upload orphans the original
-     * row and inserts a duplicate instead of updating in place.
-     */
-    @Query("SELECT b FROM BulkImportLine b WHERE b.user.id = :userId "
-            + "AND lower(b.title) = :normalizedTitle AND b.year IS NULL")
-    Optional<BulkImportLine> findByUserIdAndNormalizedTitleAndYearIsNull(
-            @Param("userId") UUID userId,
-            @Param("normalizedTitle") String normalizedTitle);
-
-    /**
-     * CR-01 (16-01): batch-scoped sibling of {@link #findByUserIdAndNormalizedTitleAndYearAndStatus}
+     * CR-01 (16-01): batch-scoped sibling of the (now-removed) non-batch-scoped
+     * {@code findByUserIdAndNormalizedTitleAndYearAndStatus}
      * — the {@code existingSaved} dedup fast-path in {@code BulkImportService.processLine()} must
      * never treat a title/year SAVED in a DIFFERENT batch as already handled (D-02/D-03), so this
      * query adds {@code b.batch.id = :batchId} to the same WHERE clause.
@@ -71,7 +39,8 @@ public interface BulkImportLineRepository extends JpaRepository<BulkImportLine, 
             @Param("status") BulkImportLineStatus status);
 
     /**
-     * CR-01 (16-01): batch-scoped sibling of {@link #findByUserIdAndNormalizedTitleAndYear} —
+     * CR-01 (16-01): batch-scoped sibling of the (now-removed) non-batch-scoped
+     * {@code findByUserIdAndNormalizedTitleAndYear} —
      * used by {@code findExistingRow()} so a re-upload only ever finds/updates a row belonging to
      * THIS batch, never silently reassigning a different batch's row (D-01).
      */
@@ -84,7 +53,8 @@ public interface BulkImportLineRepository extends JpaRepository<BulkImportLine, 
             @Param("year") Integer year);
 
     /**
-     * CR-01 (16-01): batch-scoped sibling of {@link #findByUserIdAndNormalizedTitleAndYearIsNull}
+     * CR-01 (16-01): batch-scoped sibling of the (now-removed) non-batch-scoped
+     * {@code findByUserIdAndNormalizedTitleAndYearIsNull}
      * — the WR-03 stale-PARSE_ERROR probe, but scoped to THIS batch only (D-01).
      */
     @Query("SELECT b FROM BulkImportLine b WHERE b.user.id = :userId AND b.batch.id = :batchId "
@@ -95,8 +65,9 @@ public interface BulkImportLineRepository extends JpaRepository<BulkImportLine, 
             @Param("normalizedTitle") String normalizedTitle);
 
     /**
-     * CR-01 (16-01): batch-scoped sibling of {@link #findByUserIdAndRawLineAndYearIsNull} — derived
-     * query, matching the existing method's style (D-01).
+     * CR-01 (16-01): batch-scoped sibling of the (now-removed) non-batch-scoped
+     * {@code findByUserIdAndRawLineAndYearIsNull} — derived query, matching the existing
+     * method's style (D-01).
      */
     Optional<BulkImportLine> findByUserIdAndBatchIdAndRawLineAndYearIsNull(
             UUID userId, UUID batchId, String rawLine);

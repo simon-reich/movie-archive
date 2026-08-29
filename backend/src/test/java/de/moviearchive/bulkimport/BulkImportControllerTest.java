@@ -191,6 +191,32 @@ class BulkImportControllerTest extends AbstractWireMockTest {
     }
 
     /**
+     * CR-01 regression test support: polls until a bulk_import_line row with the given
+     * (case-insensitive) title exists SCOPED TO A SPECIFIC BATCH, or times out. Unlike
+     * {@link #pollForLineByTitle}, this disambiguates between two rows sharing the same title
+     * across two different batches (the exact CR-01 collision scenario).
+     */
+    private BulkImportLine pollForLineByTitle(String batchId, String title, long timeoutMs) throws InterruptedException {
+        UUID batchUuid = UUID.fromString(batchId);
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            var match = findLineByBatchAndTitle(batchUuid, title);
+            if (match != null) {
+                return match;
+            }
+            Thread.sleep(100);
+        }
+        return findLineByBatchAndTitle(batchUuid, title);
+    }
+
+    private BulkImportLine findLineByBatchAndTitle(UUID batchId, String title) {
+        return bulkImportLineRepository.findByBatchIdOrderByTitle(batchId).stream()
+                .filter(l -> title.equalsIgnoreCase(l.getTitle()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
      * Polls until bulkImportExecutor has no active thread and an empty queue, or the
      * timeout elapses — drains the single shared executor (running + queued task) before
      * the test method returns, mirroring WikiReloadControllerTest's drain-before-returning
@@ -686,8 +712,13 @@ class BulkImportControllerTest extends AbstractWireMockTest {
         assertThat(lineInBatchA).isNotNull();
         drainBulkImportExecutor(10000);
 
-        // Batch B — same user, same title, creates a second (distinct) line row via a fresh upload.
-        bulkImportLineRepository.deleteAll();
+        // Batch B — same user, same overlapping title/year, uploaded as a fresh (second) batch.
+        // CR-01 (15-REVIEW.md): before the batch-scoping fix, BulkImportService.findExistingRow()
+        // deduped only by user+title+year (never batchId), so this second upload would silently
+        // reassign batch A's existing row to batch B instead of creating an independent row for
+        // batch B — this test previously worked around that by deleteAll()-ing batch A's row
+        // first, masking the bug rather than proving it fixed. No deleteAll() here anymore: both
+        // batches' rows for the identical "Robin Hood;;2010" line must coexist independently.
         String batchBResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
                         .file(new MockMultipartFile("file", "films.txt", "text/plain",
                                 "Robin Hood;;2010".getBytes(StandardCharsets.UTF_8)))
@@ -695,10 +726,17 @@ class BulkImportControllerTest extends AbstractWireMockTest {
                 .andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsString();
         String batchBId = objectMapper.readTree(batchBResponseBody).get("batchId").asText();
-        BulkImportLine lineInBatchB = pollForLineByTitle("Robin Hood", 5000);
+        BulkImportLine lineInBatchB = pollForLineByTitle(batchBId, "Robin Hood", 5000);
         assertThat(lineInBatchB).isNotNull();
         drainBulkImportExecutor(10000);
         assertThat(batchAId).isNotEqualTo(batchBId);
+
+        // CR-01 regression proof: batch A's original row must still exist, untouched, still
+        // scoped to batch A — batch B's overlapping upload must not have reassigned it.
+        BulkImportLine reloadedLineInBatchA = bulkImportLineRepository.findById(lineInBatchA.getId())
+                .orElseThrow();
+        assertThat(reloadedLineInBatchA.getBatch().getId()).isEqualTo(UUID.fromString(batchAId));
+        assertThat(lineInBatchB.getId()).isNotEqualTo(reloadedLineInBatchA.getId());
 
         // lineInBatchB's id is not associated with batchAId — resolving against batchAId 404s.
         mockMvc.perform(MockMvcRequestBuilders.post(
@@ -809,7 +847,14 @@ class BulkImportControllerTest extends AbstractWireMockTest {
     }
 
     @Test
-    void shouldSkipReupload_whenLineAlreadySaved() throws Exception {
+    void shouldReprocessAndNotDuplicateMovie_whenReuploadedAsNewBatch() throws Exception {
+        // CR-01/D-02/D-03 (16-01): a re-upload via a SEPARATE `/movies/bulk-import` call creates
+        // a NEW batch — per this phase's decision, a title/year already SAVED in an OLDER batch
+        // is treated as unseen when it reappears in a NEW batch: it re-runs the full TMDB
+        // search+match pipeline and gets its OWN row in the new batch, but movieService.initiate()'s
+        // existing tmdbId-idempotency still guarantees no duplicate Movie row (D-03's explicit
+        // "simplicity over saving one redundant search" tradeoff). This replaces the pre-16-01 test
+        // that asserted the OLD, buggy cross-batch skip-and-reassign behavior (CR-01).
         createActiveUser("reupload@example.com");
         User user = userRepository.findByEmail("reupload@example.com").orElseThrow();
         saveTmdbKey(user, "valid-tmdb-key");
@@ -824,27 +869,43 @@ class BulkImportControllerTest extends AbstractWireMockTest {
 
         byte[] content = "Inception;;2010".getBytes(StandardCharsets.UTF_8);
 
-        mockMvc.perform(multipart("/movies/bulk-import")
+        String firstResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
                         .file(new MockMultipartFile("file", "films.txt", "text/plain", content))
                         .header("Authorization", token))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String firstBatchId = objectMapper.readTree(firstResponseBody).get("batchId").asText();
 
-        BulkImportLine firstLine = pollForLineByTitle("Inception", 5000);
+        BulkImportLine firstLine = pollForLineByTitle(firstBatchId, "Inception", 5000);
         assertThat(firstLine).isNotNull();
         assertThat(firstLine.getStatus()).isEqualTo(BulkImportLineStatus.SAVED);
         long countAfterFirst = movieRepository.count();
+        drainBulkImportExecutor(10000);
 
-        // Re-upload the byte-identical content
-        mockMvc.perform(multipart("/movies/bulk-import")
+        // Re-upload the byte-identical content — a fresh, independent batch.
+        String secondResponseBody = mockMvc.perform(multipart("/movies/bulk-import")
                         .file(new MockMultipartFile("file", "films.txt", "text/plain", content))
                         .header("Authorization", token))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String secondBatchId = objectMapper.readTree(secondResponseBody).get("batchId").asText();
+        assertThat(secondBatchId).isNotEqualTo(firstBatchId);
 
-        // Nothing new expected — brief settle window, not a full 5s poll for a new row
-        Thread.sleep(1000);
+        BulkImportLine secondLine = pollForLineByTitle(secondBatchId, "Inception", 5000);
+        assertThat(secondLine).isNotNull();
+        assertThat(secondLine.getStatus()).isEqualTo(BulkImportLineStatus.SAVED);
+        assertThat(secondLine.getId()).isNotEqualTo(firstLine.getId());
+        drainBulkImportExecutor(10000);
 
+        // D-03: no duplicate Movie row despite the second, independent TMDB search+match.
         assertThat(movieRepository.count()).isEqualTo(countAfterFirst);
-        wireMock.verify(1, getRequestedFor(urlPathMatching("/3/search/movie")));
+        // D-02/D-03: the second batch's line is NOT skipped via the cross-batch SAVED fast-path —
+        // it re-runs the full TMDB search (2 requests total, not 1).
+        wireMock.verify(2, getRequestedFor(urlPathMatching("/3/search/movie")));
+
+        // CR-01 regression proof: batch A's original row is untouched by batch B's upload.
+        BulkImportLine reloadedFirstLine = bulkImportLineRepository.findById(firstLine.getId()).orElseThrow();
+        assertThat(reloadedFirstLine.getBatch().getId()).isEqualTo(UUID.fromString(firstBatchId));
     }
 
     @Test

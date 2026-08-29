@@ -16,9 +16,21 @@ Delivered: reliable Wikipedia enrichment (attempt tracking, cooldown-filtered pa
 
 **Trigger for this milestone:** Bulk-import of ~630 films via an external Node script drove Wikipedia into rate-limiting — ~89% of imported films ended up without Wikipedia data, silently failed with no retry path.
 
-## Next Milestone Goals
+## Current Milestone: v2.0 UX Polish, Wiki Enrichment & Personal Lists
 
-No v2 milestone scoped yet. Candidates are tracked in **v2 candidates** below (CSV export, OAuth login, Letterboxd import, stats dashboard, multi-user) plus one open todo (Flutter API-contract doc — not urgent, no Flutter work started). Run `/gsd-new-milestone` when ready to scope the next one.
+**Goal:** Lift Bulk Import and Search onto a consistent, information-dense list UI, upgrade the detail page and rating display, make Wikipedia content richer and readable, expand the dashboard hub into a real overview (incl. batch wiki-reload monitor), add index CSV import/export, and lay the foundation for Personal Lists (PDF export follows in v3).
+
+**Target features:**
+- Bulk Import: list view without posters (real table columns); live progress bar directly on the Add Film page + live poster pop-in on the detail page
+- Search: Language/Country filter values spelled out instead of codes; reversible sort direction (all criteria); list view without posters (same column pattern as Bulk Import)
+- Detail page: show Original Title; clickable IMDB link; clickable Wikipedia link (once loaded)
+- Rating: stars → square grid (no gaps between boxes), with number feedback shown in/near the selected box
+- Wikipedia enrichment (research first): what fields are fetched today vs. what's available; preserve paragraph/HTML structure instead of a flat plaintext block
+- Dashboard/hub: Batch Wiki Reload card (progress + link to its own detail page + "last 5 processed movies" mini-monitor), Language/Genre chips spelled out + grid/flexbox layout
+- Index CSV export + import
+- Personal Lists (foundation only): mark movies, add to a list, save/view/manage lists — no PDF export yet
+
+**Deferred to v3:** PDF export of Personal Lists (styling, desktop/mobile layout, one film per page with trailer/Wikipedia/IMDB links)
 
 ## Requirements
 
@@ -83,12 +95,12 @@ No v2 milestone scoped yet. Candidates are tracked in **v2 candidates** below (C
 
 ### Active
 
-(keine offenen v1.1-Requirements — v1.1 ist mit Phase 16 vollständig)
+v2.0 requirements being defined — see `.planning/REQUIREMENTS.md` once written.
 
-### v2 candidates (deferred, not in v1.1)
+### v3 candidates (deferred, not in v2.0)
 
-- [ ] SET-05: CSV-Export aller Filmdaten — deferred from v1 (UI placeholder vorhanden)
-- [ ] SET-06-EXT: CSV-Import mit zusätzlichen Spalten über Titel/OriginalTitel/Jahr hinaus — der bestehende 3-Spalten-Umfang wurde in Phase 15 geliefert (siehe Validated); nur eine Erweiterung des Spaltenumfangs bleibt v2-Kandidat
+- [ ] PDF-01: PDF-Export von Personal Lists (Styling, Desktop/Mobile-Layout, ein Film pro Seite mit Trailer/Wikipedia/IMDB-Links) — baut auf v2.0's Personal-Lists-Foundation auf
+- [ ] SET-06-EXT: CSV-Import mit zusätzlichen Spalten über Titel/OriginalTitel/Jahr hinaus — der bestehende 3-Spalten-Umfang wurde in Phase 15 geliefert (siehe Validated); nur eine Erweiterung des Spaltenumfangs bleibt v3-Kandidat
 - [ ] AUTH-V2-01: OAuth-Login (Google)
 - [ ] FEAT-V2-01: Letterboxd CSV-Import
 - [ ] FEAT-V2-02: Statistik-Dashboard (Genres, Jahrzehnte, Watched-Fortschritt)
@@ -188,4 +200,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-29 after Phase 16 (v1.1 milestone complete)*
+*Last updated: 2026-08-29 after starting milestone v2.0*

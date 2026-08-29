@@ -1,20 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Enrichment Reliability & Bulk Import
-status: Awaiting next milestone
-stopped_at: Phase 16 complete — all phases complete
-last_updated: "2026-08-29T17:22:36.838Z"
+milestone: v2.0
+milestone_name: UX Polish, Wiki Enrichment & Personal Lists
+status: planning
+last_updated: "2026-08-29T17:46:06.114Z"
 last_activity: 2026-08-29
-last_activity_desc: Milestone v1.1 completed and archived
-state_head: 9197dcb7072d2df4c8ffe42ff3625e556b958349
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 28
-  completed_plans: 28
-  percent: 100
-current_phase: 16
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-08-29)
 
 ## Current Position
 
-Phase: Milestone v1.1 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-08-29 — Milestone v1.1 completed and archived
+Status: Defining requirements
+Last activity: 2026-08-29 — Milestone v2.0 started
 
 ## Performance Metrics
 

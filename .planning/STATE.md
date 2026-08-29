@@ -3,38 +3,37 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
 current_phase: 16
-current_phase_name: Bulk Import Correctness & Wiki-Reload Progress Clarity
-status: executing
-stopped_at: Phase 16 gap-closure plans 03/04 executed — verification stale, re-run verify-work
-last_updated: "2026-08-29T17:55:00.000Z"
+status: completed
+stopped_at: Phase 16 complete — all phases complete
+last_updated: "2026-08-29T16:13:31.176Z"
 last_activity: 2026-08-29
-last_activity_desc: Phase 16 gap-closure plans (G-16-2, G-16-3) executed and merged
-state_head: 9a4eb9f952a11b7522635097ecb104afc5cebfcf
+last_activity_desc: Phase 16 complete
+state_head: 127ef442fc98facb2582d766ba9e8acd9c38d709
 progress:
   total_phases: 9
-  completed_phases: 8
-  total_plans: 26
-  completed_plans: 24
-  percent: 89
+  completed_phases: 9
+  total_plans: 28
+  completed_plans: 28
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-28)
+See: .planning/PROJECT.md (updated 2026-08-29)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 16 — Bulk Import Correctness & Wiki-Reload Progress Clarity
+**Current focus:** v1.1 milestone complete — no active phase
 
 ## Current Position
 
-Phase: 16 (Bulk Import Correctness & Wiki-Reload Progress Clarity) — EXECUTING
-Plan: 4 of 4 (all plans have summaries; gap-closure plans 16-03/16-04 merged to main)
-Status: Executing Phase 16 — verification stale, re-run /gsd-verify-work 16 before transition
-Last activity: 2026-08-29 — Gap-closure plans 16-03 (G-16-2) and 16-04 (G-16-3) executed in parallel worktrees and merged
+Phase: 16
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-08-29 — Phase 16 complete
 
-Progress: 8/9 phases complete (89%) — Phase 16 (bulk-import dedup fix, wiki-reload stop-vs-complete clarity, multi-stage TMDB matching) is the last phase before v1.1 can close
+Progress: 9/9 phases complete (100%) — v1.1 milestone complete
 
 ## Performance Metrics
 
@@ -62,6 +61,8 @@ Progress: 8/9 phases complete (89%) — Phase 16 (bulk-import dedup fix, wiki-re
 | 12. Wikidata-based Wikipedia lookup | 1 | COMPLETE — 2026-08-27 |
 | 13. Wikidata SPARQL Batch Lookup | 3 | COMPLETE — 2026-08-27 |
 | 14. Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI | 2 | COMPLETE — 2026-08-28 |
+| 15. Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing | 6 | COMPLETE — 2026-08-28 |
+| 16. Bulk Import Correctness & Wiki-Reload Progress Clarity | 4 | COMPLETE — 2026-08-29 |
 
 ## Accumulated Context
 
@@ -79,12 +80,12 @@ Key decisions relevant to v1.1:
 - [Phase 12]: Wikidata P345 (IMDb-ID) Cross-Reference löst Wikipedia-Artikel direkt auf statt bis zu 10 URL-Kandidaten zu raten — Fallback-Kaskade bleibt für Filme ohne Wikidata-Eintrag erhalten
 - [Phase 13]: REST-basierte Wikidata-Suche (CirrusSearch + Sitelinks) ersetzt durch gebatchte SPARQL-Query (bis zu 50 IMDb-IDs/Request) — REST-Suche traf Wikidata's anonymen Rate-Limiter nach 2-3 Filmen unabhängig vom Pacing; `WikiReloadService.batchReload()` und `BulkImportService.runImport()` prefetchen jetzt einmal pro Lauf statt einmal pro Film
 - [Phase 14]: Live-UAT gegen echte Daten (368-382 eligible Filme) fand und fixte 5 reale Bugs, die gemockte Tests nicht zeigen konnten (Stop-Button unsichtbar während Prefetch, SPARQL-Prefetch-Burst statt Chunk-Interleaving, ETA ohne Pacing-Delay massiv zu niedrig, Stop-Button ohne Wartezeit-Feedback, ein Frontend-Typfehler); Wikidata-Prefetch läuft jetzt chunk-weise interleaved mit der Movie-Verarbeitung statt den gesamten eligible-Satz upfront in einem Rate-Limit-tripenden Burst aufzulösen; `wiki.retry.pacing-delay-ms` Default per Live-A/B-Test auf 20s justiert (war 30s)
+- [Phase 15]: Milestone-Abschluss — View-Toggle/Movie-Links/Inline-Resolve, echtes CSV-Parsing (RFC4180); 3 live-gefundene Bugs (NuxtLink-`:is`-Binding, Resolve-Widget-Layout, Titel-Truncation) in derselben Session gefixt
+- [Phase 16]: Endgültiger Milestone-Abschluss — Cross-Batch-Dedup-Fix (CR-01), Stopped-vs-Completed-Progress-UI (WR-02), mehrstufiger TMDB-Match; live-UAT fand 2 weitere Bugs (G-16-2 History-Duplikat, G-16-3 endlose Wiki-Reload-Retries bei bereits gefundenen Seiten), beide über parallele Git-Worktree-Gap-Closure-Pläne gefixt und live bestätigt; Security-Review 7/7 Threats geschlossen
 
 ### Pending Todos
 
-- 2026-08-28-create-api-contract-doc-for-future-flutter-port — Create a dedicated API-contract doc (endpoints, payload/SSE shapes, auth rules, rate-limit/pacing timing) to prep for a future Flutter frontend reusing the existing backend as-is; not urgent, no Flutter work started yet [minor] — NOT part of Phase 16, stays open
-- 2026-08-27-distinguish-stopped-vs-completed-in-progress-ui — Distinguish "stopped early" from "fully completed" in the wiki-reload progress UI (WR-02 from 14-REVIEW.md; deferred ProgressState schema change) [minor] — folded into Phase 16
-- 2026-08-28-fix-cross-batch-line-reassignment-in-bulk-import-dedup — BulkImportService.findExistingRow() dedups by user+title+year only, not batchId, silently reassigning lines across batches; pre-existing since Phase 10, found during Phase 15 code review (CR-01) [major] — folded into Phase 16
+- 2026-08-28-create-api-contract-doc-for-future-flutter-port — Create a dedicated API-contract doc (endpoints, payload/SSE shapes, auth rules, rate-limit/pacing timing) to prep for a future Flutter frontend reusing the existing backend as-is; not urgent, no Flutter work started yet [minor] — not tied to any milestone, stays open
 
 ### Blockers/Concerns
 
@@ -107,10 +108,11 @@ None.
 - Phase 15 added: Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing — folds in the 2026-08-24/25 loose todos so v1.1 closes with the import feature actually finished
 - Phase 15 completed 2026-08-28 (6/6 plans, incl. 3 gap-closure plans from live UAT); two live-found SSE bugs (AuthorizationDeniedException on async redispatch; wiki-reload progress permanently frozen after first run) fixed via standalone debug sessions before milestone close, both committed and archived to .planning/debug/resolved/
 - Phase 16 added 2026-08-29: milestone re-opened one more time before close — folds in the cross-batch bulk-import dedup bug (major, pre-existing since Phase 10), the deferred wiki-reload stopped-vs-completed UI gap (WR-02, Phase 14), and a new multi-stage TMDB auto-match algorithm decided by the user (title-only search first, single result auto-taken, multi-result narrowed by exact title+year, else AMBIGUOUS)
+- Phase 16 completed 2026-08-29 (4/4 plans, incl. 2 gap-closure plans from live UAT executed in parallel git worktrees); v1.1 milestone fully complete (9/9 phases)
 
 ## Session Continuity
 
-**Resume file:** .planning/phases/16-bulk-import-correctness-wiki-reload-progress-clarity/16-CONTEXT.md
+**Resume file:** None
 
-Last session: 2026-08-29T09:30:46.493Z
-Stopped at: Phase 16 context gathered
+Last session: 2026-08-29T18:30:00.000Z
+Stopped at: v1.1 milestone complete — ready for /gsd-complete-milestone v1.1

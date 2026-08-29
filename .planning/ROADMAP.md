@@ -198,15 +198,15 @@ Plans:
 **Goal:** Fold three deferred/newly-decided items into v1.1 before it closes: (1) fix a pre-existing (Phase 10, commit `eff92a5`) bulk-import dedup bug where `BulkImportService.findExistingRow()` matches by user+title+year only, not by `batchId`, silently reassigning a line from an older batch into a new one when titles/years overlap across batches (found during Phase 15 code review, CR-01, logged as todo 2026-08-28); (2) distinguish "stopped early" from "fully completed" in the wiki-reload progress UI — `WikiReloadProgressService.complete()` always reports `(total, total, true, ...)` regardless of whether Stop was clicked mid-run, so a stopped run's final panel misleadingly looks 100% done (flagged WR-02 in `14-REVIEW.md`, deferred from Phase 14, logged as todo 2026-08-27); (3) rework bulk-import's automatic TMDB matching in `BulkImportService.processLine()` into a multi-stage algorithm per the user's 2026-08-29 decision: search by title only first; if TMDB returns exactly one result, take it directly (no year check) since a single title hit is already unambiguous; if TMDB returns multiple results, narrow to the one with an exact title+year match; if no single exact match exists among multiple results, mark AMBIGUOUS. This changes today's behavior, which filters to year-matches first and marks NOT_FOUND if a single (but year-mismatched) TMDB result exists — the new algorithm trusts a unique title hit over year, which the user judged more useful in practice since TMDB title search is very often already unambiguous.
 **Requirements**: no formal REQUIREMENTS.md IDs — bug fix (1) and UI-clarity gap (2) are quality debt from Phases 10/14, item (3) is a net-new behavior decision made 2026-08-29, to be refined in 16-CONTEXT.md
 **Depends on:** Phase 15 (all three items touch `BulkImportService`/`WikiReloadProgressService`, both extended in Phase 15/the 2026-08-28 debug sessions)
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
 **Wave 1** *(independent — no shared files)*
 
-- [ ] 16-01-PLAN.md — Bulk import correctness: batch-scoped dedup fix (D-01–D-03, CR-01) + multi-stage TMDB matching rework (D-10–D-13)
-- [ ] 16-02-PLAN.md — Wiki-reload progress: stopped-vs-completed clarity + 3-state per-movie history (D-04–D-09, WR-02)
+- [x] 16-01-PLAN.md — Bulk import correctness: batch-scoped dedup fix (D-01–D-03, CR-01) + multi-stage TMDB matching rework (D-10–D-13)
+- [x] 16-02-PLAN.md — Wiki-reload progress: stopped-vs-completed clarity + 3-state per-movie history (D-04–D-09, WR-02)
 
 **Gap Closure** *(UAT findings against 16-02, independent of each other — no shared files)*
 
-- [ ] 16-03-PLAN.md — Gap closure: guard per-movie history push against the terminal event's echoed title/status, fixing the duplicate last-row-on-run-end (G-16-2)
-- [ ] 16-04-PLAN.md — Gap closure: key wiki-reload retry-eligibility off wiki_url IS NULL instead of wiki_plot/wiki_critics, stopping a genuinely-found page from being retried forever (G-16-3)
+- [x] 16-03-PLAN.md — Gap closure: guard per-movie history push against the terminal event's echoed title/status, fixing the duplicate last-row-on-run-end (G-16-2)
+- [x] 16-04-PLAN.md — Gap closure: key wiki-reload retry-eligibility off wiki_url IS NULL instead of wiki_plot/wiki_critics, stopping a genuinely-found page from being retried forever (G-16-3)

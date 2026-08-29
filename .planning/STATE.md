@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
-current_phase: 15
-status: completed
-stopped_at: Phase 15 complete — all phases complete
-last_updated: "2026-08-28T20:36:57.305Z"
-last_activity: 2026-08-28
-last_activity_desc: Phase 15 complete
-state_head: fd74740c92c65fcbb9c1f53199fb537cf47e3f85
+current_phase: 16
+status: ready_to_plan
+stopped_at: Phase 16 added (bulk-import dedup fix, wiki-reload stop-vs-complete clarity, multi-stage TMDB matching) — v1.1 not yet closed
+last_updated: "2026-08-29T00:00:00.000Z"
+last_activity: 2026-08-29
+last_activity_desc: Added Phase 16 to v1.1 before milestone close
+state_head: 6d0d240
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 8
   total_plans: 24
   completed_plans: 24
-  percent: 100
+  percent: 89
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-28)
 
 **Core value:** Archivieren und finden — a film must be saveable in seconds and findable just as fast.
-**Current focus:** Phase 15 — Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing
+**Current focus:** Phase 16 — Bulk Import Correctness & Wiki-Reload Progress Clarity
 
 ## Current Position
 
-Phase: 15
+Phase: 16
 Plan: Not started
-Status: All phases complete
-Last activity: 2026-08-28 — Phase 15 complete
+Status: Ready to plan
+Last activity: 2026-08-29 — Phase 16 added
 
-Progress: 7/8 phases complete (88%) — Phase 15 (import page completion) is the last phase before v1.1 can close
+Progress: 8/9 phases complete (89%) — Phase 16 (bulk-import dedup fix, wiki-reload stop-vs-complete clarity, multi-stage TMDB matching) is the last phase before v1.1 can close
 
 ## Performance Metrics
 
@@ -81,11 +81,9 @@ Key decisions relevant to v1.1:
 
 ### Pending Todos
 
-- 2026-08-25-enhance-bulk-import-batch-detail-page-view-toggle-movie-link — Enhance bulk import batch detail page: view toggle, movie links, inline ambiguous resolve [minor]
-- 2026-08-24-support-real-csv-parsing-for-bulk-import — Support real CSV parsing for bulk import (and matching CSV export) [minor]
-- 2026-08-27-distinguish-stopped-vs-completed-in-progress-ui — Distinguish "stopped early" from "fully completed" in the wiki-reload progress UI (WR-02 from 14-REVIEW.md; deferred ProgressState schema change) [minor]
-- 2026-08-27-authorizationdeniedexception-on-sse-emitter-complete — AuthorizationDeniedException logged on SseEmitter.complete() async re-dispatch; pre-existing pattern shared with bulk-import's progress endpoint, appears to be log noise only (response already committed) but needs proper root-causing [minor]
-- 2026-08-28-create-api-contract-doc-for-future-flutter-port — Create a dedicated API-contract doc (endpoints, payload/SSE shapes, auth rules, rate-limit/pacing timing) to prep for a future Flutter frontend reusing the existing backend as-is; not urgent, no Flutter work started yet [minor]
+- 2026-08-28-create-api-contract-doc-for-future-flutter-port — Create a dedicated API-contract doc (endpoints, payload/SSE shapes, auth rules, rate-limit/pacing timing) to prep for a future Flutter frontend reusing the existing backend as-is; not urgent, no Flutter work started yet [minor] — NOT part of Phase 16, stays open
+- 2026-08-27-distinguish-stopped-vs-completed-in-progress-ui — Distinguish "stopped early" from "fully completed" in the wiki-reload progress UI (WR-02 from 14-REVIEW.md; deferred ProgressState schema change) [minor] — folded into Phase 16
+- 2026-08-28-fix-cross-batch-line-reassignment-in-bulk-import-dedup — BulkImportService.findExistingRow() dedups by user+title+year only, not batchId, silently reassigning lines across batches; pre-existing since Phase 10, found during Phase 15 code review (CR-01) [major] — folded into Phase 16
 
 ### Blockers/Concerns
 
@@ -106,6 +104,8 @@ None.
 - Phase 13 added: Wikidata SPARQL Batch Lookup
 - Phase 14 added: Wiki Batch-Reload Pacing, Cooldown-Fix & Progress UI — milestone re-opened after live verification of Phase 13 against real dev environment (2026-08-27) found real-world rate limiting the mocked tests couldn't surface, plus a cooldown-marking bug and a missing progress UI
 - Phase 15 added: Bulk Import Page Completion: View Toggle, Movie Links, Real CSV Parsing — folds in the 2026-08-24/25 loose todos so v1.1 closes with the import feature actually finished
+- Phase 15 completed 2026-08-28 (6/6 plans, incl. 3 gap-closure plans from live UAT); two live-found SSE bugs (AuthorizationDeniedException on async redispatch; wiki-reload progress permanently frozen after first run) fixed via standalone debug sessions before milestone close, both committed and archived to .planning/debug/resolved/
+- Phase 16 added 2026-08-29: milestone re-opened one more time before close — folds in the cross-batch bulk-import dedup bug (major, pre-existing since Phase 10), the deferred wiki-reload stopped-vs-completed UI gap (WR-02, Phase 14), and a new multi-stage TMDB auto-match algorithm decided by the user (title-only search first, single result auto-taken, multi-result narrowed by exact title+year, else AMBIGUOUS)
 
 ## Session Continuity
 

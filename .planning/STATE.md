@@ -91,6 +91,7 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 260829-spl | Remove unused PlusCircleIcon import in frontend/pages/movies/[id].vue:3 (CI ESLint failure) | 2026-08-29 | 24b44ce | [260829-spl-remove-unused-pluscircleicon-import-in-f](./quick/260829-spl-remove-unused-pluscircleicon-import-in-f/) |
 
 ### Roadmap Evolution
 
@@ -112,7 +113,7 @@ Items acknowledged and deferred at milestone close, most recent first:
 **Resume file:** None
 
 Last session: 2026-08-29T19:56:00.000Z
-Stopped at: v2.0 ROADMAP.md created — 6 phases (17–22), 25/25 requirements mapped
+Stopped at: v2.0 ROADMAP.md created — 6 phases (17–22), 25/25 requirements mapped; CI-triage in progress — ESLint fix (quick task 260829-spl) complete, E2E login-redirect flake and Backend CI test-hang debug sessions started but not yet investigated (subagents hit session rate limit before making progress; resume after limit resets)
 
 ## Operator Next Steps
 

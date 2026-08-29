@@ -56,23 +56,38 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
     List<Movie> findRecentlyIndexedByUserId(@Param("userId") UUID userId, Pageable pageable);
 
     /**
-     * Returns movies for the user missing Wikipedia content (both wiki_plot AND
-     * wiki_critics NULL) whose last attempt was either never made or is outside the
-     * cooldown window. Deliberately NOT keyed on wiki_url alone: a movie can have a
-     * resolved Wikipedia page (wiki_url set, from the original save-flow lookup) while
-     * still missing both content sections — e.g. the page exists but has no "Plot" or
-     * "Critical response"/"Reception" section under the names WikipediaClient looks for.
-     * Keying eligibility on wiki_url IS NULL permanently excluded exactly this
-     * "has a page, missing content" state from ever being retried by batch-reload, even
-     * though it is indistinguishable from "fully missing" in the movie detail page's own
-     * v-if="movie.wikipediaPlot || movie.wikipediaCritics" condition, which this query
-     * must match. Only SUCCESS-status movies are eligible — ERROR-status movies never
-     * reached the Wikipedia step and have no reliable title/year to look up, so including
-     * them would waste a paced Wikipedia call on incomplete data. Used by batch-reload
-     * (ENRICH-02).
+     * Returns movies for the user with no resolved Wikipedia page (wiki_url IS NULL) whose
+     * last attempt was either never made or is outside the cooldown window. Only
+     * SUCCESS-status movies are eligible — ERROR-status movies never reached the Wikipedia
+     * step and have no reliable title/year to look up, so including them would waste a
+     * paced Wikipedia call on incomplete data. Used by batch-reload (ENRICH-02).
+     *
+     * <p>Superseded design decision (G-16-3, Phase 16 gap closure): an earlier version of
+     * this query deliberately keyed eligibility on {@code wiki_plot IS NULL AND
+     * wiki_critics IS NULL} instead of {@code wiki_url IS NULL}, to match the movie detail
+     * page's own {@code v-if="movie.wikipediaPlot || movie.wikipediaCritics"} visibility
+     * guard — the idea being that "has a page but no extractable content" should be treated
+     * the same as "fully missing" and kept eligible for retry. In practice this caused a
+     * movie whose real, correctly-matched Wikipedia page has no section under exactly the
+     * names {@code WikipediaClient.findSectionIndex()} recognizes ("Plot" / "Critical
+     * response" / "Reception" / "Critical reception") to be re-selected and re-fetched on
+     * every single batch-reload run forever — re-fetching the same unchanged real article
+     * deterministically reproduces the same (empty) plot/critics result every time.
+     * Confirmed live: 41/305 movies in the dataset shared this exact shape. Meanwhile
+     * {@code WikiReloadService.WikiRetryOutcome.SUCCESS} (the value the per-movie history
+     * checkmark renders, D-09) already means only "a page was located," independent of
+     * whether any content section was extracted — so such a movie displayed a SUCCESS
+     * checkmark on every run while simultaneously never leaving the eligible pool, an
+     * internally-inconsistent experience. Keying eligibility on {@code wiki_url IS NULL}
+     * aligns this query with WikiRetryOutcome's existing "found" semantics: once a page is
+     * located, it is never retried again. Accepted trade-off: such a movie's detail page
+     * will continue showing "no Wikipedia data" (per that same v-if) without ever being
+     * retried again — broadening WikipediaClient's section-name recognition (a distinct,
+     * larger scope) is the follow-up that would let such a page's content actually populate
+     * someday, and is intentionally NOT addressed by this change.
      */
     @Query("SELECT m FROM Movie m WHERE m.user.id = :userId "
-           + "AND m.wikiPlot IS NULL AND m.wikiCritics IS NULL "
+           + "AND m.wikiUrl IS NULL "
            + "AND m.status = de.moviearchive.movie.MovieStatus.SUCCESS "
            + "AND (m.wikiLastAttemptedAt IS NULL OR m.wikiLastAttemptedAt < :cutoff)")
     List<Movie> findEligibleForWikiReload(@Param("userId") UUID userId, @Param("cutoff") Instant cutoff);

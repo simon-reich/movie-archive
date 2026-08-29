@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enrichment Reliability & Bulk Import
-current_phase: 16
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 16 complete — all phases complete
-last_updated: "2026-08-29T16:13:31.176Z"
+last_updated: "2026-08-29T17:22:36.838Z"
 last_activity: 2026-08-29
-last_activity_desc: Phase 16 complete
-state_head: 127ef442fc98facb2582d766ba9e8acd9c38d709
+last_activity_desc: Milestone v1.1 completed and archived
+state_head: 9197dcb7072d2df4c8ffe42ff3625e556b958349
 progress:
   total_phases: 9
   completed_phases: 9
   total_plans: 28
   completed_plans: 28
   percent: 100
+current_phase: 16
 ---
 
 # Project State
@@ -28,12 +28,10 @@ See: .planning/PROJECT.md (updated 2026-08-29)
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-08-29 — Phase 16 complete
-
-Progress: 9/9 phases complete (100%) — v1.1 milestone complete
+Phase: Milestone v1.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-29 — Milestone v1.1 completed and archived
 
 ## Performance Metrics
 
@@ -95,10 +93,6 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 260519-fcg | Fix all ESLint errors and warnings from CI lint output across the frontend | 2026-05-19 | b944dc0 | [260519-fcg-fix-all-eslint-errors-and-warnings-from-](./quick/260519-fcg-fix-all-eslint-errors-and-warnings-from-/) |
-| 2 | 260826-pwp: Set wiki.retry.cooldown-days default to 0 temporarily (dev testing) | 2026-08-26 | 4f139c0 | — |
-| 260828-qh2 | Bulk import: skip Wikipedia fetch during import, rely on WikiReloadService batch-reload to backfill later | 2026-08-28 | 635a744 | [260828-qh2-bulk-import-skip-wikipedia-fetch-during-](./quick/260828-qh2-bulk-import-skip-wikipedia-fetch-during-/) |
-| 3 | 260826-qfm: Give Wikidata calls their own longer request pacing (3000ms default) | 2026-08-26 | d7cb20a | — |
 
 ### Roadmap Evolution
 
@@ -110,9 +104,24 @@ None.
 - Phase 16 added 2026-08-29: milestone re-opened one more time before close — folds in the cross-batch bulk-import dedup bug (major, pre-existing since Phase 10), the deferred wiki-reload stopped-vs-completed UI gap (WR-02, Phase 14), and a new multi-stage TMDB auto-match algorithm decided by the user (title-only search first, single result auto-taken, multi-result narrowed by exact title+year, else AMBIGUOUS)
 - Phase 16 completed 2026-08-29 (4/4 plans, incl. 2 gap-closure plans from live UAT executed in parallel git worktrees); v1.1 milestone fully complete (9/9 phases)
 
+## Deferred Items
+
+Items acknowledged and deferred at milestone close, most recent first:
+
+| Category | Item | Status | Deferred At | Milestone |
+|----------|------|--------|-------------|-----------|
+| debug_sessions | knowledge-base | unknown (scanner false-positive — resolved-sessions index, not a debug session) | 2026-08-29 | v1.1 |
+| todos | 2026-08-28-create-api-contract-doc-for-future-flutter-port.md | pending (genuinely still open, carried to next milestone) | 2026-08-29 | v1.1 |
+| deferred_items | Phase 15/deferred-items.md: `frontend/pages/movies/[id].vue:3` — ESLint error `'PlusCircleIcon' is defined but never used` (pre-existing, out of scope) | acknowledged | 2026-08-29 | v1.1 |
+| deferred_items | Phase 15/deferred-items.md: Full-suite `./gradlew check` cross-class test isolation flakiness (pre-existing test-infrastructure gap, out of scope) | acknowledged | 2026-08-29 | v1.1 |
+
 ## Session Continuity
 
 **Resume file:** None
 
 Last session: 2026-08-29T18:30:00.000Z
 Stopped at: v1.1 milestone complete — ready for /gsd-complete-milestone v1.1
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

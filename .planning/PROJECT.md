@@ -2,24 +2,23 @@
 
 ## What This Is
 
-Personal web app to build a searchable film archive. Movies are fetched via TMDB, optionally enriched with OMDB and Wikipedia data, then indexed in OpenSearch for full-text and faceted search. v1.0 shipped — all core flows (auth, save, search, detail) work on desktop and mobile.
+Personal web app to build a searchable film archive. Movies are fetched via TMDB, optionally enriched with OMDB and Wikipedia data, then indexed in OpenSearch for full-text and faceted search. v1.0 shipped all core flows (auth, save, search, detail) on desktop and mobile; v1.1 added reliable Wikipedia enrichment (Wikidata-first lookup, batch reload with pacing/cooldown, manual per-film retry) and a full in-app Bulk Import feature (CSV/semicolon upload, live progress, inline ambiguous-match resolution).
 
 ## Core Value
 
 Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso schnell wiederfinden lassen. Beides zusammen macht den Wert, keines davon allein reicht.
 
-## Current Milestone: v1.1 Enrichment Reliability & Bulk Import — ✓ COMPLETE (2026-08-29, 9/9 Phasen)
+## Current State
 
-**Goal:** Enrichment-Lücken sichtbar und behebbar machen — automatisiert/bulk und manuell pro Film — und Bulk-Import als vollwertiges In-App-Feature mit Nachvollziehbarkeit.
+**v1.1 Enrichment Reliability & Bulk Import — shipped 2026-08-29 (9 phases, 28 plans, 53 tasks).**
 
-**Target features:**
-- Wiki-Lookup-Status (`wiki_last_attempted_at`) pro Film; Batch-Reload überspringt nur kürzlich (Cooldown, z.B. 30 Tage) erfolglos versuchte Filme
-- Batch-Reload-Funktion mit Pacing, um erneutes Rate-Limiting durch Wikipedia zu vermeiden
-- Manueller Retry-Button auf der Detailseite eines Films ohne Wiki-Daten
-- Bulk-Import als In-App-Feature (Bereich "Add Film"): Datei-Upload statt externem Script
-- Import-Feedback-UI: Live-Fortschritt + Ergebnisübersicht mit Titel/Poster/Status pro Zeile
+Delivered: reliable Wikipedia enrichment (attempt tracking, cooldown-filtered paced batch-reload, manual per-film retry, Wikidata-first SPARQL-batched lookup replacing the fragile URL-guessing cascade) and a complete in-app Bulk Import feature (CSV/semicolon upload, live SSE progress, per-line results with inline ambiguous/not-found resolution, batch history). Both areas went through multiple rounds of live-data UAT that found and fixed real bugs mocked tests couldn't surface — see Context below and the Key Decisions table.
 
-**Trigger:** Bulk-Import von ~630 Filmen (externes Node-Script) führte zu einem Enrichment-Burst, der Wikipedia offenbar ins Rate-Limiting/Blocking trieb — ~89% der importierten Filme blieben ohne Wikipedia-Daten, silent-failed ohne Retry-Möglichkeit.
+**Trigger for this milestone:** Bulk-import of ~630 films via an external Node script drove Wikipedia into rate-limiting — ~89% of imported films ended up without Wikipedia data, silently failed with no retry path.
+
+## Next Milestone Goals
+
+No v2 milestone scoped yet. Candidates are tracked in **v2 candidates** below (CSV export, OAuth login, Letterboxd import, stats dashboard, multi-user) plus one open todo (Flutter API-contract doc — not urgent, no Flutter work started). Run `/gsd-new-milestone` when ready to scope the next one.
 
 ## Requirements
 
@@ -106,13 +105,14 @@ Archivieren und finden — ein Film muss sich in Sekunden speichern und genauso 
 
 ## Context
 
-**Current State (v1.0 — shipped 2026-05-21):**
-- All 7 phases complete, all 28 plans shipped
-- 258 commits, 369 files, ~62k lines of production + test code
-- All 101 Jira tickets (MOV-1–MOV-101) closed
-- Stack: Spring Boot 3 + Java 25 / Nuxt 3 + Vue 3 + TypeScript + TailwindCSS + shadcn-vue / PostgreSQL 16 / OpenSearch 2.x / Caddy / Docker Compose
+**Current State (v1.1 — shipped 2026-08-29):**
+- 16 phases complete across v1.0 + v1.1, 56 plans shipped total
+- v1.1 alone: 314 commits, 222 files changed, +33,464/−186 lines, over 8 days (2026-08-22 → 2026-08-29)
+- All v1.0 (101 Jira tickets) and v1.1 (15/15 REQUIREMENTS.md items) requirements closed
+- Stack unchanged: Spring Boot 3 + Java 25 / Nuxt 3 + Vue 3 + TypeScript + TailwindCSS + shadcn-vue / PostgreSQL 16 / OpenSearch 2.x / Caddy / Docker Compose
 - Testing: JUnit 5 + Testcontainers (BE), Vitest + Vue Test Utils + MSW (FE), Playwright E2E
-- External APIs: TMDB (required), OMDB (optional), Wikipedia (always tried)
+- External APIs: TMDB (required), OMDB (optional), Wikipedia (Wikidata-first SPARQL batch lookup as of Phase 13, always tried)
+- Known tech debt (not blocking): Phase 15's pre-existing unused-icon ESLint warning and a full-suite cross-class test-isolation flakiness in `./gradlew check` (both documented, out of scope, tracked in STATE.md Deferred Items)
 
 **v1.1 trigger (2026-08-22):** Bulk-imported ~630 Filme via externes Script gegen die bestehenden `/movies/search` + `/movies/save` Endpoints. 462 gespeichert, aber nur 58 von 526 gespeicherten Filmen (~11%) haben Wikipedia-Daten — OMDB (523/526) unauffällig. Root cause: `enrichmentExecutor` (2 core/5 max Threads, `backend/.../config/AsyncConfig.java`) verarbeitete den Burst mit vielen sequenziellen Wikipedia-Calls pro Film; `WikipediaClient` User-Agent `"MovieArchive/0.1"` vermutlich rate-limited/blockiert. `EnrichmentService.enrich()` schluckt Wikipedia-Fehler bewusst still (D-15) — kein Retry, kein Fehlerstatus. `/movies/save` ist idempotent, re-triggert also kein Re-Enrichment für bereits gespeicherte Filme; `ReindexController` re-synct nur Postgres→OpenSearch, ruft nie externe APIs erneut auf. Live verifiziert: Wikipedia-Lookup-Logik selbst funktioniert (Testabruf für "Whiplash" fand sofort Treffer).
 

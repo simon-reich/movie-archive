@@ -1,5 +1,5 @@
 ---
-status: investigating
+status: resolved
 trigger: |
   UAT diagnosis (goal: find_root_cause_only) — Phase 15 gap G-15-2.
   Truth: SAVED bulk-import line's card/row is entirely clickable and navigates to
@@ -214,6 +214,6 @@ root_cause: |
   pattern reads as correct by static inspection — the failure is a Nuxt-specific
   compile-time/runtime component-resolution quirk, not a logic bug visible from the
   source alone.
-fix: (not applied — goal: find_root_cause_only; a separate planning step handles the fix)
-verification: (not applicable — diagnosis only)
-files_changed: []
+fix: Applied in Phase 15, Plan 15-04 — frontend/pages/imports/[batchId].vue now captures `const NuxtLink = resolveComponent('NuxtLink')` in `<script setup>` and binds `:is="movieLinkTarget(line) ? NuxtLink : 'div'"` using the resolved component reference instead of the bare string `'NuxtLink'`.
+verification: Confirmed by reading current frontend/pages/imports/[batchId].vue (resolveComponent pattern present at lines ~22, 240, 341) and 15-04-PLAN.md's regression test asserting `resolveComponent('NuxtLink')` is present.
+files_changed: [frontend/pages/imports/[batchId].vue (Phase 15, Plan 15-04)]

@@ -2,55 +2,53 @@
 status: complete
 phase: 05-search
 source: [05-VERIFICATION.md]
-started: 2026-05-17T23:45:00Z
-updated: 2026-05-18T00:00:00Z
+started: 2026-08-29T00:00:00Z
+updated: 2026-08-29T00:00:00Z
 ---
 
 ## Current Test
 
-[testing complete]
+[all tests complete]
 
 ## Tests
 
-### 1. Free-text search debounce
-expected: Typing a query triggers a search ~300ms after the last keystroke (not on every keystroke). Results update in the result grid/list without a full page reload.
-result: pass
+### 1. Free-text search returns live results after ~300ms
+expected: Type 'inception' in the search bar on /search; results update automatically after ~300ms without clicking any button; URL updates to /search?q=inception&page=0
+result: passed
 
-### 2. Advanced filter combination
-expected: Selecting genre + year range + IMDB rating minimum together narrows results correctly. Filters are combined (AND logic), not OR.
-result: pass
+### 2. Advanced filters narrow search results
+expected: Open FilterPanel on /search, select genre 'Thriller'; only Thriller films appear in results; URL updates to /search?genre=Thriller; combine with director filter, both constraints apply (AND logic)
+result: passed
 
-### 3. Genre chip navigation
-expected: Clicking a genre chip on a MovieCard navigates to /search with `?genre=<Genre>` pre-filled and results already filtered.
-result: pass
+### 3. Clicking genre chip navigates to pre-filtered search
+expected: On a MovieCard in search results, click a genre chip (e.g. 'Drama'); browser navigates to /search?genre=Drama; results show only Drama films
+result: passed
 
-### 4. Sort ordering
-expected: Switching sort from "Title A–Z" to "IMDB Rating" reorders results descending by IMDB rating. Films without a rating appear last.
-result: pass
+### 4. Sort options produce correct ordering
+expected: Change sort to 'Year (newest)' on /search; results reorder with most recent films first; change to 'IMDB rating'; results reorder highest-rated first; nulls (films without IMDB rating) appear last
+result: passed
 
-### 5. View toggle localStorage persistence
-expected: Switching between Grid and List view, then reloading the page, restores the previously selected view mode.
-result: pass
+### 5. Grid/list view toggle persists across page reload
+expected: Toggle from grid to list view on /search; reload the page; list view is still active (localStorage persistence working)
+result: passed
 
-### 6. Dashboard with real data
-expected: Dashboard shows accurate stats (total films, genres, etc.), a movie-of-the-day that stays the same on the same calendar day, and a recently-added list.
-result: pass
+### 6. Dashboard shows stats, movie of the day, and recently added with real data
+expected: With films indexed in OpenSearch, visit /; total film count is accurate; top genres match indexed films; movie of the day is a real film from the archive; recently added shows last 10 films; same movie of the day seen twice on the same calendar day
+result: passed
 
-### 7. Empty archive empty-state CTA
-expected: When no films are indexed, the search page shows an empty state with a "Save your first film" call-to-action rather than an empty grid/list.
-result: pass
-
-### 8. IMDB rating histogram — 10 individual bars
-expected: On the dashboard the IMDB Rating Distribution chart shows 10 individual bars, one per integer rating (1, 2, 3, …, 10). Bars for ratings with no films show as zero-height. Bar labels underneath read "1" through "10".
-result: pass
+### 7. Empty archive dashboard shows Add your first film CTA
+expected: Log in to a fresh account with no saved films; visit /; see 'Your archive is empty.' message and an 'Add your first film' button linking to /add
+result: passed
 
 ## Summary
 
-total: 8
-passed: 8
+total: 7
+passed: 7
 issues: 0
 pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+None.

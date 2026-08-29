@@ -5,6 +5,7 @@ Out-of-scope issues discovered during plan execution but not fixed (scope bounda
 ## Plan 15-01
 
 - **`frontend/pages/movies/[id].vue:3`** — ESLint error: `'PlusCircleIcon' is defined but
+  status: acknowledged
   never used`. Pre-existing (last touched in phase 09, commit `3006964`), not in this plan's
   `files_modified` list, and unrelated to view-toggle/movie-link/PARSE_ERROR work. Confirmed
   via `git log` that this predates plan 15-01. Not fixed here — out of scope.
@@ -12,6 +13,7 @@ Out-of-scope issues discovered during plan execution but not fixed (scope bounda
 ## Plan 15-03
 
 - **Full-suite `./gradlew check` cross-class test isolation flakiness** — running the entire
+  status: acknowledged
   backend suite fails ~97 tests across unrelated classes (`UserControllerTest`,
   `SettingsIntegrationTest`, `MovieControllerTest`, `SearchControllerTest`,
   `WikiReloadServiceIntegrationTest`, `EnrichmentIntegrationTest`, `IndexingIntegrationTest`,

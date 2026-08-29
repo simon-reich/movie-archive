@@ -1,5 +1,5 @@
 ---
-status: investigating
+status: resolved
 trigger: "UAT gap G-15-3 (Phase 15, test 3): Expand the resolve widget on a real AMBIGUOUS or NOT_FOUND line, run a live TMDB search, pick a candidate, and confirm the batch report immediately shows SAVED with a working movie link. User reported: 'Da ist leider die Anzeige viel zu klein, der Poster. Man erkennt die Filme nicht. Also ist es gut, dass es inline passiert, Aber das Gritt und damit die Anzeige der Poster muss viel größer sein. Zurzeit wird hier auch nur in das Column gequetscht von dem Poster, was zu resolven ist. Das muss über die volle Breite gehen.'"
 created: 2026-08-28T17:51:24Z
 updated: 2026-08-28T17:51:24Z
@@ -56,6 +56,6 @@ started: Introduced in Phase 15 (bulk-import page completion / view toggle / mov
 
 root_cause: |
   The resolve widget's expanded candidate-picker (in both grid view and list view) is rendered as a DOM descendant nested inside the same single grid-cell / list-row-column that the "Resolve" toggle button lives in, rather than as a full-width element rendered outside/below the parent grid or row. As a direct consequence, its own internal candidate layout (`grid-cols-3` in grid view; `flex flex-wrap` with fixed `w-10` posters in list view) is constrained to the available width of one grid cell (1/2 to 1/5 of the viewport, per the `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5` responsive breakpoints on line 195) or one narrow list-row text column, instead of the full page/container width. No breakout mechanism (col-span-full, portal/teleport, absolute overlay, or restructured full-width row) exists to let the widget escape its parent's width constraint.
-fix: (not applied — goal: find_root_cause_only; a separate planning step handles the fix)
-verification: (not applicable — diagnose-only session)
-files_changed: []
+fix: Applied in Phase 15, Plan 15-04 — the expanded resolve widget's candidate picker is now given a sibling full-width panel (`col-span-full` in grid view, a full-width block in list view) instead of being nested inside the triggering line's narrow grid-cell/row-column.
+verification: Confirmed by reading current frontend/pages/imports/[batchId].vue — `col-span-full` classes present on the resolve panel wrapper (grid view) and candidate grid widened accordingly (`grid-cols-3 sm:grid-cols-4 md:grid-cols-6`).
+files_changed: [frontend/pages/imports/[batchId].vue (Phase 15, Plan 15-04)]

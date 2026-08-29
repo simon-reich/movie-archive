@@ -122,5 +122,11 @@ None — discussion stayed within phase scope. D-09 (3-state per-movie status di
 
 ---
 
+## UAT Gap-Closure Decisions (added 2026-08-29, post-execution)
+
+- **G-16-3 (wiki-reload infinite-retry conflict):** Debug session `.planning/debug/16-notfound-icon-shows-checkmark.md` found `MovieRepository.findEligibleForWikiReload` and `WikiReloadService.WikiRetryOutcome` use two conflicting "found" definitions (content-extracted vs. page-exists), causing 41/305 movies with a genuinely-found-but-content-incomplete Wikipedia page to be retried forever. User confirmed (via AskUserQuestion) to fix this as a Phase 16 gap rather than defer it to a separate backlog item. Of the three fix directions the debug session proposed, the simplest-correct one was selected: key `findEligibleForWikiReload` off `wiki_url IS NULL` instead of `wiki_plot IS NULL AND wiki_critics IS NULL`. Accepted trade-off: these movies' detail pages permanently show "no Wikipedia data" once a page is found but content extraction fails — no retry. Broadening `WikipediaClient`'s section-name allowlist (option c) and a distinct "content incomplete" status (option b) were explicitly scoped out as future work. Implemented in `16-04-PLAN.md`.
+
+---
+
 *Phase: 16-bulk-import-correctness-wiki-reload-progress-clarity*
 *Context gathered: 2026-08-29*

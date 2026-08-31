@@ -82,6 +82,7 @@ Key decisions relevant to v1.1 carry forward unchanged (see PROJECT.md). New for
 ### Pending Todos
 
 - 2026-08-28-create-api-contract-doc-for-future-flutter-port — Create a dedicated API-contract doc (endpoints, payload/SSE shapes, auth rules, rate-limit/pacing timing) to prep for a future Flutter frontend reusing the existing backend as-is; not urgent, no Flutter work started yet [minor] — not tied to any milestone, stays open
+- 2026-08-31-backend-full-suite-remaining-ci-flakiness — Backend CI still not reliably green after 3 fixed debug sessions (hang, FK-cascade, Hikari pool sizing): EnrichmentIntegrationTest fails on GitHub's 2-core runner but not locally (likely the new maximum-pool-size=5 cap too tight under CI load), plus AuthIntegrationTest 429s from unreset Bucket4j rate-limiter state across the shared JVM test run [major] — E2E Tests and Frontend CI are both green; only the backend full-suite CI job is affected; start a fresh `/gsd-debug` session when picked back up
 
 ### Blockers/Concerns
 
@@ -112,9 +113,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 **Resume file:** None
 
-Last session: 2026-08-29T19:56:00.000Z
-Stopped at: v2.0 ROADMAP.md created — 6 phases (17–22), 25/25 requirements mapped; CI-triage in progress — ESLint fix (quick task 260829-spl) complete, E2E login-redirect flake and Backend CI test-hang debug sessions started but not yet investigated (subagents hit session rate limit before making progress; resume after limit resets)
+Last session: 2026-08-31T10:35:00.000Z
+Stopped at: v2.0 ROADMAP.md created — 6 phases (17–22), 25/25 requirements mapped; post-push CI triage session closed out. Resolved: ESLint fix, e2e-login-redirect-flake, backend-ci-tests-hang, fullsuite-fk-isolation-flakiness (4 debug/quick sessions, all committed and pushed). E2E Tests and Frontend CI are both green as of commit `16ab790`. Backend CI full-suite job is not yet reliably green — tracked as pending todo 2026-08-31-backend-full-suite-remaining-ci-flakiness, deliberately deferred (user is switching to another project). Phase 17 planning has NOT started yet.
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 17` to start planning Phase 17: Bulk Import UX Polish
+- Optional: pick up `2026-08-31-backend-full-suite-remaining-ci-flakiness` via a fresh `/gsd-debug` session to get Backend CI fully green
+- Run `/gsd-plan-phase 17` to start planning Phase 17: Bulk Import UX Polish (v2.0 roadmap is ready, execution hasn't started)
